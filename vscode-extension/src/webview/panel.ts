@@ -4,9 +4,11 @@ import * as path from 'path';
 export class WebviewPanelManager {
     private panel: vscode.WebviewPanel | undefined;
     private context: vscode.ExtensionContext;
+    private version: string;
 
-    constructor(context: vscode.ExtensionContext) {
+    constructor(context: vscode.ExtensionContext, version: string = '0.0.0') {
         this.context = context;
+        this.version = version;
     }
 
     public async createOrShowPanel(): Promise<vscode.WebviewPanel> {
@@ -157,6 +159,14 @@ export class WebviewPanelManager {
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
         
+        #version {
+            font-size: 11px;
+            color: #666;
+            margin-top: 4px;
+            padding-top: 8px;
+            border-top: 1px solid #ddd;
+        }
+        
         #loading {
             position: absolute;
             top: 50%;
@@ -197,6 +207,7 @@ export class WebviewPanelManager {
         <div id="ui-overlay">
             <div>OpenAs3D - Codebase Explorer</div>
             <div id="stats">Objects: 0 | FPS: 0</div>
+            <div id="version">Build ${this.version}</div>
         </div>
         <div id="controls-help">
             <strong>Controls:</strong><br>

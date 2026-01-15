@@ -6,10 +6,12 @@ let webviewPanelManager: WebviewPanelManager;
 let extensionLoader: ExtensionLoader;
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('OpenAs3D extension is now active!');
+    const extension = vscode.extensions.getExtension('openas3d.openas3d-vscode');
+    const version = extension?.packageJSON?.version || '0.0.0';
+    console.log(`OpenAs3D extension is now active! (Build ${version})`);
 
     // Initialize managers
-    webviewPanelManager = new WebviewPanelManager(context);
+    webviewPanelManager = new WebviewPanelManager(context, version);
     extensionLoader = new ExtensionLoader(context);
 
     // Register commands
