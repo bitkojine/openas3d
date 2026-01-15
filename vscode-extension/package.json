@@ -4,6 +4,10 @@
   "description": "Visualize codebase dependencies and architecture in navigable 3D worlds",
   "version": "0.1.0",
   "publisher": "openas3d",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bitkojine/openas3d"
+  },
   "engines": {
     "vscode": "^1.74.0"
   },
