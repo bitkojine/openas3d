@@ -300,8 +300,29 @@ export class CodebaseVisualizer implements WorldVisualizer {
             });
         });
 
-        // TODO: Add dependency edges as lines between objects
-        // This would require extending the renderer to support line objects
+        // Add dependency edges as lines between objects
+        this.dependencyGraph.edges.forEach(edge => {
+            this.panel!.webview.postMessage({
+                type: 'addDependency',
+                data: {
+                    id: `${edge.source}-${edge.target}`,
+                    source: edge.source,
+                    target: edge.target,
+                    type: edge.type,
+                    color: this.getDependencyColor(edge.type),
+                    opacity: 0.6
+                }
+            });
+        });
+    }
+
+    private getDependencyColor(type: string): number {
+        switch (type) {
+            case 'import': return 0x00BFFF; // Deep sky blue
+            case 'extends': return 0xFF6B35; // Orange  
+            case 'calls': return 0x32CD32; // Lime green
+            default: return 0x888888; // Gray
+        }
     }
 
     private getLanguageColor(language: string): number {

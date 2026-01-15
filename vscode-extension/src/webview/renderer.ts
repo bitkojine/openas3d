@@ -16,12 +16,21 @@ interface CodeObject {
     metadata: any;
 }
 
+interface DependencyEdge {
+    id: string;
+    source: string;
+    target: string;
+    type: 'import' | 'extends' | 'calls';
+    line: THREE.Line;
+}
+
 class WorldRenderer {
     private scene!: THREE.Scene;
     private camera!: THREE.PerspectiveCamera;
     private renderer!: THREE.WebGLRenderer;
     private vscode: any;
     private objects: Map<string, CodeObject> = new Map();
+    private dependencies: Map<string, DependencyEdge> = new Map();
     private selectedObject: CodeObject | null = null;
     private raycaster: THREE.Raycaster = new THREE.Raycaster();
     private mouse: THREE.Vector2 = new THREE.Vector2();
@@ -417,6 +426,9 @@ class WorldRenderer {
         const material = codeObject.mesh.material as THREE.MeshLambertMaterial;
         material.emissive.setHex(0x444444);
 
+        // Show dependencies for selected object
+        this.showDependenciesForObject(codeObject.id);
+
         // Notify extension
         this.vscode.postMessage({
             type: 'objectSelected',
@@ -435,6 +447,9 @@ class WorldRenderer {
             const material = this.selectedObject.mesh.material as THREE.MeshLambertMaterial;
             material.emissive.setHex(0x000000);
             this.selectedObject = null;
+            
+            // Show all dependencies again (or hide them)
+            this.showAllDependencies();
         }
     }
 
@@ -442,7 +457,7 @@ class WorldRenderer {
         this.frameCount++;
         if (this.frameCount % 60 === 0) {
             this.fps = Math.round(1 / deltaTime);
-            this.statsElement.textContent = `Objects: ${this.objects.size} | FPS: ${this.fps}`;
+            this.statsElement.textContent = `Objects: ${this.objects.size} | Dependencies: ${this.dependencies.size} | FPS: ${this.fps}`;
         }
     }
 
@@ -518,7 +533,111 @@ class WorldRenderer {
             this.scene.remove(obj.mesh);
         });
         this.objects.clear();
+        
+        this.dependencies.forEach(dep => {
+            this.scene.remove(dep.line);
+        });
+        this.dependencies.clear();
+        
         this.selectedObject = null;
+    }
+
+    public addDependencyLine(data: {
+        id: string;
+        source: string;
+        target: string;
+        type: 'import' | 'extends' | 'calls';
+        color?: number;
+        opacity?: number;
+    }): void {
+        const sourceObj = this.objects.get(data.source);
+        const targetObj = this.objects.get(data.target);
+        
+        if (!sourceObj || !targetObj) {
+            console.warn(`Cannot create dependency line: source ${data.source} or target ${data.target} not found`);
+            return;
+        }
+
+        // Create line geometry
+        const points = [
+            sourceObj.position.clone(),
+            targetObj.position.clone()
+        ];
+        
+        // Adjust line endpoints to object surfaces
+        const direction = targetObj.position.clone().sub(sourceObj.position).normalize();
+        points[0].add(direction.clone().multiplyScalar(0.6)); // Start from edge of source
+        points[1].sub(direction.clone().multiplyScalar(0.6)); // End at edge of target
+        
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        
+        // Create line material with appropriate color
+        const color = data.color || this.getDependencyColor(data.type);
+        const material = new THREE.LineBasicMaterial({
+            color: color,
+            opacity: data.opacity || 0.6,
+            transparent: true,
+            linewidth: 2
+        });
+        
+        const line = new THREE.Line(geometry, material);
+        this.scene.add(line);
+
+        const dependencyEdge: DependencyEdge = {
+            id: data.id,
+            source: data.source,
+            target: data.target,
+            type: data.type,
+            line
+        };
+
+        this.dependencies.set(data.id, dependencyEdge);
+    }
+
+    public removeDependencyLine(id: string): void {
+        const dependency = this.dependencies.get(id);
+        if (dependency) {
+            this.scene.remove(dependency.line);
+            this.dependencies.delete(id);
+        }
+    }
+
+    public showDependenciesForObject(objectId: string): void {
+        // Hide all dependency lines first
+        this.dependencies.forEach(dep => {
+            dep.line.visible = false;
+        });
+
+        // Show only dependencies related to selected object
+        this.dependencies.forEach(dep => {
+            if (dep.source === objectId || dep.target === objectId) {
+                dep.line.visible = true;
+                // Make them more prominent when selected
+                (dep.line.material as THREE.LineBasicMaterial).opacity = 0.9;
+            }
+        });
+    }
+
+    public showAllDependencies(): void {
+        this.dependencies.forEach(dep => {
+            dep.line.visible = true;
+            (dep.line.material as THREE.LineBasicMaterial).opacity = 0.6;
+        });
+    }
+
+    public hideDependencies(): void {
+        this.dependencies.forEach(dep => {
+            dep.line.visible = false;
+        });
+    }
+
+    private getDependencyColor(type: 'import' | 'extends' | 'calls'): number {
+        switch (type) {
+            case 'import': return 0x00BFFF; // Deep sky blue
+            case 'extends': return 0xFF6B35; // Orange
+            case 'calls': return 0x32CD32; // Lime green
+            default: return 0x888888; // Gray
+        }
     }
 }
 
@@ -552,6 +671,26 @@ window.addEventListener('message', event => {
         case 'removeObject':
             if (worldRenderer) {
                 worldRenderer.removeCodeObject(message.data.id);
+            }
+            break;
+        case 'addDependency':
+            if (worldRenderer) {
+                worldRenderer.addDependencyLine(message.data);
+            }
+            break;
+        case 'removeDependency':
+            if (worldRenderer) {
+                worldRenderer.removeDependencyLine(message.data.id);
+            }
+            break;
+        case 'showDependencies':
+            if (worldRenderer) {
+                worldRenderer.showAllDependencies();
+            }
+            break;
+        case 'hideDependencies':
+            if (worldRenderer) {
+                worldRenderer.hideDependencies();
             }
             break;
         case 'clear':
