@@ -1,0 +1,13 @@
+{
+    "files.exclude": {
+        "out": false,
+        "node_modules": true,
+        "**/*.vsix": true
+    },
+    "search.exclude": {
+        "out": true,
+        "node_modules": true,
+        "**/*.vsix": true
+    },
+    "typescript.tsc.autoDetect": "off"
+}

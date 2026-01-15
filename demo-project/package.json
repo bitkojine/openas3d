@@ -1,0 +1,16 @@
+{
+  "name": "demo-project",
+  "version": "1.0.0",
+  "description": "Demo project for OpenAs3D visualization",
+  "main": "src/main.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "typescript": "^4.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0"
+  }
+}
