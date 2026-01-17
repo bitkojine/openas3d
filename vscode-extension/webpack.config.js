@@ -2,21 +2,19 @@ const path = require('path');
 
 /**@type {import('webpack').Configuration}*/
 const extensionConfig = {
-  target: 'node', // VSCode extensions run in a Node.js-context
-  mode: 'none', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
+  target: 'node', // VSCode extensions run in a Node.js context
+  mode: 'none', // keep source code close to original
 
-  entry: './src/extension.ts', // the entry point of this extension
+  entry: './src/extension.ts', // entry point of the extension
   output: {
-    // the bundle is stored in the 'out' folder (check package.json), 📖 -> https://webpack.js.org/configuration/output/
     path: path.resolve(__dirname, 'out'),
     filename: 'extension.js',
     libraryTarget: 'commonjs2'
   },
   externals: {
-    vscode: 'commonjs vscode' // the vscode-module is created on-the-fly and must be excluded. Add other modules that cannot be webpack'ed, 📖 -> https://webpack.js.org/configuration/externals/
+    vscode: 'commonjs vscode' // exclude vscode module
   },
   resolve: {
-    // support reading TypeScript and JavaScript files, 📖 -> https://github.com/TypeStrong/ts-loader
     extensions: ['.ts', '.js']
   },
   module: {
@@ -25,28 +23,28 @@ const extensionConfig = {
         test: /\.ts$/,
         exclude: /node_modules/,
         use: [
-          {
-            loader: 'ts-loader'
-          }
+          { loader: 'ts-loader' }
         ]
       }
     ]
   },
   devtool: 'nosources-source-map',
   infrastructureLogging: {
-    level: "log", // enables logging required for problem matchers
-  },
+    level: 'log'
+  }
 };
 
 /**@type {import('webpack').Configuration}*/
 const webviewConfig = {
-  target: 'web', // Webview code runs in a web context
+  target: 'web', // Webview runs in browser context
   mode: 'none',
-  
-  entry: './src/webview/renderer.ts',
+
+  // Updated entry: use the new bootstrap.ts
+  entry: './src/webview/bootstrap.ts',
+
   output: {
     path: path.resolve(__dirname, 'out/webview'),
-    filename: 'renderer.js',
+    filename: 'renderer.js', // still output as renderer.js for your webview HTML
     libraryTarget: 'umd'
   },
   resolve: {
@@ -58,9 +56,7 @@ const webviewConfig = {
         test: /\.ts$/,
         exclude: /node_modules/,
         use: [
-          {
-            loader: 'ts-loader'
-          }
+          { loader: 'ts-loader' }
         ]
       }
     ]
