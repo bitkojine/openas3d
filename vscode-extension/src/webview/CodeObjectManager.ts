@@ -16,6 +16,7 @@ export class CodeObjectManager {
         color?: number;
         size?: { width?: number; height?: number; depth?: number };
         metadata?: any;
+        description?: string;
     }): void {
         const geometry = new THREE.BoxGeometry(
             data.size?.width || 1,
@@ -34,13 +35,28 @@ export class CodeObjectManager {
 
         this.scene.add(mesh);
 
+        // Create a placeholder description if none provided
+        const descriptionText = data.description || 'No description yet...';
+        const descriptionSprite = this.createTextSprite(descriptionText);
+
+        // Position above the object
+        descriptionSprite.position.set(
+            data.position.x,
+            data.position.y + (data.size?.height || 1) + 0.7,
+            data.position.z
+        );
+
+        this.scene.add(descriptionSprite);
+
         const codeObject: CodeObject = {
             id: data.id,
             type: data.type,
             filePath: data.filePath,
             position: new THREE.Vector3(data.position.x, data.position.y, data.position.z),
             mesh,
-            metadata: data.metadata || {}
+            metadata: data.metadata || {},
+            description: descriptionText,
+            descriptionMesh: descriptionSprite
         };
 
         this.objects.set(data.id, codeObject);
@@ -50,6 +66,7 @@ export class CodeObjectManager {
         const obj = this.objects.get(id);
         if (obj) {
             this.scene.remove(obj.mesh);
+            if (obj.descriptionMesh) this.scene.remove(obj.descriptionMesh);
             this.objects.delete(id);
 
             if (this.selectedObject?.id === id) this.selectedObject = null;
@@ -57,7 +74,10 @@ export class CodeObjectManager {
     }
 
     public clear(): void {
-        this.objects.forEach(obj => this.scene.remove(obj.mesh));
+        this.objects.forEach(obj => {
+            this.scene.remove(obj.mesh);
+            if (obj.descriptionMesh) this.scene.remove(obj.descriptionMesh);
+        });
         this.objects.clear();
 
         this.dependencies.forEach(dep => this.scene.remove(dep.line));
@@ -163,6 +183,25 @@ export class CodeObjectManager {
         return [...this.objects.values()].map(o => o.mesh);
     }
 
+    /** Update all description meshes to face the camera and stay stable */
+    public updateDescriptions(camera: THREE.Camera): void {
+        this.objects.forEach(obj => {
+            if (obj.descriptionMesh) {
+                obj.descriptionMesh.lookAt(camera.position);
+
+                // Larger and consistent scale
+                obj.descriptionMesh.scale.set(1.5, 1.5, 1.5);
+
+                // Optional: keep slightly above the object
+                obj.descriptionMesh.position.set(
+                    obj.position.x,
+                    obj.position.y + 1.0, // slightly above object
+                    obj.position.z
+                );
+            }
+        });
+    }
+
     private getDependencyColor(type: 'import' | 'extends' | 'calls'): number {
         switch (type) {
             case 'import': return 0x00bfff;   // Deep sky blue
@@ -170,5 +209,39 @@ export class CodeObjectManager {
             case 'calls': return 0x32cd32;    // Lime green
             default: return 0x888888;         // Gray
         }
+    }
+
+    /** Helper: create a large text sprite with black background and white text */
+    private createTextSprite(message: string): THREE.Sprite {
+        const canvas = document.createElement('canvas');
+        const width = 512;
+        const height = 256;
+        canvas.width = width;
+        canvas.height = height;
+
+        const context = canvas.getContext('2d')!;
+        context.fillStyle = 'black';  // background
+        context.fillRect(0, 0, width, height);
+
+        context.font = '48px Arial';
+        context.fillStyle = 'white';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(message, width / 2, height / 2);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        texture.minFilter = THREE.LinearFilter; // avoid mipmap artifacts
+        texture.magFilter = THREE.LinearFilter;
+
+        const material = new THREE.SpriteMaterial({ map: texture, transparent: false });
+        const sprite = new THREE.Sprite(material);
+
+        return sprite;
+    }
+
+    /** Getter for selected object */
+    public getSelectedObject(): CodeObject | null {
+        return this.selectedObject;
     }
 }

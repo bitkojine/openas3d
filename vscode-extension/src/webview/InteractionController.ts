@@ -43,7 +43,8 @@ export class InteractionController {
                         id: obj.id,
                         type: obj.type,
                         filePath: obj.filePath,
-                        metadata: obj.metadata
+                        metadata: obj.metadata,
+                        description: obj.description
                     }
                 });
             }
@@ -54,11 +55,15 @@ export class InteractionController {
     }
 
     private onDoubleClick(): void {
-        const selected = this.objects['selectedObject'];
+        const selected = this.objects.getSelectedObject?.() || this.objects['selectedObject'];
         if (selected) {
+            // Open both the code file and description file in VSCode
             this.vscode.postMessage({
-                type: 'openFile',
-                data: { filePath: selected.filePath }
+                type: 'openFiles',
+                data: {
+                    codeFile: selected.filePath,
+                    descriptionFile: selected.filePath + '.description.md' // convention: description next to code file
+                }
             });
         }
     }

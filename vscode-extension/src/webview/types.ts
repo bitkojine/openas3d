@@ -23,6 +23,16 @@ export interface CodeObject {
      * (symbol info, language data, etc.)
      */
     metadata: any;
+
+    /**
+     * Optional LLM-generated description (placeholder if none yet)
+     */
+    description?: string;
+
+    /**
+     * Three.js sprite or mesh representing the floating description
+     */
+    descriptionMesh?: THREE.Sprite;
 }
 
 /**

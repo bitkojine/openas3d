@@ -66,6 +66,9 @@ export class WorldRenderer {
             obj.mesh.rotation.y += rotationSpeed * deltaTime;
         }
 
+        // Update description labels to face the camera
+        this.objects.updateDescriptions(this.sceneManager.camera);
+
         this.sceneManager.renderer.render(this.sceneManager.scene, this.sceneManager.camera);
     }
 
