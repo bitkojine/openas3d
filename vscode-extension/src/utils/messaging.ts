@@ -51,12 +51,13 @@ export const MessageTypes = {
     REMOVE_OBJECT: 'removeObject',
     CLEAR_WORLD: 'clear',
     UPDATE_OBJECT: 'updateObject',
-    
+    UPDATE_OBJECT_DESCRIPTION: 'updateObjectDescription', // new type for description updates
+
     // Webview to Extension
     READY: 'ready',
     OBJECT_SELECTED: 'objectSelected',
-    OPEN_FILE: 'openFile',       // existing single file
-    OPEN_FILES: 'openFiles',     // new type for code + description
+    OPEN_FILE: 'openFile',       // single file
+    OPEN_FILES: 'openFiles',     // code + description
     ERROR: 'error',
     CAMERA_MOVED: 'cameraMoved'
 } as const;

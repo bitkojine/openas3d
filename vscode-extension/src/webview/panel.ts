@@ -6,6 +6,7 @@ export class WebviewPanelManager {
     private panel: vscode.WebviewPanel | undefined;
     private context: vscode.ExtensionContext;
     private version: string;
+    private watcher: vscode.FileSystemWatcher | undefined;
 
     constructor(context: vscode.ExtensionContext, version: string = '0.0.0') {
         this.context = context;
@@ -40,6 +41,8 @@ export class WebviewPanelManager {
 
         this.panel.onDidDispose(() => {
             this.panel = undefined;
+            this.watcher?.dispose();
+            this.watcher = undefined;
         }, null, this.context.subscriptions);
 
         this.panel.webview.onDidReceiveMessage(
@@ -48,7 +51,65 @@ export class WebviewPanelManager {
             this.context.subscriptions
         );
 
+        // Setup watcher for description files
+        this.setupDescriptionWatcher();
+
         return this.panel;
+    }
+
+    private setupDescriptionWatcher() {
+        if (!vscode.workspace.workspaceFolders) return;
+
+        const pattern = new vscode.RelativePattern(vscode.workspace.workspaceFolders[0], '.3d-descriptions/**/*.md');
+        this.watcher = vscode.workspace.createFileSystemWatcher(pattern);
+
+        const updateDescription = (uri: vscode.Uri) => {
+            try {
+                const content = fs.readFileSync(uri.fsPath, 'utf-8');
+                const summaryMatch = content.match(/## Summary\s+([\s\S]*?)(\n##|$)/i);
+                const summaryText = summaryMatch ? summaryMatch[1].trim() : 'No description yet.';
+                const statusMatch = content.match(/status:\s*(\w+)/i);
+                const status = statusMatch ? statusMatch[1] as 'missing' | 'generated' | 'reconciled' : 'missing';
+
+                // Compute original code file path
+                const workspaceRoot = vscode.workspace.workspaceFolders![0].uri.fsPath;
+                const relativePath = path.relative(path.join(workspaceRoot, '.3d-descriptions'), uri.fsPath);
+                const codeFilePath = path.join(workspaceRoot, relativePath.replace(/\.md$/, ''));
+
+                this.panel?.webview.postMessage({
+                    type: 'updateObjectDescription',
+                    data: {
+                        filePath: codeFilePath,
+                        description: {
+                            summary: summaryText,
+                            status
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error('Failed to read description file for update:', uri.fsPath, err);
+            }
+        };
+
+        this.watcher.onDidCreate(updateDescription);
+        this.watcher.onDidChange(updateDescription);
+        this.watcher.onDidDelete(uri => {
+            // Optional: mark object as missing
+            const workspaceRoot = vscode.workspace.workspaceFolders![0].uri.fsPath;
+            const relativePath = path.relative(path.join(workspaceRoot, '.3d-descriptions'), uri.fsPath);
+            const codeFilePath = path.join(workspaceRoot, relativePath.replace(/\.md$/, ''));
+
+            this.panel?.webview.postMessage({
+                type: 'updateObjectDescription',
+                data: {
+                    filePath: codeFilePath,
+                    description: {
+                        summary: 'No description yet.',
+                        status: 'missing'
+                    }
+                }
+            });
+        });
     }
 
     public sendMessage(message: any): void {
@@ -62,6 +123,8 @@ export class WebviewPanelManager {
             this.panel.dispose();
             this.panel = undefined;
         }
+        this.watcher?.dispose();
+        this.watcher = undefined;
     }
 
     private handleWebviewMessage(message: any): void {
@@ -107,11 +170,6 @@ export class WebviewPanelManager {
         }
     }
 
-    /**
-     * Open code file + mirrored description file.
-     * Description files live under:
-     *   <workspaceRoot>/.3d-descriptions/<relative-path-to-code>.md
-     */
     private async handleOpenFiles(data: { codeFile: string }): Promise<void> {
         try {
             const codeFilePath = data.codeFile;
@@ -131,25 +189,45 @@ export class WebviewPanelManager {
                 relativePath + '.md'
             );
 
-            // Ensure directory exists
             fs.mkdirSync(path.dirname(descriptionFilePath), { recursive: true });
 
-            // Create placeholder description file if missing
             if (!fs.existsSync(descriptionFilePath)) {
                 fs.writeFileSync(
                     descriptionFilePath,
-                    `# ${path.basename(codeFilePath)}\n\n` +
-                    `> Auto-generated description file.\n\n` +
-                    `No description has been written yet.\n`,
+                    `---
+status: missing
+lastUpdated: ${new Date().toISOString()}
+---
+
+# ${path.basename(codeFilePath)}
+## Summary
+No description yet.
+`,
                     { encoding: 'utf-8' }
                 );
             }
 
-            // Open code file
+            const descriptionContent = fs.readFileSync(descriptionFilePath, 'utf-8');
+            const summaryMatch = descriptionContent.match(/## Summary\s+([\s\S]*?)(\n##|$)/i);
+            const summaryText = summaryMatch ? summaryMatch[1].trim() : 'No description yet.';
+            const statusMatch = descriptionContent.match(/status:\s*(\w+)/i);
+            const status = statusMatch ? statusMatch[1] as 'missing' | 'generated' | 'reconciled' : 'missing';
+
+            // Send to webview
+            this.panel?.webview.postMessage({
+                type: 'updateObjectDescription',
+                data: {
+                    filePath: codeFilePath,
+                    description: {
+                        summary: summaryText,
+                        status
+                    }
+                }
+            });
+
             const codeDoc = await vscode.workspace.openTextDocument(codeUri);
             await vscode.window.showTextDocument(codeDoc, { preview: false });
 
-            // Open description file
             const descUri = vscode.Uri.file(descriptionFilePath);
             const descDoc = await vscode.workspace.openTextDocument(descUri);
             await vscode.window.showTextDocument(descDoc, { preview: false });

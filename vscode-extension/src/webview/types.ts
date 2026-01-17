@@ -25,14 +25,24 @@ export interface CodeObject {
     metadata: any;
 
     /**
-     * Optional LLM-generated description (placeholder if none yet)
+     * Short summary used in floating labels
      */
-    description?: string;
+    description: string;
 
     /**
-     * Three.js sprite or mesh representing the floating description
+     * Three.js sprite for the floating description label
      */
     descriptionMesh?: THREE.Sprite;
+
+    /**
+     * Status of the description: 'missing' | 'generated' | 'reconciled'
+     */
+    descriptionStatus?: string;
+
+    /**
+     * ISO string of last update time for the description
+     */
+    descriptionLastUpdated?: string;
 }
 
 /**

@@ -5,6 +5,7 @@ declare const acquireVsCodeApi: () => {
     setState: (state: any) => void;
 };
 
+import * as THREE from 'three';
 import { SceneManager } from './SceneManager';
 import { CharacterController } from './CharacterController';
 import { CodeObjectManager } from './CodeObjectManager';
@@ -45,6 +46,18 @@ export class WorldRenderer {
 
         // Notify extension that webview is ready
         this.vscode.postMessage({ type: 'ready' });
+
+        // Listen for description updates from the extension
+        window.addEventListener('message', (event) => {
+            const message = event.data;
+            if (!this.objects) return;
+
+            switch (message.type) {
+                case 'updateObjectDescription':
+                    this.objects.applyDescription(message.data.filePath, message.data.description);
+                    break;
+            }
+        });
 
         this.animate();
     }

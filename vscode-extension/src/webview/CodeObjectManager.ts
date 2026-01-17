@@ -17,6 +17,8 @@ export class CodeObjectManager {
         size?: { width?: number; height?: number; depth?: number };
         metadata?: any;
         description?: string;
+        descriptionStatus?: string;
+        descriptionLastUpdated?: string;
     }): void {
         const geometry = new THREE.BoxGeometry(
             data.size?.width || 1,
@@ -35,14 +37,19 @@ export class CodeObjectManager {
 
         this.scene.add(mesh);
 
-        // Create a placeholder description if none provided
+        // Create placeholder description if none provided
         const descriptionText = data.description || 'No description yet...';
+        const descriptionStatus = data.descriptionStatus || 'missing';
+        const descriptionLastUpdated = data.descriptionLastUpdated || new Date().toISOString();
+
         const descriptionSprite = this.createTextSprite(descriptionText);
 
-        // Position above the object
+        // Position above object with uniform gap
+        const gap = 0.5;
+        const height = data.size?.height || 1;
         descriptionSprite.position.set(
             data.position.x,
-            data.position.y + (data.size?.height || 1) + 0.7,
+            data.position.y + height + gap,
             data.position.z
         );
 
@@ -56,10 +63,30 @@ export class CodeObjectManager {
             mesh,
             metadata: data.metadata || {},
             description: descriptionText,
-            descriptionMesh: descriptionSprite
+            descriptionMesh: descriptionSprite,
+            descriptionStatus,
+            descriptionLastUpdated
         };
 
         this.objects.set(data.id, codeObject);
+    }
+
+    public applyDescription(filePath: string, description: { summary: string; status: string; lastUpdated?: string }): void {
+        const obj = [...this.objects.values()].find(o => o.filePath === filePath);
+        if (!obj || !obj.descriptionMesh) return;
+
+        obj.description = description.summary;
+        obj.descriptionStatus = description.status;
+        obj.descriptionLastUpdated = description.lastUpdated || new Date().toISOString();
+
+        // Remove old sprite and add new one
+        this.scene.remove(obj.descriptionMesh);
+        const newSprite = this.createTextSprite(`${description.summary}\n[${description.status}]`);
+
+        // Keep same position
+        newSprite.position.copy(obj.descriptionMesh.position);
+        obj.descriptionMesh = newSprite;
+        this.scene.add(newSprite);
     }
 
     public removeObject(id: string): void {
@@ -185,62 +212,93 @@ export class CodeObjectManager {
 
     /** Update all description meshes to face the camera and stay stable */
     public updateDescriptions(camera: THREE.Camera): void {
+        const gap = 0.5; // uniform gap above object
         this.objects.forEach(obj => {
             if (obj.descriptionMesh) {
                 obj.descriptionMesh.lookAt(camera.position);
 
-                // Larger and consistent scale
-                obj.descriptionMesh.scale.set(1.5, 1.5, 1.5);
-
-                // Optional: keep slightly above the object
+                const height = obj.mesh.geometry.boundingBox
+                    ? obj.mesh.geometry.boundingBox.max.y - obj.mesh.geometry.boundingBox.min.y
+                    : 1;
                 obj.descriptionMesh.position.set(
                     obj.position.x,
-                    obj.position.y + 1.0, // slightly above object
+                    obj.position.y + height + gap,
                     obj.position.z
                 );
+
+                // fixed scale
+                obj.descriptionMesh.scale.set(3, 1.5, 1);
             }
         });
     }
 
     private getDependencyColor(type: 'import' | 'extends' | 'calls'): number {
         switch (type) {
-            case 'import': return 0x00bfff;   // Deep sky blue
-            case 'extends': return 0xff6b35;  // Orange
-            case 'calls': return 0x32cd32;    // Lime green
-            default: return 0x888888;         // Gray
+            case 'import': return 0x00bfff;
+            case 'extends': return 0xff6b35;
+            case 'calls': return 0x32cd32;
+            default: return 0x888888;
         }
     }
 
-    /** Helper: create a large text sprite with black background and white text */
+    /** Helper: create text sprite, left-aligned, wraps, taller to fit text */
     private createTextSprite(message: string): THREE.Sprite {
+        const canvasWidth = 1024;
+        const canvasHeight = 512;
+
         const canvas = document.createElement('canvas');
-        const width = 512;
-        const height = 256;
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
 
         const context = canvas.getContext('2d')!;
-        context.fillStyle = 'black';  // background
-        context.fillRect(0, 0, width, height);
+        context.fillStyle = 'black';
+        context.fillRect(0, 0, canvasWidth, canvasHeight);
 
-        context.font = '48px Arial';
+        const fontSize = 48;
+        context.font = `${fontSize}px Arial`;
         context.fillStyle = 'white';
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        context.fillText(message, width / 2, height / 2);
+        context.textAlign = 'left';
+        context.textBaseline = 'top';
+
+        const padding = 20;
+        const maxTextWidth = canvasWidth - padding * 2;
+        const words = message.split(' ');
+        const lines: string[] = [];
+        let currentLine = '';
+
+        words.forEach((word, idx) => {
+            const testLine = currentLine ? currentLine + ' ' + word : word;
+            const metrics = context.measureText(testLine);
+            if (metrics.width > maxTextWidth) {
+                lines.push(currentLine);
+                currentLine = word;
+            } else {
+                currentLine = testLine;
+            }
+            if (idx === words.length - 1) lines.push(currentLine);
+        });
+
+        const lineHeight = fontSize * 1.1; // slightly tighter
+        let y = padding;
+        for (const line of lines) {
+            context.fillText(line, padding, y);
+            y += lineHeight;
+        }
 
         const texture = new THREE.CanvasTexture(canvas);
         texture.needsUpdate = true;
-        texture.minFilter = THREE.LinearFilter; // avoid mipmap artifacts
+        texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
 
-        const material = new THREE.SpriteMaterial({ map: texture, transparent: false });
-        const sprite = new THREE.Sprite(material);
+        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: false });
+        const sprite = new THREE.Sprite(spriteMaterial);
+
+        // fixed 3D scale
+        sprite.scale.set(3, 1.5, 1);
 
         return sprite;
     }
 
-    /** Getter for selected object */
     public getSelectedObject(): CodeObject | null {
         return this.selectedObject;
     }
