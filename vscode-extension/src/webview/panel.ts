@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 
 export class WebviewPanelManager {
     private panel: vscode.WebviewPanel | undefined;
@@ -95,28 +96,64 @@ export class WebviewPanelManager {
     }
 
     private async handleOpenFile(data: any): Promise<void> {
-        if (data.filePath) {
-            try {
-                const uri = vscode.Uri.file(data.filePath);
-                const document = await vscode.workspace.openTextDocument(uri);
-                await vscode.window.showTextDocument(document);
-            } catch (error) {
-                vscode.window.showErrorMessage(`Failed to open file: ${error}`);
-            }
+        if (!data.filePath) return;
+
+        try {
+            const uri = vscode.Uri.file(data.filePath);
+            const document = await vscode.workspace.openTextDocument(uri);
+            await vscode.window.showTextDocument(document);
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open file: ${error}`);
         }
     }
 
-    private async handleOpenFiles(data: { codeFile: string; descriptionFile: string }): Promise<void> {
+    /**
+     * Open code file + mirrored description file.
+     * Description files live under:
+     *   <workspaceRoot>/.3d-descriptions/<relative-path-to-code>.md
+     */
+    private async handleOpenFiles(data: { codeFile: string }): Promise<void> {
         try {
+            const codeFilePath = data.codeFile;
+            const codeUri = vscode.Uri.file(codeFilePath);
+
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(codeUri);
+            if (!workspaceFolder) {
+                throw new Error('File is not inside a workspace');
+            }
+
+            const workspaceRoot = workspaceFolder.uri.fsPath;
+            const relativePath = path.relative(workspaceRoot, codeFilePath);
+
+            const descriptionsRoot = path.join(workspaceRoot, '.3d-descriptions');
+            const descriptionFilePath = path.join(
+                descriptionsRoot,
+                relativePath + '.md'
+            );
+
+            // Ensure directory exists
+            fs.mkdirSync(path.dirname(descriptionFilePath), { recursive: true });
+
+            // Create placeholder description file if missing
+            if (!fs.existsSync(descriptionFilePath)) {
+                fs.writeFileSync(
+                    descriptionFilePath,
+                    `# ${path.basename(codeFilePath)}\n\n` +
+                    `> Auto-generated description file.\n\n` +
+                    `No description has been written yet.\n`,
+                    { encoding: 'utf-8' }
+                );
+            }
+
             // Open code file
-            const codeUri = vscode.Uri.file(data.codeFile);
             const codeDoc = await vscode.workspace.openTextDocument(codeUri);
             await vscode.window.showTextDocument(codeDoc, { preview: false });
 
             // Open description file
-            const descUri = vscode.Uri.file(data.descriptionFile);
+            const descUri = vscode.Uri.file(descriptionFilePath);
             const descDoc = await vscode.workspace.openTextDocument(descUri);
             await vscode.window.showTextDocument(descDoc, { preview: false });
+
         } catch (err) {
             vscode.window.showErrorMessage(`Failed to open files: ${err}`);
         }
@@ -163,7 +200,7 @@ export class WebviewPanelManager {
             C - Down (flight mode only)<br>
             ESC - Release mouse lock<br>
             Click - Select object<br>
-            Double-click - Open file
+            Double-click - Open files
         </div>
     </div>
     <script src="${rendererUri}"></script>

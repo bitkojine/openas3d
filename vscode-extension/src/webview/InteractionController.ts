@@ -27,11 +27,14 @@ export class InteractionController {
 
         this.raycaster.setFromCamera(this.mouse, this.camera);
 
-        const intersects = this.raycaster.intersectObjects(this.objects.getObjectMeshes());
+        const intersects = this.raycaster.intersectObjects(
+            this.objects.getObjectMeshes()
+        );
 
         if (intersects.length > 0) {
             const mesh = intersects[0].object as THREE.Mesh;
             const obj = this.objects.findByMesh(mesh);
+
             if (obj) {
                 this.objects.selectObject(obj);
                 this.showDependencies(obj.id);
@@ -55,21 +58,26 @@ export class InteractionController {
     }
 
     private onDoubleClick(): void {
-        const selected = this.objects.getSelectedObject?.() || this.objects['selectedObject'];
-        if (selected) {
-            // Open both the code file and description file in VSCode
-            this.vscode.postMessage({
-                type: 'openFiles',
-                data: {
-                    codeFile: selected.filePath,
-                    descriptionFile: selected.filePath + '.description.md' // convention: description next to code file
-                }
-            });
-        }
+        const selected =
+            this.objects.getSelectedObject?.() ||
+            (this.objects as any)['selectedObject'];
+
+        if (!selected) return;
+
+        // IMPORTANT:
+        // Only send the code file path.
+        // The extension will compute the mirrored description path
+        // under .3d-descriptions/ and create it if missing.
+        this.vscode.postMessage({
+            type: 'openFiles',
+            data: {
+                codeFile: selected.filePath
+            }
+        });
     }
 
-    private onMouseMove(event: MouseEvent): void {
-        // This controller does not handle rotation; CharacterController handles that
+    private onMouseMove(_event: MouseEvent): void {
+        // CharacterController handles camera rotation
     }
 
     private showDependencies(objectId: string): void {
