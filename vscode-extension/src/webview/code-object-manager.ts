@@ -46,6 +46,7 @@ export class CodeObjectManager {
         mesh.position.set(data.position.x, data.position.y, data.position.z);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
+        mesh.geometry.computeBoundingBox(); // ensure bounding box exists
         this.scene.add(mesh);
 
         // ───── Description ─────
@@ -67,11 +68,15 @@ export class CodeObjectManager {
 
         const descriptionSprite = this.createTextSprite(descriptionText || 'No description');
 
+        const objectHeight = mesh.geometry.boundingBox
+            ? mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y
+            : data.type === 'sign' ? 1.0 : 1;
         const gap = 0.5;
-        const objectHeight = data.type === 'sign' ? 1.0 : data.size?.height || 1;
+
+        const labelHeight = descriptionSprite.userData.height || 1;
         descriptionSprite.position.set(
             data.position.x,
-            data.position.y + objectHeight + gap,
+            data.position.y + objectHeight + gap + labelHeight / 2,
             data.position.z
         );
         this.scene.add(descriptionSprite);
@@ -102,7 +107,21 @@ export class CodeObjectManager {
 
         this.scene.remove(obj.descriptionMesh);
         const newSprite = this.createTextSprite(description.summary);
-        newSprite.position.copy(obj.descriptionMesh.position);
+
+        const mesh = obj.mesh;
+        mesh.geometry.computeBoundingBox();
+        const objectHeight = mesh.geometry.boundingBox
+            ? mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y
+            : obj.type === 'sign' ? 1.0 : 1;
+        const gap = 0.5;
+        const labelHeight = newSprite.userData.height || 1;
+
+        newSprite.position.set(
+            obj.position.x,
+            obj.position.y + objectHeight + gap + labelHeight / 2,
+            obj.position.z
+        );
+
         obj.descriptionMesh = newSprite;
         this.scene.add(newSprite);
     }
@@ -233,12 +252,18 @@ export class CodeObjectManager {
             if (obj.descriptionMesh) {
                 obj.descriptionMesh.lookAt(camera.position);
 
-                const height = obj.mesh.geometry.boundingBox
-                    ? obj.mesh.geometry.boundingBox.max.y - obj.mesh.geometry.boundingBox.min.y
+                const mesh = obj.mesh;
+                mesh.geometry.computeBoundingBox();
+                const objectHeight = mesh.geometry.boundingBox
+                    ? mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y
                     : obj.type === 'sign' ? 1.0 : 1;
+
+                const labelHeight = obj.descriptionMesh.userData.height || 1;
+
+                // bottom of label = top of object + gap
                 obj.descriptionMesh.position.set(
                     obj.position.x,
-                    obj.position.y + height + gap,
+                    obj.position.y + objectHeight + gap + labelHeight / 2,
                     obj.position.z
                 );
 
@@ -268,21 +293,21 @@ export class CodeObjectManager {
         const fontSize = 36;
         const lineHeight = fontSize * 1.2;
 
-        const contextCanvas = document.createElement('canvas');
-        const context = contextCanvas.getContext('2d')!;
-        context.font = `${fontSize}px Arial`;
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d')!;
+        tempCtx.font = `${fontSize}px Arial`;
 
-        // Split into lines respecting \n
+        // Split lines on explicit \n, then wrap if too long
         const rawLines = message.split('\n');
         const lines: string[] = [];
         const maxTextWidth = canvasWidth - padding * 2;
 
         rawLines.forEach(rawLine => {
-            let words = rawLine.split(' ');
+            const words = rawLine.split(' ');
             let currentLine = '';
             words.forEach((word, idx) => {
                 const testLine = currentLine ? currentLine + ' ' + word : word;
-                const metrics = context.measureText(testLine);
+                const metrics = tempCtx.measureText(testLine);
                 if (metrics.width > maxTextWidth) {
                     if (currentLine) lines.push(currentLine);
                     currentLine = word;
@@ -294,13 +319,11 @@ export class CodeObjectManager {
         });
 
         const canvasHeight = padding * 2 + lines.length * lineHeight;
-        contextCanvas.width = canvasWidth;
-        contextCanvas.height = canvasHeight;
-
-        // Re-set font after resizing canvas
-        const ctx = contextCanvas.getContext('2d')!;
+        const canvas = document.createElement('canvas');
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        const ctx = canvas.getContext('2d')!;
         ctx.font = `${fontSize}px Arial`;
-        ctx.fillStyle = 'white';
         ctx.textBaseline = 'top';
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -312,7 +335,7 @@ export class CodeObjectManager {
             y += lineHeight;
         });
 
-        const texture = new THREE.CanvasTexture(contextCanvas);
+        const texture = new THREE.CanvasTexture(canvas);
         texture.needsUpdate = true;
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
