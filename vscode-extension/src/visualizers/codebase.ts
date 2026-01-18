@@ -33,62 +33,44 @@ export class CodebaseVisualizer implements WorldVisualizer {
 
     public async initialize(panel: vscode.WebviewPanel, data: { targetPath: string }): Promise<() => void> {
         this.panel = panel;
-        
+
         try {
-            // Analyze the codebase
             console.log('Analyzing codebase at:', data.targetPath);
             this.dependencyGraph = await this.analyzeCodebase(data.targetPath);
-            
-            // Visualize the dependency graph
+
             await this.visualizeDependencyGraph();
-            
+
             console.log(`Visualized ${this.dependencyGraph.files.size} files with ${this.dependencyGraph.edges.length} dependencies`);
-            
         } catch (error) {
             console.error('Error initializing codebase visualizer:', error);
             vscode.window.showErrorMessage(`Failed to analyze codebase: ${error}`);
         }
 
-        // Return cleanup function
-        return () => {
-            this.cleanup();
-        };
+        return () => this.cleanup();
     }
 
     private async analyzeCodebase(rootPath: string): Promise<DependencyGraph> {
         const files = new Map<string, CodeFile>();
         const edges: Array<{ source: string; target: string; type: string }> = [];
 
-        // Get workspace folder for relative path calculation
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         const workspaceRoot = workspaceFolder?.uri.fsPath || rootPath;
 
-        // Find all source code files
         const sourceFiles = await this.findSourceFiles(rootPath);
-        
-        // Analyze each file
+
         for (const filePath of sourceFiles) {
             try {
                 const fileInfo = await this.analyzeFile(filePath, workspaceRoot);
-                if (fileInfo) {
-                    files.set(fileInfo.id, fileInfo);
-                }
+                if (fileInfo) files.set(fileInfo.id, fileInfo);
             } catch (error) {
                 console.warn(`Failed to analyze file ${filePath}:`, error);
             }
         }
 
-        // Build dependency edges
         for (const file of files.values()) {
             for (const depPath of file.dependencies) {
                 const targetFile = this.findFileByPath(files, depPath, path.dirname(file.filePath));
-                if (targetFile) {
-                    edges.push({
-                        source: file.id,
-                        target: targetFile.id,
-                        type: 'import'
-                    });
-                }
+                if (targetFile) edges.push({ source: file.id, target: targetFile.id, type: 'import' });
             }
         }
 
@@ -102,20 +84,14 @@ export class CodebaseVisualizer implements WorldVisualizer {
         const scanDirectory = async (dirPath: string): Promise<void> => {
             try {
                 const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
-                
                 for (const entry of entries) {
                     const fullPath = path.join(dirPath, entry.name);
-                    
                     if (entry.isDirectory()) {
-                        // Skip common directories that don't contain source code
                         if (!['node_modules', '.git', 'dist', 'build', 'out', '.vscode'].includes(entry.name)) {
                             await scanDirectory(fullPath);
                         }
-                    } else if (entry.isFile()) {
-                        const ext = path.extname(entry.name);
-                        if (supportedExtensions.includes(ext)) {
-                            sourceFiles.push(fullPath);
-                        }
+                    } else if (entry.isFile() && supportedExtensions.includes(path.extname(entry.name))) {
+                        sourceFiles.push(fullPath);
                     }
                 }
             } catch (error) {
@@ -133,14 +109,8 @@ export class CodebaseVisualizer implements WorldVisualizer {
             const stats = await fs.promises.stat(filePath);
             const relativePath = path.relative(workspaceRoot, filePath);
             const ext = path.extname(filePath);
-            
-            // Determine language
             const language = this.getLanguageFromExtension(ext);
-            
-            // Extract dependencies (simple regex-based approach)
             const dependencies = this.extractDependencies(content, language);
-            
-            // Calculate basic complexity (lines of code as a simple metric)
             const complexity = this.calculateComplexity(content);
 
             return {
@@ -160,81 +130,55 @@ export class CodebaseVisualizer implements WorldVisualizer {
     }
 
     private getLanguageFromExtension(ext: string): string {
-        const languageMap: { [key: string]: string } = {
-            '.ts': 'typescript',
-            '.tsx': 'typescript',
-            '.js': 'javascript',
-            '.jsx': 'javascript',
-            '.py': 'python',
-            '.java': 'java',
-            '.go': 'go',
-            '.cs': 'csharp',
-            '.cpp': 'cpp',
-            '.c': 'c',
-            '.h': 'c'
+        const map: { [key: string]: string } = {
+            '.ts': 'typescript', '.tsx': 'typescript',
+            '.js': 'javascript', '.jsx': 'javascript',
+            '.py': 'python', '.java': 'java',
+            '.go': 'go', '.cs': 'csharp',
+            '.cpp': 'cpp', '.c': 'c', '.h': 'c'
         };
-        return languageMap[ext] || 'unknown';
+        return map[ext] || 'unknown';
     }
 
     private extractDependencies(content: string, language: string): string[] {
-        const dependencies: string[] = [];
-        
+        const deps: string[] = [];
+        let match;
+
         switch (language) {
             case 'typescript':
             case 'javascript':
-                // Match import statements
                 const importRegex = /import\s+.*?\s+from\s+['"]([^'"]+)['"]/g;
                 const requireRegex = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
-                
-                let match;
-                while ((match = importRegex.exec(content)) !== null) {
-                    dependencies.push(match[1]);
-                }
-                while ((match = requireRegex.exec(content)) !== null) {
-                    dependencies.push(match[1]);
-                }
+                while ((match = importRegex.exec(content))) deps.push(match[1]);
+                while ((match = requireRegex.exec(content))) deps.push(match[1]);
                 break;
-                
+
             case 'python':
-                // Match import statements
-                const pythonImportRegex = /(?:from\s+(\S+)\s+import|import\s+(\S+))/g;
-                while ((match = pythonImportRegex.exec(content)) !== null) {
-                    dependencies.push(match[1] || match[2]);
-                }
+                const pyRegex = /(?:from\s+(\S+)\s+import|import\s+(\S+))/g;
+                while ((match = pyRegex.exec(content))) deps.push(match[1] || match[2]);
                 break;
-                
+
             case 'java':
-                // Match import statements
-                const javaImportRegex = /import\s+([^;]+);/g;
-                while ((match = javaImportRegex.exec(content)) !== null) {
-                    dependencies.push(match[1]);
-                }
+                const javaRegex = /import\s+([^;]+);/g;
+                while ((match = javaRegex.exec(content))) deps.push(match[1]);
                 break;
-                
+
             case 'go':
-                // Match import statements
-                const goImportRegex = /import\s+(?:\(\s*([^)]+)\s*\)|"([^"]+)")/g;
-                while ((match = goImportRegex.exec(content)) !== null) {
-                    if (match[1]) {
-                        // Multi-line import
-                        const imports = match[1].split('\n').map(line => line.trim().replace(/"/g, '')).filter(Boolean);
-                        dependencies.push(...imports);
-                    } else {
-                        dependencies.push(match[2]);
-                    }
+                const goRegex = /import\s+(?:\(\s*([^)]+)\s*\)|"([^"]+)")/g;
+                while ((match = goRegex.exec(content))) {
+                    if (match[1]) deps.push(...match[1].split('\n').map(l => l.trim().replace(/"/g, '')).filter(Boolean));
+                    else deps.push(match[2]);
                 }
                 break;
         }
-        
-        return dependencies.filter(dep => dep && !dep.startsWith('.') && !dep.startsWith('/'));
+
+        return deps.filter(d => d && !d.startsWith('.') && !d.startsWith('/'));
     }
 
     private calculateComplexity(content: string): number {
-        // Simple complexity metric based on lines of code and control structures
-        const lines = content.split('\n').filter(line => line.trim().length > 0);
-        const controlStructures = (content.match(/\b(if|for|while|switch|try|catch)\b/g) || []).length;
-        
-        return lines.length + (controlStructures * 2);
+        const lines = content.split('\n').filter(l => l.trim().length > 0);
+        const control = (content.match(/\b(if|for|while|switch|try|catch)\b/g) || []).length;
+        return lines.length + control * 2;
     }
 
     private generateFileId(relativePath: string): string {
@@ -242,40 +186,30 @@ export class CodebaseVisualizer implements WorldVisualizer {
     }
 
     private findFileByPath(files: Map<string, CodeFile>, depPath: string, currentDir: string): CodeFile | null {
-        // Try to resolve the dependency path to an actual file
         for (const file of files.values()) {
-            if (file.relativePath.includes(depPath) || 
-                path.basename(file.filePath, path.extname(file.filePath)) === depPath) {
-                return file;
-            }
+            if (file.relativePath.includes(depPath) ||
+                path.basename(file.filePath, path.extname(file.filePath)) === depPath) return file;
         }
         return null;
     }
 
     private async visualizeDependencyGraph(): Promise<void> {
-        if (!this.panel || !this.dependencyGraph) {
-            return;
-        }
+        if (!this.panel || !this.dependencyGraph) return;
 
-        // Clear existing objects
         this.panel.webview.postMessage({ type: 'clear' });
 
         const files = Array.from(this.dependencyGraph.files.values());
         const maxComplexity = Math.max(...files.map(f => f.complexity || 0));
-        
-        // Position files in a grid layout with some clustering
+
         const gridSize = Math.ceil(Math.sqrt(files.length));
         const spacing = 5;
 
         files.forEach((file, index) => {
             const x = (index % gridSize) * spacing - (gridSize * spacing) / 2;
             const z = Math.floor(index / gridSize) * spacing - (gridSize * spacing) / 2;
-            const y = 0.5; // Base height
+            const y = 0.5;
 
-            // Color based on language
             const color = this.getLanguageColor(file.language);
-            
-            // Size based on complexity
             const complexityRatio = (file.complexity || 0) / maxComplexity;
             const height = 0.5 + complexityRatio * 2;
             const width = 0.8 + complexityRatio * 0.4;
@@ -294,13 +228,13 @@ export class CodebaseVisualizer implements WorldVisualizer {
                         language: file.language,
                         complexity: file.complexity,
                         size: file.size,
+                        lastModified: file.lastModified,
                         dependencies: file.dependencies.length
                     }
                 }
             });
         });
 
-        // Add dependency edges as lines between objects
         this.dependencyGraph.edges.forEach(edge => {
             this.panel!.webview.postMessage({
                 type: 'addDependency',
@@ -318,10 +252,10 @@ export class CodebaseVisualizer implements WorldVisualizer {
 
     private getDependencyColor(type: string): number {
         switch (type) {
-            case 'import': return 0x00BFFF; // Deep sky blue
-            case 'extends': return 0xFF6B35; // Orange  
-            case 'calls': return 0x32CD32; // Lime green
-            default: return 0x888888; // Gray
+            case 'import': return 0x00BFFF;
+            case 'extends': return 0xFF6B35;
+            case 'calls': return 0x32CD32;
+            default: return 0x888888;
         }
     }
 

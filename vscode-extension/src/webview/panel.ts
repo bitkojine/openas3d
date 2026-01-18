@@ -64,14 +64,50 @@ export class WebviewPanelManager {
 
         const updateDescription = (uri: vscode.Uri) => {
             try {
-                const content = fs.readFileSync(uri.fsPath, 'utf-8');
-                const summaryMatch = content.match(/## Summary\s+([\s\S]*?)(\n##|$)/i);
-                const summaryText = summaryMatch ? summaryMatch[1].trim() : 'No description yet.';
-                const statusMatch = content.match(/status:\s*(\w+)/i);
-                const status = statusMatch ? statusMatch[1] as 'missing' | 'generated' | 'reconciled' : 'missing';
+                let content = '';
+                let summaryText = '';
+                let status: 'missing' | 'generated' | 'reconciled' = 'missing';
 
-                const workspaceRoot = vscode.workspace.workspaceFolders![0].uri.fsPath;
-                const relativePath = path.relative(workspaceRoot, uri.fsPath);
+                if (fs.existsSync(uri.fsPath)) {
+                    content = fs.readFileSync(uri.fsPath, 'utf-8');
+                    const summaryMatch = content.match(/## Summary\s+([\s\S]*?)(\n##|$)/i);
+                    summaryText = summaryMatch ? summaryMatch[1].trim() : '';
+                    const statusMatch = content.match(/status:\s*(\w+)/i);
+                    status = statusMatch ? (statusMatch[1] as any) : 'missing';
+                }
+
+                // If no Markdown summary, fallback to metadata
+                if (!summaryText && this.panel) {
+                    const workspaceRoot = vscode.workspace.workspaceFolders![0].uri.fsPath;
+                    const filePath = uri.fsPath.replace(/\.md$/, ''); // original code file
+
+                    if (fs.existsSync(filePath)) {
+                        const stats = fs.statSync(filePath);
+                        const size = stats.size;
+                        const lastModified = stats.mtime.toLocaleDateString();
+                        const ext = path.extname(filePath);
+                        const languageMap: { [key: string]: string } = {
+                            '.ts': 'TypeScript', '.tsx': 'TypeScript',
+                            '.js': 'JavaScript', '.jsx': 'JavaScript',
+                            '.py': 'Python', '.java': 'Java',
+                            '.go': 'Go', '.cs': 'C#',
+                            '.cpp': 'C++', '.c': 'C', '.h': 'C'
+                        };
+                        const language = languageMap[ext] || 'unknown';
+
+                        const complexity = size / 50; // crude proxy metric for display
+
+                        summaryText = `${path.basename(filePath)}
+Language: ${language}
+Size: ${size} bytes
+Complexity: ${Math.round(complexity)}
+Modified: ${lastModified}`;
+
+                        status = 'generated';
+                    } else {
+                        summaryText = 'No description available';
+                    }
+                }
 
                 this.panel?.webview.postMessage({
                     type: 'updateObjectDescription',
@@ -174,17 +210,14 @@ export class WebviewPanelManager {
                 return;
             }
 
-            // Open code file
             const codeDoc = await vscode.workspace.openTextDocument(codeUri);
             await vscode.window.showTextDocument(codeDoc, { preview: false });
 
-            // Open description if exists
             const descUri = vscode.Uri.file(data.codeFile.endsWith('.md') ? data.codeFile : data.codeFile + '.md');
             if (fs.existsSync(descUri.fsPath)) {
                 const descDoc = await vscode.workspace.openTextDocument(descUri);
                 await vscode.window.showTextDocument(descDoc, { preview: false });
             }
-
         } catch (err) {
             vscode.window.showErrorMessage(`Failed to open files: ${err}`);
         }
@@ -215,7 +248,6 @@ ${text}
 `;
         fs.writeFileSync(filePath, content, { encoding: 'utf-8' });
 
-        // Add the sign as a CodeObject in 3D world
         this.panel?.webview.postMessage({
             type: 'addObject',
             data: {

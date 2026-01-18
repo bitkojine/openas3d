@@ -25,7 +25,6 @@ export class CodeObjectManager {
         let material: THREE.MeshLambertMaterial;
 
         if (data.type === 'sign') {
-            // Minecraft-like sign post
             geometry = new THREE.BoxGeometry(0.2, 1.0, 0.1);
             material = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
         } else {
@@ -43,11 +42,11 @@ export class CodeObjectManager {
         mesh.position.set(data.position.x, data.position.y, data.position.z);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
-
         this.scene.add(mesh);
 
         // ───── Description / Text Sprite ─────
-        const descriptionText = data.description || 'No description yet...';
+        const descriptionText = data.description || this.generateDefaultDescription(data);
+
         const descriptionStatus = data.descriptionStatus || 'missing';
         const descriptionLastUpdated = data.descriptionLastUpdated || new Date().toISOString();
 
@@ -78,6 +77,22 @@ export class CodeObjectManager {
         };
 
         this.objects.set(data.id, codeObject);
+    }
+
+    /** Generate default metadata description if none exists */
+    private generateDefaultDescription(data: {
+        filePath: string;
+        metadata?: any;
+    }): string {
+        const fileName = data.filePath.split(/[\\/]/).pop();
+        const size = data.metadata?.size || 0;
+        const complexity = data.metadata?.complexity ?? 'N/A';
+        const language = data.metadata?.language ?? 'unknown';
+        const lastModified = data.metadata?.lastModified
+            ? new Date(data.metadata.lastModified).toLocaleDateString()
+            : 'unknown';
+
+        return `${fileName}\nLanguage: ${language}\nSize: ${size} bytes\nComplexity: ${complexity}\nModified: ${lastModified}`;
     }
 
     public applyDescription(filePath: string, description: { summary: string; status: string; lastUpdated?: string }): void {
@@ -141,7 +156,6 @@ export class CodeObjectManager {
         points[1].sub(dir.clone().multiplyScalar(0.6));
 
         const geometry = new THREE.BufferGeometry().setFromPoints(points);
-
         const material = new THREE.LineBasicMaterial({
             color: data.color || this.getDependencyColor(data.type),
             opacity: data.opacity || 0.6,

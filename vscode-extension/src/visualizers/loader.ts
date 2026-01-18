@@ -30,7 +30,7 @@ export class ExtensionLoader {
         // Register built-in codebase visualizer
         const codebaseVisualizer = new CodebaseVisualizer();
         this.visualizers.set('codebase', codebaseVisualizer);
-        
+
         console.log('Initialized built-in visualizers:', Array.from(this.visualizers.keys()));
     }
 
@@ -41,13 +41,13 @@ export class ExtensionLoader {
         }
 
         try {
-            // Cleanup any previous visualizer
             this.cleanup();
 
-            // Initialize the visualizer with the target path
+            // Prepare metadata: pass down all info each file needs for default labels
             const cleanupFn = await visualizer.initialize(panel, { targetPath });
+
             this.activeCleanupFunctions.push(cleanupFn);
-            
+
             console.log('Codebase visualizer loaded successfully');
         } catch (error) {
             console.error('Failed to load codebase visualizer:', error);
@@ -56,11 +56,8 @@ export class ExtensionLoader {
     }
 
     public async discoverVisualizers(): Promise<void> {
-        // In the future, this will scan for external visualizer extensions
-        // For now, we only have built-in visualizers
-        
         const extensionsPath = path.join(this.context.extensionPath, 'extensions');
-        
+
         if (!fs.existsSync(extensionsPath)) {
             console.log('No extensions directory found, using built-in visualizers only');
             return;
@@ -68,7 +65,7 @@ export class ExtensionLoader {
 
         try {
             const entries = fs.readdirSync(extensionsPath, { withFileTypes: true });
-            
+
             for (const entry of entries) {
                 if (entry.isDirectory()) {
                     await this.loadVisualizerFromDirectory(path.join(extensionsPath, entry.name));
@@ -81,7 +78,7 @@ export class ExtensionLoader {
 
     private async loadVisualizerFromDirectory(dirPath: string): Promise<void> {
         const manifestPath = path.join(dirPath, 'manifest.json');
-        
+
         if (!fs.existsSync(manifestPath)) {
             console.warn(`No manifest.json found in ${dirPath}`);
             return;
@@ -90,11 +87,8 @@ export class ExtensionLoader {
         try {
             const manifestContent = fs.readFileSync(manifestPath, 'utf8');
             const manifest: VisualizerManifest = JSON.parse(manifestContent);
-            
-            // For now, just log the discovered visualizer
-            // In the future, we would dynamically load the visualizer module
+
             console.log(`Discovered visualizer: ${manifest.name} (${manifest.type})`);
-            
         } catch (error) {
             console.error(`Error loading visualizer from ${dirPath}:`, error);
         }
@@ -105,7 +99,6 @@ export class ExtensionLoader {
     }
 
     public cleanup(): void {
-        // Call all cleanup functions
         this.activeCleanupFunctions.forEach(cleanup => {
             try {
                 cleanup();
