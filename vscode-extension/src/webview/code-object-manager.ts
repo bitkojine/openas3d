@@ -8,6 +8,12 @@ export class CodeObjectManager {
 
     constructor(private scene: THREE.Scene) {}
 
+    // Helper: browser-safe filename extraction
+    private getFilename(filePath: string): string {
+        const parts = filePath.split(/[\\/]/); // split on / or \
+        return parts[parts.length - 1];
+    }
+
     public addObject(data: {
         id: string;
         type: 'file' | 'module' | 'class' | 'function' | 'sign';
@@ -42,17 +48,29 @@ export class CodeObjectManager {
         mesh.position.set(data.position.x, data.position.y, data.position.z);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
+
         this.scene.add(mesh);
 
         // ───── Description / Text Sprite ─────
-        const descriptionText = data.description || this.generateDefaultDescription(data);
+        let descriptionText = data.description;
+
+        // Fallback to metadata if no description
+        if (!descriptionText && data.metadata) {
+            const meta = data.metadata;
+            descriptionText = [
+                `Filename: ${this.getFilename(data.filePath)}`,
+                `Language: ${meta.language || 'unknown'}`,
+                `Size: ${meta.size ?? 0} bytes`,
+                `Complexity: ${meta.complexity ?? 'N/A'}`,
+                `Last Modified: ${meta.lastModified ? new Date(meta.lastModified).toLocaleDateString() : 'unknown'}`
+            ].join('\n');
+        }
 
         const descriptionStatus = data.descriptionStatus || 'missing';
         const descriptionLastUpdated = data.descriptionLastUpdated || new Date().toISOString();
 
-        const descriptionSprite = this.createTextSprite(descriptionText);
+        const descriptionSprite = this.createTextSprite(descriptionText || 'No description');
 
-        // Raise description above object
         const gap = 0.5;
         const objectHeight = data.type === 'sign' ? 1.0 : data.size?.height || 1;
         descriptionSprite.position.set(
@@ -70,29 +88,13 @@ export class CodeObjectManager {
             position: new THREE.Vector3(data.position.x, data.position.y, data.position.z),
             mesh,
             metadata: data.metadata || {},
-            description: descriptionText,
+            description: descriptionText || 'No description',
             descriptionMesh: descriptionSprite,
             descriptionStatus,
             descriptionLastUpdated
         };
 
         this.objects.set(data.id, codeObject);
-    }
-
-    /** Generate default metadata description if none exists */
-    private generateDefaultDescription(data: {
-        filePath: string;
-        metadata?: any;
-    }): string {
-        const fileName = data.filePath.split(/[\\/]/).pop();
-        const size = data.metadata?.size || 0;
-        const complexity = data.metadata?.complexity ?? 'N/A';
-        const language = data.metadata?.language ?? 'unknown';
-        const lastModified = data.metadata?.lastModified
-            ? new Date(data.metadata.lastModified).toLocaleDateString()
-            : 'unknown';
-
-        return `${fileName}\nLanguage: ${language}\nSize: ${size} bytes\nComplexity: ${complexity}\nModified: ${lastModified}`;
     }
 
     public applyDescription(filePath: string, description: { summary: string; status: string; lastUpdated?: string }): void {
@@ -104,7 +106,7 @@ export class CodeObjectManager {
         obj.descriptionLastUpdated = description.lastUpdated || new Date().toISOString();
 
         this.scene.remove(obj.descriptionMesh);
-        const newSprite = this.createTextSprite(`${description.summary}\n[${description.status}]`);
+        const newSprite = this.createTextSprite(description.summary);
         newSprite.position.copy(obj.descriptionMesh.position);
         obj.descriptionMesh = newSprite;
         this.scene.add(newSprite);
@@ -156,6 +158,7 @@ export class CodeObjectManager {
         points[1].sub(dir.clone().multiplyScalar(0.6));
 
         const geometry = new THREE.BufferGeometry().setFromPoints(points);
+
         const material = new THREE.LineBasicMaterial({
             color: data.color || this.getDependencyColor(data.type),
             opacity: data.opacity || 0.6,
@@ -259,8 +262,12 @@ export class CodeObjectManager {
     }
 
     private createTextSprite(message: string): THREE.Sprite {
+        const lines = message.split('\n');
+        const fontSize = 48;
+        const padding = 20;
+        const lineHeight = fontSize * 1.2;
         const canvasWidth = 1024;
-        const canvasHeight = 512;
+        const canvasHeight = padding * 2 + lineHeight * lines.length;
 
         const canvas = document.createElement('canvas');
         canvas.width = canvasWidth;
@@ -270,31 +277,11 @@ export class CodeObjectManager {
         context.fillStyle = 'black';
         context.fillRect(0, 0, canvasWidth, canvasHeight);
 
-        const fontSize = 48;
-        context.font = `${fontSize}px Arial`;
         context.fillStyle = 'white';
+        context.font = `${fontSize}px Arial`;
         context.textAlign = 'left';
         context.textBaseline = 'top';
 
-        const padding = 20;
-        const maxTextWidth = canvasWidth - padding * 2;
-        const words = message.split(' ');
-        const lines: string[] = [];
-        let currentLine = '';
-
-        words.forEach((word, idx) => {
-            const testLine = currentLine ? currentLine + ' ' + word : word;
-            const metrics = context.measureText(testLine);
-            if (metrics.width > maxTextWidth) {
-                lines.push(currentLine);
-                currentLine = word;
-            } else {
-                currentLine = testLine;
-            }
-            if (idx === words.length - 1) lines.push(currentLine);
-        });
-
-        const lineHeight = fontSize * 1.1;
         let y = padding;
         for (const line of lines) {
             context.fillText(line, padding, y);
@@ -308,7 +295,8 @@ export class CodeObjectManager {
 
         const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: false });
         const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set(3, 1.5, 1);
+
+        sprite.scale.set(canvasWidth / 200, canvasHeight / 200, 1);
 
         return sprite;
     }

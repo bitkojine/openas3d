@@ -76,7 +76,7 @@ export class WebviewPanelManager {
                     status = statusMatch ? (statusMatch[1] as any) : 'missing';
                 }
 
-                // If no Markdown summary, fallback to metadata
+                // Fallback to metadata if no Markdown summary
                 if (!summaryText && this.panel) {
                     const workspaceRoot = vscode.workspace.workspaceFolders![0].uri.fsPath;
                     const filePath = uri.fsPath.replace(/\.md$/, ''); // original code file
@@ -95,13 +95,16 @@ export class WebviewPanelManager {
                         };
                         const language = languageMap[ext] || 'unknown';
 
-                        const complexity = size / 50; // crude proxy metric for display
+                        const complexity = size / 50; // crude proxy metric
 
-                        summaryText = `${path.basename(filePath)}
-Language: ${language}
-Size: ${size} bytes
-Complexity: ${Math.round(complexity)}
-Modified: ${lastModified}`;
+                        // --- NEW: multi-line metadata format ---
+                        summaryText = [
+                            `Filename: ${path.basename(filePath)}`,
+                            `Language: ${language}`,
+                            `Size: ${size} bytes`,
+                            `Complexity: ${Math.round(complexity)}`,
+                            `Last Modified: ${lastModified}`
+                        ].join('\n');
 
                         status = 'generated';
                     } else {
