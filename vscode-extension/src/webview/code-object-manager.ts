@@ -8,7 +8,6 @@ export class CodeObjectManager {
 
     constructor(private scene: THREE.Scene) {}
 
-    // Helper: browser-safe filename extraction
     private getFilename(filePath: string): string {
         const parts = filePath.split(/[\\/]/);
         return parts[parts.length - 1];
@@ -26,7 +25,6 @@ export class CodeObjectManager {
         descriptionStatus?: string;
         descriptionLastUpdated?: string;
     }): void {
-        // ───── Geometry / Material ─────
         let geometry: THREE.BoxGeometry;
         let material: THREE.MeshLambertMaterial;
 
@@ -48,10 +46,9 @@ export class CodeObjectManager {
         mesh.position.set(data.position.x, data.position.y, data.position.z);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
-
         this.scene.add(mesh);
 
-        // ───── Description / Text Sprite ─────
+        // ───── Description ─────
         let descriptionText = data.description;
 
         if (!descriptionText && data.metadata) {
@@ -77,7 +74,6 @@ export class CodeObjectManager {
             data.position.y + objectHeight + gap,
             data.position.z
         );
-
         this.scene.add(descriptionSprite);
 
         const codeObject: CodeObject = {
@@ -268,29 +264,19 @@ export class CodeObjectManager {
 
     private createTextSprite(message: string): THREE.Sprite {
         const canvasWidth = 512;
-        const canvasHeight = 256;
-        const canvas = document.createElement('canvas');
-        canvas.width = canvasWidth;
-        canvas.height = canvasHeight;
-        const context = canvas.getContext('2d')!;
-
-        // Background
-        context.fillStyle = 'black';
-        context.fillRect(0, 0, canvasWidth, canvasHeight);
-
-        const fontSize = 36;
-        context.font = `${fontSize}px Arial`;
-        context.fillStyle = 'white';
-        context.textBaseline = 'top';
-
-        const lineHeight = fontSize * 1.2;
         const padding = 10;
+        const fontSize = 36;
+        const lineHeight = fontSize * 1.2;
+
+        const contextCanvas = document.createElement('canvas');
+        const context = contextCanvas.getContext('2d')!;
+        context.font = `${fontSize}px Arial`;
+
+        // Split into lines respecting \n
+        const rawLines = message.split('\n');
+        const lines: string[] = [];
         const maxTextWidth = canvasWidth - padding * 2;
 
-        const lines: string[] = [];
-
-        // Split message into explicit lines, then wrap words
-        const rawLines = message.split('\n');
         rawLines.forEach(rawLine => {
             let words = rawLine.split(' ');
             let currentLine = '';
@@ -307,14 +293,26 @@ export class CodeObjectManager {
             });
         });
 
-        // Draw the lines
+        const canvasHeight = padding * 2 + lines.length * lineHeight;
+        contextCanvas.width = canvasWidth;
+        contextCanvas.height = canvasHeight;
+
+        // Re-set font after resizing canvas
+        const ctx = contextCanvas.getContext('2d')!;
+        ctx.font = `${fontSize}px Arial`;
+        ctx.fillStyle = 'white';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
         let y = padding;
         lines.forEach(line => {
-            context.fillText(line, padding, y);
+            ctx.fillStyle = 'white';
+            ctx.fillText(line, padding, y);
             y += lineHeight;
         });
 
-        const texture = new THREE.CanvasTexture(canvas);
+        const texture = new THREE.CanvasTexture(contextCanvas);
         texture.needsUpdate = true;
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
@@ -322,7 +320,6 @@ export class CodeObjectManager {
         const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: false });
         const sprite = new THREE.Sprite(spriteMaterial);
 
-        // Use fixed scale for all sprites
         sprite.userData.width = canvasWidth / 200;
         sprite.userData.height = canvasHeight / 200;
         sprite.scale.set(sprite.userData.width, sprite.userData.height, 1);
