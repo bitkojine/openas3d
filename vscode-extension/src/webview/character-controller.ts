@@ -29,20 +29,26 @@ export class CharacterController {
     private isOnGround: boolean = false;
     private isPointerLocked: boolean = false;
 
+    // Optional feature: placing a sign
+    public placingSign: boolean = false;
+
     // Settings
-    private moveSpeed = 8.0;
-    private sprintMultiplier = 2.0;
+    constructor(
+        private camera: THREE.PerspectiveCamera,
+        private domElement: HTMLElement,
+        private moveSpeed: number = 8.0,
+        private sprintMultiplier: number = 2.0,
+        private groundHeight: number = 0.5
+    ) {
+        this.initInput();
+    }
+
     private jumpForce = 12.0;
     private gravity = -25.0;
     private friction = 8.0;
     private airFriction = 2.0;
     private mouseSensitivity = 0.002;
-    private groundHeight = 0.5;
     private characterHeight = 1.8;
-
-    constructor(private camera: THREE.PerspectiveCamera, private domElement: HTMLElement) {
-        this.initInput();
-    }
 
     public update(deltaTime: number): void {
         this.updateMovement(deltaTime);
@@ -86,11 +92,14 @@ export class CharacterController {
                 break;
             case 'KeyF':
                 this.controls.flightMode = !this.controls.flightMode;
-                // Reset vertical velocity if exiting flight
                 if (!this.controls.flightMode) {
                     this.velocity.y = 0;
                     this.position.y = Math.max(this.groundHeight + this.characterHeight, this.position.y);
                 }
+                break;
+            case 'KeyE':
+                // Toggle sign placing mode
+                this.placingSign = !this.placingSign;
                 break;
             case 'Escape':
                 if (this.isPointerLocked) document.exitPointerLock();
@@ -122,7 +131,6 @@ export class CharacterController {
         this.yaw -= movementX * this.mouseSensitivity;
         this.pitch -= movementY * this.mouseSensitivity;
 
-        // Clamp pitch to avoid flipping
         this.pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.pitch));
     }
 
@@ -136,7 +144,6 @@ export class CharacterController {
 
         if (direction.lengthSq() > 0) direction.normalize();
 
-        // Rotate movement by yaw
         const rotatedDirection = direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
 
         const targetVelocity = rotatedDirection.multiplyScalar(this.moveSpeed);

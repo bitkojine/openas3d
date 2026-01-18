@@ -5,7 +5,7 @@ import * as THREE from 'three';
  */
 export interface CodeObject {
     id: string;
-    type: 'file' | 'module' | 'class' | 'function';
+    type: 'file' | 'module' | 'class' | 'function' | 'sign'; // ✅ added 'sign'
     filePath: string;
 
     /**

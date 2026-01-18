@@ -51,7 +51,8 @@ export const MessageTypes = {
     REMOVE_OBJECT: 'removeObject',
     CLEAR_WORLD: 'clear',
     UPDATE_OBJECT: 'updateObject',
-    UPDATE_OBJECT_DESCRIPTION: 'updateObjectDescription', // new type for description updates
+    UPDATE_OBJECT_DESCRIPTION: 'updateObjectDescription',
+    ADD_SIGN: 'addSign', // new type for adding signs
 
     // Webview to Extension
     READY: 'ready',
@@ -69,18 +70,30 @@ export const MessageTypes = {
 export function registerOpenFilesHandler(handler: MessageHandler) {
     handler.registerHandler(MessageTypes.OPEN_FILES, async (data: { codeFile: string; descriptionFile: string }) => {
         try {
-            // Open code file
             const codeUri = vscode.Uri.file(data.codeFile);
             const codeDoc = await vscode.workspace.openTextDocument(codeUri);
             await vscode.window.showTextDocument(codeDoc, { preview: false });
 
-            // Open description file
             const descUri = vscode.Uri.file(data.descriptionFile);
             const descDoc = await vscode.workspace.openTextDocument(descUri);
             await vscode.window.showTextDocument(descDoc, { preview: false });
         } catch (err) {
             console.error('Failed to open files:', err);
             handler.sendToWebview({ type: MessageTypes.ERROR, data: err });
+        }
+    });
+}
+
+/**
+ * Helper to send a new sign to the webview
+ */
+export function sendSign(handler: MessageHandler, id: string, text: string, position: { x: number; y: number; z: number }) {
+    handler.sendToWebview({
+        type: MessageTypes.ADD_SIGN,
+        data: {
+            id,
+            text,
+            position
         }
     });
 }

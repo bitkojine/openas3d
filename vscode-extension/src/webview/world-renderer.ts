@@ -28,17 +28,29 @@ export class WorldRenderer {
         const loadingEl = document.getElementById('loading')!;
 
         this.sceneManager = new SceneManager(container);
+
+        // Pass proper arguments to CharacterController
         this.character = new CharacterController(
             this.sceneManager.camera,
-            this.sceneManager.renderer.domElement
+            this.sceneManager.renderer.domElement,
+            8.0,   // moveSpeed
+            2.0,   // sprintMultiplier
+            0.5    // groundHeight
         );
+
+        // Add placingSign property for sign mode
+        (this.character as any).placingSign = false;
+
         this.objects = new CodeObjectManager(this.sceneManager.scene);
         this.ui = new StatsUI(statsEl, loadingEl);
+
+        // Pass character reference to interaction controller
         this.interaction = new InteractionController(
             this.sceneManager.camera,
             this.sceneManager.renderer.domElement,
             this.objects,
-            this.vscode
+            this.vscode,
+            this.character
         );
 
         this.ui.hideLoading();

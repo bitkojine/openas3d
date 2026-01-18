@@ -51,7 +51,6 @@ export class WebviewPanelManager {
             this.context.subscriptions
         );
 
-        // Setup watcher for description files
         this.setupDescriptionWatcher();
 
         return this.panel;
@@ -71,7 +70,6 @@ export class WebviewPanelManager {
                 const statusMatch = content.match(/status:\s*(\w+)/i);
                 const status = statusMatch ? statusMatch[1] as 'missing' | 'generated' | 'reconciled' : 'missing';
 
-                // Compute original code file path
                 const workspaceRoot = vscode.workspace.workspaceFolders![0].uri.fsPath;
                 const relativePath = path.relative(path.join(workspaceRoot, '.3d-descriptions'), uri.fsPath);
                 const codeFilePath = path.join(workspaceRoot, relativePath.replace(/\.md$/, ''));
@@ -94,7 +92,6 @@ export class WebviewPanelManager {
         this.watcher.onDidCreate(updateDescription);
         this.watcher.onDidChange(updateDescription);
         this.watcher.onDidDelete(uri => {
-            // Optional: mark object as missing
             const workspaceRoot = vscode.workspace.workspaceFolders![0].uri.fsPath;
             const relativePath = path.relative(path.join(workspaceRoot, '.3d-descriptions'), uri.fsPath);
             const codeFilePath = path.join(workspaceRoot, relativePath.replace(/\.md$/, ''));
@@ -213,7 +210,6 @@ No description yet.
             const statusMatch = descriptionContent.match(/status:\s*(\w+)/i);
             const status = statusMatch ? statusMatch[1] as 'missing' | 'generated' | 'reconciled' : 'missing';
 
-            // Send to webview
             this.panel?.webview.postMessage({
                 type: 'updateObjectDescription',
                 data: {

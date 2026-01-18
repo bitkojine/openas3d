@@ -10,7 +10,8 @@ export class InteractionController {
         private camera: THREE.Camera,
         private domElement: HTMLElement,
         private objects: CodeObjectManager,
-        private vscode: any
+        private vscode: any,
+        private character: any // reference to CharacterController
     ) {
         this.onPointerDown = this.onPointerDown.bind(this);
         this.onDoubleClick = this.onDoubleClick.bind(this);
@@ -49,7 +50,23 @@ export class InteractionController {
             return;
         }
 
-        // Always raycast from screen center when locked
+        // Place sign if mode is active
+        if (this.character['placingSign']) {
+            const cameraDir = new THREE.Vector3();
+            this.camera.getWorldDirection(cameraDir);
+
+            const placePos = new THREE.Vector3().copy(this.camera.position).add(cameraDir.multiplyScalar(3));
+
+            this.vscode.postMessage({
+                type: 'addSignAtPosition',
+                data: { position: { x: placePos.x, y: placePos.y, z: placePos.z } }
+            });
+
+            this.character['placingSign'] = false;
+            return;
+        }
+
+        // Always raycast from screen center
         this.mouse.set(0, 0);
         this.raycaster.setFromCamera(this.mouse, this.camera);
 

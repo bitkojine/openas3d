@@ -37,59 +37,69 @@ export function activate(context: vscode.ExtensionContext) {
         }
     );
 
-    // Add commands to context subscriptions for cleanup
     context.subscriptions.push(exploreDependenciesCommand);
     context.subscriptions.push(openAs3DWorldCommand);
 
-    // Show activation notification
     vscode.window.showInformationMessage('OpenAs3D extension activated! Use "Explore Dependencies in 3D" to get started.');
 }
 
 async function handleExploreDependencies(uri?: vscode.Uri) {
-    // Get the workspace folder
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) {
         vscode.window.showWarningMessage('Please open a workspace folder to explore dependencies.');
         return;
     }
 
-    // Determine the target path
     const targetPath = uri?.fsPath || workspaceFolder.uri.fsPath;
-    
-    // Show progress notification
+
     await vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
         title: "Analyzing codebase dependencies...",
         cancellable: false
     }, async (progress) => {
         progress.report({ increment: 0, message: "Scanning files..." });
-        
-        // Create or show the webview panel
+
         const panel = await webviewPanelManager.createOrShowPanel();
-        
+
+        // Hook into webview messages after panel creation
+        panel.webview.onDidReceiveMessage(async (message) => {
+            if (message.type === 'addSignAtPosition') {
+                const text = await vscode.window.showInputBox({ prompt: 'Enter sign text (short message)' });
+                if (!text) return;
+
+                webviewPanelManager.sendMessage({
+                    type: 'addObject',
+                    data: {
+                        id: `sign-${Date.now()}`,
+                        type: 'sign',
+                        filePath: `signs/${Date.now()}.md`,
+                        position: message.data.position,
+                        description: text,
+                        color: 0xFFDD00
+                    }
+                });
+            }
+        });
+
         progress.report({ increment: 50, message: "Initializing 3D world..." });
-        
-        // Load the codebase visualizer
+
         await extensionLoader.loadCodebaseVisualizer(panel, targetPath);
-        
+
         progress.report({ increment: 100, message: "Complete!" });
     });
 }
 
 async function handleOpenAs3DWorld() {
-    // For now, this is the same as explore dependencies
-    // In the future, this could show a visualizer selection dialog
     await handleExploreDependencies();
 }
 
 export function deactivate() {
     console.log('OpenAs3D extension is being deactivated');
-    
-    // Cleanup resources
+
     if (webviewPanelManager) {
         webviewPanelManager.dispose();
     }
-    
+
     if (extensionLoader) {
         extensionLoader.dispose();
     }

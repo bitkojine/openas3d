@@ -10,7 +10,7 @@ export class CodeObjectManager {
 
     public addObject(data: {
         id: string;
-        type: 'file' | 'module' | 'class' | 'function';
+        type: 'file' | 'module' | 'class' | 'function' | 'sign';
         filePath: string;
         position: { x: number; y: number; z: number };
         color?: number;
@@ -20,15 +20,24 @@ export class CodeObjectManager {
         descriptionStatus?: string;
         descriptionLastUpdated?: string;
     }): void {
-        const geometry = new THREE.BoxGeometry(
-            data.size?.width || 1,
-            data.size?.height || 1,
-            data.size?.depth || 1
-        );
+        // ───── Geometry / Material ─────
+        let geometry: THREE.BoxGeometry;
+        let material: THREE.MeshLambertMaterial;
 
-        const material = new THREE.MeshLambertMaterial({
-            color: data.color || 0x4caf50
-        });
+        if (data.type === 'sign') {
+            // Minecraft-like sign post
+            geometry = new THREE.BoxGeometry(0.2, 1.0, 0.1);
+            material = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+        } else {
+            geometry = new THREE.BoxGeometry(
+                data.size?.width || 1,
+                data.size?.height || 1,
+                data.size?.depth || 1
+            );
+            material = new THREE.MeshLambertMaterial({
+                color: data.color || 0x4caf50
+            });
+        }
 
         const mesh = new THREE.Mesh(geometry, material);
         mesh.position.set(data.position.x, data.position.y, data.position.z);
@@ -37,19 +46,19 @@ export class CodeObjectManager {
 
         this.scene.add(mesh);
 
-        // Create placeholder description if none provided
+        // ───── Description / Text Sprite ─────
         const descriptionText = data.description || 'No description yet...';
         const descriptionStatus = data.descriptionStatus || 'missing';
         const descriptionLastUpdated = data.descriptionLastUpdated || new Date().toISOString();
 
         const descriptionSprite = this.createTextSprite(descriptionText);
 
-        // Position above object with uniform gap
+        // Raise description above object
         const gap = 0.5;
-        const height = data.size?.height || 1;
+        const objectHeight = data.type === 'sign' ? 1.0 : data.size?.height || 1;
         descriptionSprite.position.set(
             data.position.x,
-            data.position.y + height + gap,
+            data.position.y + objectHeight + gap,
             data.position.z
         );
 
@@ -79,11 +88,8 @@ export class CodeObjectManager {
         obj.descriptionStatus = description.status;
         obj.descriptionLastUpdated = description.lastUpdated || new Date().toISOString();
 
-        // Remove old sprite and add new one
         this.scene.remove(obj.descriptionMesh);
         const newSprite = this.createTextSprite(`${description.summary}\n[${description.status}]`);
-
-        // Keep same position
         newSprite.position.copy(obj.descriptionMesh.position);
         obj.descriptionMesh = newSprite;
         this.scene.add(newSprite);
@@ -188,7 +194,6 @@ export class CodeObjectManager {
 
     public selectObject(obj: CodeObject): void {
         this.deselectObject();
-
         this.selectedObject = obj;
         const material = obj.mesh.material as THREE.MeshLambertMaterial;
         material.emissive.setHex(0x444444);
@@ -210,23 +215,21 @@ export class CodeObjectManager {
         return [...this.objects.values()].map(o => o.mesh);
     }
 
-    /** Update all description meshes to face the camera and stay stable */
     public updateDescriptions(camera: THREE.Camera): void {
-        const gap = 0.5; // uniform gap above object
+        const gap = 0.5;
         this.objects.forEach(obj => {
             if (obj.descriptionMesh) {
                 obj.descriptionMesh.lookAt(camera.position);
 
                 const height = obj.mesh.geometry.boundingBox
                     ? obj.mesh.geometry.boundingBox.max.y - obj.mesh.geometry.boundingBox.min.y
-                    : 1;
+                    : obj.type === 'sign' ? 1.0 : 1;
                 obj.descriptionMesh.position.set(
                     obj.position.x,
                     obj.position.y + height + gap,
                     obj.position.z
                 );
 
-                // fixed scale
                 obj.descriptionMesh.scale.set(3, 1.5, 1);
             }
         });
@@ -241,7 +244,6 @@ export class CodeObjectManager {
         }
     }
 
-    /** Helper: create text sprite, left-aligned, wraps, taller to fit text */
     private createTextSprite(message: string): THREE.Sprite {
         const canvasWidth = 1024;
         const canvasHeight = 512;
@@ -278,7 +280,7 @@ export class CodeObjectManager {
             if (idx === words.length - 1) lines.push(currentLine);
         });
 
-        const lineHeight = fontSize * 1.1; // slightly tighter
+        const lineHeight = fontSize * 1.1;
         let y = padding;
         for (const line of lines) {
             context.fillText(line, padding, y);
@@ -292,8 +294,6 @@ export class CodeObjectManager {
 
         const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: false });
         const sprite = new THREE.Sprite(spriteMaterial);
-
-        // fixed 3D scale
         sprite.scale.set(3, 1.5, 1);
 
         return sprite;
