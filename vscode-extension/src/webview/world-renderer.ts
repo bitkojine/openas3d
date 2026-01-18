@@ -29,7 +29,6 @@ export class WorldRenderer {
 
         this.sceneManager = new SceneManager(container);
 
-        // Pass proper arguments to CharacterController
         this.character = new CharacterController(
             this.sceneManager.camera,
             this.sceneManager.renderer.domElement,
@@ -44,7 +43,6 @@ export class WorldRenderer {
         this.objects = new CodeObjectManager(this.sceneManager.scene);
         this.ui = new StatsUI(statsEl, loadingEl);
 
-        // Pass character reference to interaction controller
         this.interaction = new InteractionController(
             this.sceneManager.camera,
             this.sceneManager.renderer.domElement,
@@ -88,6 +86,15 @@ export class WorldRenderer {
         const rotationSpeed = 0.5; // radians per second
         for (const obj of this.objects['objects'].values()) {
             obj.mesh.rotation.y += rotationSpeed * deltaTime;
+
+            // Keep description sprite scale consistent with content
+            if (obj.descriptionMesh && obj.descriptionMesh.userData.width && obj.descriptionMesh.userData.height) {
+                obj.descriptionMesh.scale.set(
+                    obj.descriptionMesh.userData.width,
+                    obj.descriptionMesh.userData.height,
+                    1
+                );
+            }
         }
 
         // Update description labels to face the camera

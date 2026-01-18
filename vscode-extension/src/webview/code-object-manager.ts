@@ -10,7 +10,7 @@ export class CodeObjectManager {
 
     // Helper: browser-safe filename extraction
     private getFilename(filePath: string): string {
-        const parts = filePath.split(/[\\/]/); // split on / or \
+        const parts = filePath.split(/[\\/]/);
         return parts[parts.length - 1];
     }
 
@@ -54,7 +54,6 @@ export class CodeObjectManager {
         // ───── Description / Text Sprite ─────
         let descriptionText = data.description;
 
-        // Fallback to metadata if no description
         if (!descriptionText && data.metadata) {
             const meta = data.metadata;
             descriptionText = [
@@ -247,7 +246,13 @@ export class CodeObjectManager {
                     obj.position.z
                 );
 
-                obj.descriptionMesh.scale.set(3, 1.5, 1);
+                if (obj.descriptionMesh.userData.width && obj.descriptionMesh.userData.height) {
+                    obj.descriptionMesh.scale.set(
+                        obj.descriptionMesh.userData.width,
+                        obj.descriptionMesh.userData.height,
+                        1
+                    );
+                }
             }
         });
     }
@@ -262,31 +267,52 @@ export class CodeObjectManager {
     }
 
     private createTextSprite(message: string): THREE.Sprite {
-        const lines = message.split('\n');
-        const fontSize = 48;
-        const padding = 20;
-        const lineHeight = fontSize * 1.2;
-        const canvasWidth = 1024;
-        const canvasHeight = padding * 2 + lineHeight * lines.length;
-
+        const canvasWidth = 512;
+        const canvasHeight = 256;
         const canvas = document.createElement('canvas');
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
-
         const context = canvas.getContext('2d')!;
+
+        // Background
         context.fillStyle = 'black';
         context.fillRect(0, 0, canvasWidth, canvasHeight);
 
-        context.fillStyle = 'white';
+        const fontSize = 36;
         context.font = `${fontSize}px Arial`;
-        context.textAlign = 'left';
+        context.fillStyle = 'white';
         context.textBaseline = 'top';
 
+        const lineHeight = fontSize * 1.2;
+        const padding = 10;
+        const maxTextWidth = canvasWidth - padding * 2;
+
+        const lines: string[] = [];
+
+        // Split message into explicit lines, then wrap words
+        const rawLines = message.split('\n');
+        rawLines.forEach(rawLine => {
+            let words = rawLine.split(' ');
+            let currentLine = '';
+            words.forEach((word, idx) => {
+                const testLine = currentLine ? currentLine + ' ' + word : word;
+                const metrics = context.measureText(testLine);
+                if (metrics.width > maxTextWidth) {
+                    if (currentLine) lines.push(currentLine);
+                    currentLine = word;
+                } else {
+                    currentLine = testLine;
+                }
+                if (idx === words.length - 1) lines.push(currentLine);
+            });
+        });
+
+        // Draw the lines
         let y = padding;
-        for (const line of lines) {
+        lines.forEach(line => {
             context.fillText(line, padding, y);
             y += lineHeight;
-        }
+        });
 
         const texture = new THREE.CanvasTexture(canvas);
         texture.needsUpdate = true;
@@ -296,7 +322,10 @@ export class CodeObjectManager {
         const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: false });
         const sprite = new THREE.Sprite(spriteMaterial);
 
-        sprite.scale.set(canvasWidth / 200, canvasHeight / 200, 1);
+        // Use fixed scale for all sprites
+        sprite.userData.width = canvasWidth / 200;
+        sprite.userData.height = canvasHeight / 200;
+        sprite.scale.set(sprite.userData.width, sprite.userData.height, 1);
 
         return sprite;
     }
