@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
 import { WebviewPanelManager } from './webview/panel';
 import { ExtensionLoader } from './visualizers/loader';
 
@@ -67,12 +69,32 @@ async function handleExploreDependencies(uri?: vscode.Uri) {
                 const text = await vscode.window.showInputBox({ prompt: 'Enter sign text (short message)' });
                 if (!text) return;
 
+                const signsDir = path.join(workspaceFolder.uri.fsPath, 'signs');
+                fs.mkdirSync(signsDir, { recursive: true });
+
+                const timestamp = Date.now();
+                const fileName = `sign-${timestamp}.md`;
+                const filePath = path.join(signsDir, fileName);
+
+                // Create initial Markdown content
+                const content = `---
+status: missing
+lastUpdated: ${new Date().toISOString()}
+---
+
+# ${text}
+## Summary
+${text}
+`;
+                fs.writeFileSync(filePath, content, { encoding: 'utf-8' });
+
+                // Send message to webview to add the CodeObject
                 webviewPanelManager.sendMessage({
                     type: 'addObject',
                     data: {
-                        id: `sign-${Date.now()}`,
+                        id: `sign-${timestamp}`,
                         type: 'sign',
-                        filePath: `signs/${Date.now()}.md`,
+                        filePath,
                         position: message.data.position,
                         description: text,
                         color: 0xFFDD00
