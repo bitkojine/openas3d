@@ -1,4 +1,4 @@
-import { WorldRenderer } from './WorldRenderer';
+import { WorldRenderer } from './world-renderer';
 
 // Initialize the renderer when the page loads
 let worldRenderer: WorldRenderer;

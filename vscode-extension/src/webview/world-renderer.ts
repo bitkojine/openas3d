@@ -5,12 +5,11 @@ declare const acquireVsCodeApi: () => {
     setState: (state: any) => void;
 };
 
-import * as THREE from 'three';
-import { SceneManager } from './SceneManager';
-import { CharacterController } from './CharacterController';
-import { CodeObjectManager } from './CodeObjectManager';
-import { InteractionController } from './InteractionController';
-import { StatsUI } from './StatsUI';
+import { SceneManager } from './scene-manager';
+import { CharacterController } from './character-controller';
+import { CodeObjectManager } from './code-object-manager';
+import { InteractionController } from './interaction-controller';
+import { StatsUI } from './stats-ui';
 
 export class WorldRenderer {
     private sceneManager: SceneManager;

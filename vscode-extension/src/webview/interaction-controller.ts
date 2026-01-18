@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CodeObjectManager } from './CodeObjectManager';
+import { CodeObjectManager } from './code-object-manager';
 
 export class InteractionController {
     private raycaster = new THREE.Raycaster();
