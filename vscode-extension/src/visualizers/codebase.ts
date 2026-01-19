@@ -42,44 +42,40 @@ class CodebaseAnalyzer {
         this.workspaceRoot = workspaceFolder?.uri.fsPath || rootPath;
     }
 
-    public async analyze(): Promise<DependencyGraph> {
+    /**
+     * Stream files as they're discovered and analyzed.
+     * Calls onFile callback for each file, allowing progressive rendering.
+     */
+    public async analyzeStreaming(
+        onFile: (file: CodeFile) => void,
+        onComplete: (edges: DependencyEdge[]) => void
+    ): Promise<void> {
         const files = new Map<string, CodeFile>();
-        const edges: DependencyEdge[] = [];
 
-        const sourceFiles = await this.findSourceFiles(this.workspaceRoot);
+        // Use setImmediate to not block the event loop
+        const yieldToEventLoop = () => new Promise(resolve => setImmediate(resolve));
 
-        for (const filePath of sourceFiles) {
-            const fileInfo = await this.analyzeFile(filePath);
-            if (fileInfo) files.set(fileInfo.id, fileInfo);
-        }
-
-        // Build dependency edges
-        for (const file of files.values()) {
-            if (isCodeLanguage(file.language)) {
-                for (const depPath of file.dependencies) {
-                    const targetFile = this.findFileByPath(files, depPath);
-                    if (targetFile) edges.push({ source: file.id, target: targetFile.id, type: 'import' });
-                }
-            }
-        }
-
-        return { files, edges };
-    }
-
-    private async findSourceFiles(rootPath: string): Promise<string[]> {
-        const sourceFiles: string[] = [];
-
-        const scanDirectory = async (dirPath: string): Promise<void> => {
+        const processDirectory = async (dirPath: string): Promise<void> => {
             try {
                 const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+
                 for (const entry of entries) {
                     const fullPath = path.join(dirPath, entry.name);
+
                     if (entry.isDirectory()) {
                         if (!['node_modules', '.git', 'dist', 'build', 'out', '.vscode'].includes(entry.name)) {
-                            await scanDirectory(fullPath);
+                            await processDirectory(fullPath);
                         }
                     } else if (entry.isFile()) {
-                        sourceFiles.push(fullPath);
+                        const fileInfo = await this.analyzeFile(fullPath);
+                        if (fileInfo) {
+                            files.set(fileInfo.id, fileInfo);
+                            onFile(fileInfo); // Stream file immediately
+                        }
+                        // Yield every few files to keep UI responsive
+                        if (files.size % 5 === 0) {
+                            await yieldToEventLoop();
+                        }
                     }
                 }
             } catch (error) {
@@ -87,26 +83,43 @@ class CodebaseAnalyzer {
             }
         };
 
-        await scanDirectory(rootPath);
-        return sourceFiles;
+        await processDirectory(this.workspaceRoot);
+
+        // Build dependency edges after all files are loaded
+        const edges: DependencyEdge[] = [];
+        for (const file of files.values()) {
+            if (isCodeLanguage(file.language)) {
+                for (const depPath of file.dependencies) {
+                    const targetFile = this.findFileByPath(files, depPath);
+                    if (targetFile) {
+                        edges.push({ source: file.id, target: targetFile.id, type: 'import' });
+                    }
+                }
+            }
+        }
+
+        onComplete(edges);
     }
 
     private async analyzeFile(filePath: string): Promise<CodeFile | null> {
         try {
-            let content = await fs.promises.readFile(filePath, 'utf8');
+            const content = await fs.promises.readFile(filePath, 'utf8');
 
-            // Truncate content to first 100 lines for performance
-            const linesArr = content.split('\n').slice(0, MAX_CONTENT_LINES);
-            const truncatedContent = linesArr.join('\n');
+            // Cache the line split to avoid duplicate operations
+            const allLines = content.split('\n');
+            const truncatedContent = allLines.slice(0, MAX_CONTENT_LINES).join('\n');
 
             const stats = await fs.promises.stat(filePath);
             const relativePath = path.relative(this.workspaceRoot, filePath);
             const ext = path.extname(filePath);
             const language = getLanguageFromExtension(ext);
+
+            // Only search first 50 lines for imports (they're typically at top)
+            const importSection = allLines.slice(0, 50).join('\n');
             const dependencies = isCodeLanguage(language)
-                ? this.extractDependencies(content, language)
+                ? this.extractDependencies(importSection, language)
                 : [];
-            const lines = content.split('\n').length;
+            const lines = allLines.length;
             const complexity = isCodeLanguage(language)
                 ? this.calculateComplexity(content)
                 : undefined;
@@ -121,7 +134,7 @@ class CodebaseAnalyzer {
                 dependencies,
                 complexity,
                 lastModified: stats.mtime,
-                content: truncatedContent // <-- send only truncated content
+                content: truncatedContent
             };
         } catch (error) {
             console.warn(`Failed to analyze file ${filePath}:`, error);
@@ -209,7 +222,7 @@ export class CodebaseLayoutEngine {
         const positions = new Map<string, { x: number; z: number }>();
         Object.entries(zoneBuckets).forEach(([zone, filesInZone]) => {
             filesInZone.forEach((file, i) => {
-                const pos = this.getPositionInZone(zone, i);
+                const pos = this.getPositionForZone(zone, i);
                 positions.set(file.id, pos);
             });
         });
@@ -226,8 +239,8 @@ export class CodebaseLayoutEngine {
         return 'other';
     }
 
-    private getPositionInZone(zoneName: string, indexInZone: number): { x: number; z: number } {
-        const zone = this.zones[zoneName];
+    public getPositionForZone(zoneName: string, indexInZone: number): { x: number; z: number } {
+        const zone = this.zones[zoneName] || this.zones['other'];
         const row = Math.floor(indexInZone / zone.columns);
         const col = indexInZone % zone.columns;
         const x = zone.xStart + col * zone.spacing;
@@ -249,54 +262,62 @@ export class CodebaseVisualizer implements WorldVisualizer {
     };
 
     private panel: vscode.WebviewPanel | null = null;
+    private layout = new CodebaseLayoutEngine();
+    private fileIndex = 0;
+    private fileZoneCounts: { [zone: string]: number } = {};
 
     public async initialize(panel: vscode.WebviewPanel, data: { targetPath: string }): Promise<() => void> {
         this.panel = panel;
+        this.fileIndex = 0;
+        this.fileZoneCounts = {};
+
+        // Clear immediately - UI shows instantly
+        this.panel.webview.postMessage({ type: 'clear' });
 
         const analyzer = new CodebaseAnalyzer(data.targetPath);
-        const layout = new CodebaseLayoutEngine();
 
-        try {
-            const dependencyGraph = await analyzer.analyze();
-            const positions = layout.computePositions(Array.from(dependencyGraph.files.values()));
-
-            this.visualize(dependencyGraph, positions);
-        } catch (err) {
-            console.error('Failed to initialize CodebaseVisualizer:', err);
+        // Start streaming - don't await! Files will appear progressively
+        analyzer.analyzeStreaming(
+            (file) => this.addFileToScene(file),
+            (edges) => this.addEdgesToScene(edges)
+        ).catch(err => {
+            console.error('Failed during streaming analysis:', err);
             vscode.window.showErrorMessage(`Failed to analyze codebase: ${err}`);
-        }
+        });
 
         return () => this.cleanup();
     }
 
-    private visualize(graph: { files: Map<string, CodeFile>; edges: DependencyEdge[] },
-        positions: Map<string, { x: number; z: number }>) {
+    private addFileToScene(file: CodeFile): void {
         if (!this.panel) return;
-        this.panel.webview.postMessage({ type: 'clear' });
 
-        // Render files with truncated content for textures
-        graph.files.forEach(file => {
-            const pos2D = positions.get(file.id)!;
+        // Compute position based on zone and file count in that zone
+        const zone = this.getZoneForFile(file);
+        if (!this.fileZoneCounts[zone]) this.fileZoneCounts[zone] = 0;
+        const indexInZone = this.fileZoneCounts[zone]++;
+        const pos2D = this.layout.getPositionForZone(zone, indexInZone);
 
-            this.panel!.webview.postMessage({
-                type: 'addObject',
-                data: {
-                    id: file.id,
-                    type: 'file',
-                    filePath: file.filePath,
-                    position: { x: pos2D.x, y: 0, z: pos2D.z },
-                    size: {
-                        width: Math.min(1 + file.size / 1000, 3),
-                        height: Math.min(0.25 + file.lines * 0.025, 5),
-                        depth: Math.min(1 + file.size / 1000, 3)
-                    },
-                    metadata: file // includes truncated content (first 100 lines)
-                }
-            });
+        this.panel.webview.postMessage({
+            type: 'addObject',
+            data: {
+                id: file.id,
+                type: 'file',
+                filePath: file.filePath,
+                position: { x: pos2D.x, y: 0, z: pos2D.z },
+                size: {
+                    width: Math.min(1 + file.size / 1000, 3),
+                    height: Math.min(0.25 + file.lines * 0.025, 5),
+                    depth: Math.min(1 + file.size / 1000, 3)
+                },
+                metadata: file
+            }
         });
+    }
 
-        // Render dependencies
-        graph.edges.forEach(edge => {
+    private addEdgesToScene(edges: DependencyEdge[]): void {
+        if (!this.panel) return;
+
+        edges.forEach(edge => {
             this.panel!.webview.postMessage({
                 type: 'addDependency',
                 data: {
@@ -309,6 +330,15 @@ export class CodebaseVisualizer implements WorldVisualizer {
                 }
             });
         });
+    }
+
+    private getZoneForFile(file: CodeFile): string {
+        const ext = path.extname(file.filePath).toLowerCase();
+        if (['.ts', '.tsx', '.js', '.jsx', '.py', '.java', '.go', '.csharp', '.cpp', '.c', '.h'].includes(ext)) return 'source';
+        if (['.md'].includes(ext)) return 'docs';
+        if (['.json', '.yaml', '.yml', '.toml'].includes(ext)) return 'configs';
+        if (file.filePath.includes('dist') || file.filePath.includes('build') || file.filePath.includes('out')) return 'build';
+        return 'other';
     }
 
     private cleanup() {
