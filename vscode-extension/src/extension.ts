@@ -24,12 +24,13 @@ export function activate(context: vscode.ExtensionContext) {
     perf = new PerfTracker();
 
     // Initialize services
+    signService = new SignService(webviewPanelManager);
     exploreService = new ExploreDependenciesService(
         webviewPanelManager,
         extensionLoader,
-        perf
+        perf,
+        signService // inject SignService here
     );
-    signService = new SignService(webviewPanelManager);
 
     // Register commands
     const exploreDependenciesCommand = vscode.commands.registerCommand(

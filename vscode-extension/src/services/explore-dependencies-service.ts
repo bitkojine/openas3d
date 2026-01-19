@@ -4,12 +4,14 @@ import * as path from 'path';
 import { WebviewPanelManager } from '../webview/panel';
 import { ExtensionLoader } from '../visualizers/loader';
 import { PerfTracker } from '../utils/perf-tracker';
+import { SignService } from './sign-service';
 
 export class ExploreDependenciesService {
     constructor(
         private panelManager: WebviewPanelManager,
         private loader: ExtensionLoader,
-        private perf: PerfTracker
+        private perf: PerfTracker,
+        private signService: SignService // Inject SignService
     ) {}
 
     /** Handle the "Explore Dependencies" command */
@@ -34,11 +36,10 @@ export class ExploreDependenciesService {
             const panel = await this.panelManager.createOrShowPanel();
             this.perf.stop('createOrShowPanel', tPanel);
 
-            // Listen for sign placement messages
+            // Listen for sign placement messages and delegate to SignService
             panel.webview.onDidReceiveMessage(async (message) => {
                 if (message.type === 'addSignAtPosition') {
-                    // Delegate to SignService later
-                    vscode.window.showInformationMessage('Sign placement received.');
+                    await this.signService.addSignAtPosition(message.data.position);
                 }
             });
 
