@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { getLanguageDisplayName, getLanguageFromExtension } from '../utils/languageRegistry';
 
 export class WebviewPanelManager {
     private panel: vscode.WebviewPanel | undefined;
@@ -85,14 +86,7 @@ export class WebviewPanelManager {
                         const size = stats.size;
                         const lastModified = stats.mtime.toLocaleDateString();
                         const ext = path.extname(filePath);
-                        const languageMap: { [key: string]: string } = {
-                            '.ts': 'TypeScript', '.tsx': 'TypeScript',
-                            '.js': 'JavaScript', '.jsx': 'JavaScript',
-                            '.py': 'Python', '.java': 'Java',
-                            '.go': 'Go', '.cs': 'C#', '.cpp': 'C++',
-                            '.c': 'C', '.h': 'C'
-                        };
-                        const language = languageMap[ext] || 'unknown';
+                        const language = getLanguageDisplayName(getLanguageFromExtension(ext)) || 'Unknown';
                         const complexity = size / 50;
 
                         summaryText = [

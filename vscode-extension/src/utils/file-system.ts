@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { getLanguageFromExtension } from './languageRegistry';
 
 export class FileSystemHelper {
     /**
@@ -11,13 +12,13 @@ export class FileSystemHelper {
         excludePatterns: string[] = ['node_modules', '.git', 'dist', 'build', 'out']
     ): Promise<vscode.Uri[]> {
         const files: vscode.Uri[] = [];
-        
+
         try {
             const entries = await vscode.workspace.fs.readDirectory(dirUri);
-            
+
             for (const [name, type] of entries) {
                 const entryUri = vscode.Uri.joinPath(dirUri, name);
-                
+
                 if (type === vscode.FileType.Directory) {
                     // Skip excluded directories
                     if (!excludePatterns.includes(name)) {
@@ -34,7 +35,7 @@ export class FileSystemHelper {
         } catch (error) {
             console.warn(`Failed to read directory ${dirUri.fsPath}:`, error);
         }
-        
+
         return files;
     }
 
@@ -105,7 +106,7 @@ export class FileSystemHelper {
         try {
             const document = await vscode.workspace.openTextDocument(fileUri);
             const editor = await vscode.window.showTextDocument(document);
-            
+
             if (line !== undefined) {
                 const position = new vscode.Position(line, column || 0);
                 editor.selection = new vscode.Selection(position, position);
@@ -117,30 +118,10 @@ export class FileSystemHelper {
     }
 
     /**
-     * Get language ID for a file
+     * Get language ID for a file.
+     * @deprecated Use getLanguageFromExtension from languageRegistry.ts instead
      */
     public static getLanguageId(fileUri: vscode.Uri): string {
-        const ext = path.extname(fileUri.fsPath).toLowerCase();
-        const languageMap: { [key: string]: string } = {
-            '.ts': 'typescript',
-            '.tsx': 'typescriptreact',
-            '.js': 'javascript',
-            '.jsx': 'javascriptreact',
-            '.py': 'python',
-            '.java': 'java',
-            '.go': 'go',
-            '.cs': 'csharp',
-            '.cpp': 'cpp',
-            '.c': 'c',
-            '.h': 'c',
-            '.hpp': 'cpp',
-            '.rs': 'rust',
-            '.php': 'php',
-            '.rb': 'ruby',
-            '.swift': 'swift',
-            '.kt': 'kotlin',
-            '.scala': 'scala'
-        };
-        return languageMap[ext] || 'plaintext';
+        return getLanguageFromExtension(path.extname(fileUri.fsPath));
     }
 }

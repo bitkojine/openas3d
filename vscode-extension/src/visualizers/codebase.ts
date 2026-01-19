@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { WorldVisualizer, VisualizerManifest } from './loader';
+import { getLanguageFromExtension, isCodeLanguage } from '../utils/languageRegistry';
 
 interface CodeFile {
     id: string;
@@ -54,7 +55,7 @@ class CodebaseAnalyzer {
 
         // Build dependency edges
         for (const file of files.values()) {
-            if (['typescript','javascript','python','java','go','csharp','cpp','c'].includes(file.language)) {
+            if (isCodeLanguage(file.language)) {
                 for (const depPath of file.dependencies) {
                     const targetFile = this.findFileByPath(files, depPath);
                     if (targetFile) edges.push({ source: file.id, target: targetFile.id, type: 'import' });
@@ -101,12 +102,12 @@ class CodebaseAnalyzer {
             const stats = await fs.promises.stat(filePath);
             const relativePath = path.relative(this.workspaceRoot, filePath);
             const ext = path.extname(filePath);
-            const language = this.getLanguageFromExtension(ext);
-            const dependencies = ['typescript','javascript','python','java','go','csharp','cpp','c'].includes(language)
+            const language = getLanguageFromExtension(ext);
+            const dependencies = isCodeLanguage(language)
                 ? this.extractDependencies(content, language)
                 : [];
             const lines = content.split('\n').length;
-            const complexity = ['typescript','javascript','python','java','go','csharp','cpp','c'].includes(language)
+            const complexity = isCodeLanguage(language)
                 ? this.calculateComplexity(content)
                 : undefined;
 
@@ -128,20 +129,7 @@ class CodebaseAnalyzer {
         }
     }
 
-    private getLanguageFromExtension(ext: string): string {
-        const map: { [key: string]: string } = {
-            '.ts': 'typescript', '.tsx': 'typescript',
-            '.js': 'javascript', '.jsx': 'javascript',
-            '.py': 'python', '.java': 'java',
-            '.go': 'go', '.cs': 'csharp',
-            '.cpp': 'cpp', '.c': 'c', '.h': 'c',
-            '.md': 'markdown',
-            '.json': 'json',
-            '.yml': 'yaml', '.yaml': 'yaml',
-            '.toml': 'toml'
-        };
-        return map[ext] || 'other';
-    }
+    // getLanguageFromExtension moved to languageRegistry.ts
 
     private extractDependencies(content: string, language: string): string[] {
         const deps: string[] = [];
@@ -231,9 +219,9 @@ export class CodebaseLayoutEngine {
 
     private getZoneForFile(file: CodeFile): string {
         const ext = path.extname(file.filePath).toLowerCase();
-        if (['.ts','.tsx','.js','.jsx','.py','.java','.go','.csharp','.cpp','.c','.h'].includes(ext)) return 'source';
+        if (['.ts', '.tsx', '.js', '.jsx', '.py', '.java', '.go', '.csharp', '.cpp', '.c', '.h'].includes(ext)) return 'source';
         if (['.md'].includes(ext)) return 'docs';
-        if (['.json','.yaml','.yml','.toml'].includes(ext)) return 'configs';
+        if (['.json', '.yaml', '.yml', '.toml'].includes(ext)) return 'configs';
         if (file.filePath.includes('dist') || file.filePath.includes('build') || file.filePath.includes('out')) return 'build';
         return 'other';
     }
@@ -282,7 +270,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
     }
 
     private visualize(graph: { files: Map<string, CodeFile>; edges: DependencyEdge[] },
-                      positions: Map<string, { x: number; z: number }>) {
+        positions: Map<string, { x: number; z: number }>) {
         if (!this.panel) return;
         this.panel.webview.postMessage({ type: 'clear' });
 

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CodeObject, DependencyEdge } from './types';
+import { getLanguageColor } from '../utils/languageRegistry';
 
 export class CodeObjectManager {
     private objects: Map<string, CodeObject> = new Map();
@@ -9,23 +10,9 @@ export class CodeObjectManager {
     private readonly GROUND_Y = 0;
     private readonly GAP = 0.5;
 
-    private languageColors: { [lang: string]: number } = {
-        typescript: 0x3178C6,
-        javascript: 0xF7DF1E,
-        python: 0x3776AB,
-        java: 0xED8B00,
-        go: 0x00ADD8,
-        csharp: 0x239120,
-        cpp: 0x00599C,
-        c: 0x555555,
-        markdown: 0xFFD700,
-        json: 0xFF8C00,
-        yaml: 0x20B2AA,
-        toml: 0x8A2BE2,
-        other: 0xAAAAAA
-    };
+    // languageColors moved to languageRegistry.ts
 
-    constructor(private scene: THREE.Scene) {}
+    constructor(private scene: THREE.Scene) { }
 
     private getFilename(filePath: string): string {
         const parts = filePath.split(/[\\/]/);
@@ -105,7 +92,7 @@ export class CodeObjectManager {
             const contentTexture = this.createContentTexture(content, width, height);
 
             const lang = data.metadata?.language?.toLowerCase() || 'other';
-            const color = data.color ?? this.languageColors[lang] ?? 0x4caf50;
+            const color = data.color ?? getLanguageColor(lang);
 
             const materials = [
                 new THREE.MeshLambertMaterial({ color }), // right
