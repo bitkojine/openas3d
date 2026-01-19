@@ -31,6 +31,15 @@ export class CodebaseVisualizer implements WorldVisualizer {
     private panel: vscode.WebviewPanel | null = null;
     private dependencyGraph: DependencyGraph | null = null;
 
+    // ───── Zones with grid settings ─────
+    private zones: { [key: string]: { xStart: number; zStart: number; columns: number; spacing: number } } = {
+        source: { xStart: -50, zStart: -50, columns: 10, spacing: 5 },
+        docs: { xStart: -50, zStart: 0, columns: 10, spacing: 5 },
+        configs: { xStart: 50, zStart: -50, columns: 10, spacing: 5 },
+        build: { xStart: 50, zStart: 0, columns: 10, spacing: 5 },
+        other: { xStart: -100, zStart: 50, columns: 5, spacing: 5 }
+    };
+
     public async initialize(panel: vscode.WebviewPanel, data: { targetPath: string }): Promise<() => void> {
         this.panel = panel;
 
@@ -93,7 +102,6 @@ export class CodebaseVisualizer implements WorldVisualizer {
                             await scanDirectory(fullPath);
                         }
                     } else if (entry.isFile()) {
-                        // Include all files
                         sourceFiles.push(fullPath);
                     }
                 }
@@ -204,48 +212,69 @@ export class CodebaseVisualizer implements WorldVisualizer {
         return null;
     }
 
+    private getZoneForFile(file: CodeFile): string {
+        const ext = path.extname(file.filePath).toLowerCase();
+        if (['.ts', '.tsx', '.js', '.jsx', '.py', '.java', '.go', '.cs', '.cpp', '.c', '.h'].includes(ext)) return 'source';
+        if (['.md'].includes(ext)) return 'docs';
+        if (['.json', '.yaml', '.yml', '.toml'].includes(ext)) return 'configs';
+        if (file.filePath.includes('dist') || file.filePath.includes('build') || file.filePath.includes('out')) return 'build';
+        return 'other';
+    }
+
+    private getPositionInZone(file: CodeFile, indexInZone: number): { x: number; y: number; z: number } {
+        const zoneName = this.getZoneForFile(file);
+        const zone = this.zones[zoneName];
+        const row = Math.floor(indexInZone / zone.columns);
+        const col = indexInZone % zone.columns;
+        const x = zone.xStart + col * zone.spacing;
+        const z = zone.zStart + row * zone.spacing;
+        const y = 0.5 + Math.min((file.complexity || 0) * 0.5, 5); // capped height
+        return { x, y, z };
+    }
+
     private async visualizeDependencyGraph(): Promise<void> {
         if (!this.panel || !this.dependencyGraph) return;
 
         this.panel.webview.postMessage({ type: 'clear' });
 
-        const files = Array.from(this.dependencyGraph.files.values());
-        const maxComplexity = Math.max(...files.map(f => f.complexity || 0));
-
-        const gridSize = Math.ceil(Math.sqrt(files.length));
-        const spacing = 5;
-
-        files.forEach((file, index) => {
-            const x = (index % gridSize) * spacing - (gridSize * spacing) / 2;
-            const z = Math.floor(index / gridSize) * spacing - (gridSize * spacing) / 2;
-            const y = 0.5;
-
-            const color = this.getLanguageColor(file.language);
-            const complexityRatio = (file.complexity || 0) / maxComplexity;
-            const height = 0.5 + complexityRatio * 2;
-            const width = 0.8 + complexityRatio * 0.4;
-
-            this.panel!.webview.postMessage({
-                type: 'addObject',
-                data: {
-                    id: file.id,
-                    type: 'file',
-                    filePath: file.filePath,
-                    position: { x, y: height / 2, z },
-                    color,
-                    size: { width, height, depth: width },
-                    metadata: {
-                        relativePath: file.relativePath,
-                        language: file.language,
-                        complexity: file.complexity,
-                        size: file.size,
-                        lastModified: file.lastModified,
-                        dependencies: file.dependencies.length
-                    }
-                }
-            });
+        // Group files by zone
+        const zoneBuckets: { [key: string]: CodeFile[] } = {};
+        Array.from(this.dependencyGraph.files.values()).forEach(file => {
+            const zone = this.getZoneForFile(file);
+            if (!zoneBuckets[zone]) zoneBuckets[zone] = [];
+            zoneBuckets[zone].push(file);
         });
 
+        for (const [zone, files] of Object.entries(zoneBuckets)) {
+            files.forEach((file, i) => {
+                const pos = this.getPositionInZone(file, i);
+                const color = this.getLanguageColor(file.language);
+                const height = Math.min(0.5 + (file.complexity || 0) * 2, 5); // cap height
+                const width = 0.8 + Math.min((file.complexity || 0) * 0.4, 3);
+
+                this.panel!.webview.postMessage({
+                    type: 'addObject',
+                    data: {
+                        id: file.id,
+                        type: 'file',
+                        filePath: file.filePath,
+                        position: pos,
+                        color,
+                        size: { width, height, depth: width },
+                        metadata: {
+                            relativePath: file.relativePath,
+                            language: file.language,
+                            complexity: file.complexity,
+                            size: file.size,
+                            lastModified: file.lastModified,
+                            dependencies: file.dependencies.length
+                        }
+                    }
+                });
+            });
+        }
+
+        // Draw dependencies only for code files
         this.dependencyGraph.edges.forEach(edge => {
             this.panel!.webview.postMessage({
                 type: 'addDependency',
