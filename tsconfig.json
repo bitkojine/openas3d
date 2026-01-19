@@ -8,5 +8,5 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["share-diffs-to-chatgpt.ts", "share-files-to-chatgpt.ts"]
+  "include": ["refactor-with-chatgpt.ts", "share-diffs-to-chatgpt.ts", "share-files-to-chatgpt.ts"]
 }
