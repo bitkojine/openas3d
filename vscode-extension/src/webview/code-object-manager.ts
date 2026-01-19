@@ -129,9 +129,9 @@ export class CodeObjectManager {
             descriptionText = [
                 `Filename: ${this.getFilename(data.filePath)}`,
                 `Language: ${meta.language || 'unknown'}`,
-                `Size: ${meta.size ?? 0} bytes`,
+                `Size: ${(meta.size ?? 0).toLocaleString('lt-LT')} bytes`,
                 `Complexity: ${meta.complexity ?? 'N/A'}`,
-                `Last Modified: ${meta.lastModified ? new Date(meta.lastModified).toLocaleDateString() : 'unknown'}`
+                `Last Modified: ${meta.lastModified ? new Date(meta.lastModified).toLocaleDateString('lt-LT', { timeZone: 'Europe/Vilnius' }) : 'unknown'}`
             ].join('\n');
         }
 

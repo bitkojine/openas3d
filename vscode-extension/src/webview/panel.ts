@@ -84,7 +84,7 @@ export class WebviewPanelManager {
                     if (fs.existsSync(filePath)) {
                         const stats = fs.statSync(filePath);
                         const size = stats.size;
-                        const lastModified = stats.mtime.toLocaleDateString();
+                        const lastModified = stats.mtime.toLocaleDateString('lt-LT', { timeZone: 'Europe/Vilnius' });
                         const ext = path.extname(filePath);
                         const language = getLanguageDisplayName(getLanguageFromExtension(ext)) || 'Unknown';
                         const complexity = size / 50;
@@ -92,7 +92,7 @@ export class WebviewPanelManager {
                         summaryText = [
                             `Filename: ${path.basename(filePath)}`,
                             `Language: ${language}`,
-                            `Size: ${size} bytes`,
+                            `Size: ${size.toLocaleString('lt-LT')} bytes`,
                             `Complexity: ${Math.round(complexity)}`,
                             `Last Modified: ${lastModified}`
                         ].join('\n');
