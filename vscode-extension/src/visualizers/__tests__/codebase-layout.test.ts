@@ -1,7 +1,7 @@
 // __tests__/codebase-layout.test.ts
 jest.mock('vscode'); // Use the __mocks__/vscode.ts
 
-import { CodebaseLayoutEngine } from '../codebase';
+import { CodebaseLayoutEngine } from '../codebase-layout';
 
 describe('CodebaseLayoutEngine', () => {
     it('computes positions consistently', () => {
