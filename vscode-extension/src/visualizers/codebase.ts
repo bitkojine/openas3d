@@ -13,76 +13,40 @@ interface CodeFile {
     dependencies: string[];
     complexity?: number;
     lastModified: Date;
+    content: string; // <-- full content for webview textures
+}
+
+interface DependencyEdge {
+    source: string;
+    target: string;
+    type: string;
 }
 
 interface DependencyGraph {
     files: Map<string, CodeFile>;
-    edges: Array<{ source: string; target: string; type: string }>;
+    edges: DependencyEdge[];
 }
 
-export class CodebaseVisualizer implements WorldVisualizer {
-    public manifest: VisualizerManifest = {
-        name: 'Codebase Dependencies Visualizer',
-        type: 'codebase',
-        version: '1.0.0',
-        languages: ['typescript', 'javascript', 'python', 'java', 'go'],
-        description: 'Visualize code dependencies and architecture in 3D'
-    };
+/**
+ * Responsible for scanning files and extracting dependency information.
+ */
+class CodebaseAnalyzer {
+    private workspaceRoot: string;
 
-    private panel: vscode.WebviewPanel | null = null;
-    private dependencyGraph: DependencyGraph | null = null;
-
-    // ───── Zones with closer grid layout ─────
-    private zones: { [key: string]: { xStart: number; zStart: number; columns: number; spacing: number } } = {
-        source: { xStart: -20, zStart: -10, columns: 8, spacing: 3 },
-        docs: { xStart: -20, zStart: 10, columns: 8, spacing: 3 },
-        configs: { xStart: 20, zStart: -10, columns: 6, spacing: 3 },
-        build: { xStart: 20, zStart: 10, columns: 6, spacing: 3 },
-        other: { xStart: -40, zStart: 30, columns: 5, spacing: 3 }
-    };
-
-    public async initialize(panel: vscode.WebviewPanel, data: { targetPath: string }): Promise<() => void> {
-        this.panel = panel;
-
-        try {
-            console.log('Analyzing codebase at:', data.targetPath);
-
-            const tAnalyze = performance.now();
-            this.dependencyGraph = await this.analyzeCodebase(data.targetPath);
-            console.log(`Codebase analysis completed in ${(performance.now() - tAnalyze).toFixed(2)}ms`);
-
-            await this.visualizeDependencyGraph();
-
-            console.log(`Visualized ${this.dependencyGraph.files.size} files with ${this.dependencyGraph.edges.length} dependencies`);
-        } catch (error) {
-            console.error('Error initializing codebase visualizer:', error);
-            vscode.window.showErrorMessage(`Failed to analyze codebase: ${error}`);
-        }
-
-        return () => this.cleanup();
+    constructor(rootPath: string) {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        this.workspaceRoot = workspaceFolder?.uri.fsPath || rootPath;
     }
 
-    private async analyzeCodebase(rootPath: string): Promise<DependencyGraph> {
+    public async analyze(): Promise<DependencyGraph> {
         const files = new Map<string, CodeFile>();
-        const edges: Array<{ source: string; target: string; type: string }> = [];
+        const edges: DependencyEdge[] = [];
 
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        const workspaceRoot = workspaceFolder?.uri.fsPath || rootPath;
-
-        const tScan = performance.now();
-        const sourceFiles = await this.findSourceFiles(rootPath);
-        console.log(`Scanning ${sourceFiles.length} files took ${(performance.now() - tScan).toFixed(2)}ms`);
+        const sourceFiles = await this.findSourceFiles(this.workspaceRoot);
 
         for (const filePath of sourceFiles) {
-            try {
-                const tFile = performance.now();
-                const fileInfo = await this.analyzeFile(filePath, workspaceRoot);
-                console.log(`Analyzing ${filePath} took ${(performance.now() - tFile).toFixed(2)}ms`);
-
-                if (fileInfo) files.set(fileInfo.id, fileInfo);
-            } catch (error) {
-                console.warn(`Failed to analyze file ${filePath}:`, error);
-            }
+            const fileInfo = await this.analyzeFile(filePath);
+            if (fileInfo) files.set(fileInfo.id, fileInfo);
         }
 
         // Build dependency edges
@@ -123,11 +87,11 @@ export class CodebaseVisualizer implements WorldVisualizer {
         return sourceFiles;
     }
 
-    private async analyzeFile(filePath: string, workspaceRoot: string): Promise<CodeFile | null> {
+    private async analyzeFile(filePath: string): Promise<CodeFile | null> {
         try {
-            const content = await fs.promises.readFile(filePath, 'utf8');
+            const content = await fs.promises.readFile(filePath, 'utf8'); // <-- read content
             const stats = await fs.promises.stat(filePath);
-            const relativePath = path.relative(workspaceRoot, filePath);
+            const relativePath = path.relative(this.workspaceRoot, filePath);
             const ext = path.extname(filePath);
             const language = this.getLanguageFromExtension(ext);
             const dependencies = ['typescript','javascript','python','java','go','csharp','cpp','c'].includes(language)
@@ -147,7 +111,8 @@ export class CodebaseVisualizer implements WorldVisualizer {
                 lines,
                 dependencies,
                 complexity,
-                lastModified: stats.mtime
+                lastModified: stats.mtime,
+                content // <-- include content for webview
             };
         } catch (error) {
             console.warn(`Failed to analyze file ${filePath}:`, error);
@@ -215,12 +180,45 @@ export class CodebaseVisualizer implements WorldVisualizer {
         return relativePath.replace(/[^a-zA-Z0-9]/g, '_');
     }
 
-    private findFileByPath(files: Map<string, CodeFile>, depPath: string, currentDir: string): CodeFile | null {
+    private findFileByPath(files: Map<string, CodeFile>, depPath: string, _currentDir: string): CodeFile | null {
         for (const file of files.values()) {
             if (file.relativePath.includes(depPath) ||
                 path.basename(file.filePath, path.extname(file.filePath)) === depPath) return file;
         }
         return null;
+    }
+}
+
+/**
+ * Responsible for computing 3D layout positions for files
+ */
+class CodebaseLayoutEngine {
+    private zones: { [key: string]: { xStart: number; zStart: number; columns: number; spacing: number } } = {
+        source: { xStart: -20, zStart: -10, columns: 8, spacing: 3 },
+        docs: { xStart: -20, zStart: 10, columns: 8, spacing: 3 },
+        configs: { xStart: 20, zStart: -10, columns: 6, spacing: 3 },
+        build: { xStart: 20, zStart: 10, columns: 6, spacing: 3 },
+        other: { xStart: -40, zStart: 30, columns: 5, spacing: 3 }
+    };
+
+    public computePositions(files: CodeFile[]): Map<string, { x: number; z: number }> {
+        const zoneBuckets: { [zone: string]: CodeFile[] } = {};
+
+        files.forEach(file => {
+            const zone = this.getZoneForFile(file);
+            if (!zoneBuckets[zone]) zoneBuckets[zone] = [];
+            zoneBuckets[zone].push(file);
+        });
+
+        const positions = new Map<string, { x: number; z: number }>();
+        Object.entries(zoneBuckets).forEach(([zone, filesInZone]) => {
+            filesInZone.forEach((file, i) => {
+                const pos = this.getPositionInZone(zone, i);
+                positions.set(file.id, pos);
+            });
+        });
+
+        return positions;
     }
 
     private getZoneForFile(file: CodeFile): string {
@@ -232,8 +230,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
         return 'other';
     }
 
-    private getPositionInZone(file: CodeFile, indexInZone: number): { x: number; z: number } {
-        const zoneName = this.getZoneForFile(file);
+    private getPositionInZone(zoneName: string, indexInZone: number): { x: number; z: number } {
         const zone = this.zones[zoneName];
         const row = Math.floor(indexInZone / zone.columns);
         const col = indexInZone % zone.columns;
@@ -241,57 +238,69 @@ export class CodebaseVisualizer implements WorldVisualizer {
         const z = zone.zStart + row * zone.spacing;
         return { x, z };
     }
+}
 
-    private async visualizeDependencyGraph(): Promise<void> {
-        if (!this.panel || !this.dependencyGraph) return;
+/**
+ * Facade class for the VSCode extension loader
+ */
+export class CodebaseVisualizer implements WorldVisualizer {
+    public manifest: VisualizerManifest = {
+        name: 'Codebase Dependencies Visualizer',
+        type: 'codebase',
+        version: '1.0.0',
+        languages: ['typescript', 'javascript', 'python', 'java', 'go'],
+        description: 'Visualize code dependencies and architecture in 3D'
+    };
 
-        this.panel.webview.postMessage({ type: 'clear' });
+    private panel: vscode.WebviewPanel | null = null;
 
-        const zoneBuckets: { [key: string]: CodeFile[] } = {};
-        Array.from(this.dependencyGraph.files.values()).forEach(file => {
-            const zone = this.getZoneForFile(file);
-            if (!zoneBuckets[zone]) zoneBuckets[zone] = [];
-            zoneBuckets[zone].push(file);
-        });
+    public async initialize(panel: vscode.WebviewPanel, data: { targetPath: string }): Promise<() => void> {
+        this.panel = panel;
 
-        for (const [zone, files] of Object.entries(zoneBuckets)) {
-            files.forEach((file, i) => {
-                const pos2D = this.getPositionInZone(file, i);
+        const analyzer = new CodebaseAnalyzer(data.targetPath);
+        const layout = new CodebaseLayoutEngine();
 
-                // Compute dimensions
-                const height = Math.min(0.25 + file.lines * 0.025, 5);
-                const width = Math.min(1 + file.size / 1000, 3);
-                const depth = Math.min(1 + file.size / 1000, 3);
+        try {
+            const dependencyGraph = await analyzer.analyze();
+            const positions = layout.computePositions(Array.from(dependencyGraph.files.values()));
 
-                // Read content for minimap (safely)
-                let content = '';
-                try { content = fs.readFileSync(file.filePath, 'utf8'); } catch {}
-
-                this.panel!.webview.postMessage({
-                    type: 'addObject',
-                    data: {
-                        id: file.id,
-                        type: 'file',
-                        filePath: file.filePath,
-                        position: { x: pos2D.x, y: 0, z: pos2D.z },
-                        size: { width, height, depth },
-                        metadata: {
-                            relativePath: file.relativePath,
-                            language: file.language,
-                            complexity: file.complexity,
-                            size: file.size,
-                            lines: file.lines,
-                            lastModified: file.lastModified,
-                            dependencies: file.dependencies.length,
-                            content
-                        }
-                    }
-                });
-            });
+            this.visualize(dependencyGraph, positions);
+        } catch (err) {
+            console.error('Failed to initialize CodebaseVisualizer:', err);
+            vscode.window.showErrorMessage(`Failed to analyze codebase: ${err}`);
         }
 
-        // Add dependency edges
-        this.dependencyGraph.edges.forEach(edge => {
+        return () => this.cleanup();
+    }
+
+    private visualize(graph: { files: Map<string, CodeFile>; edges: DependencyEdge[] },
+                      positions: Map<string, { x: number; z: number }>) {
+        if (!this.panel) return;
+        this.panel.webview.postMessage({ type: 'clear' });
+
+        // Render files with full content for textures
+        graph.files.forEach(file => {
+            const pos2D = positions.get(file.id)!;
+
+            this.panel!.webview.postMessage({
+                type: 'addObject',
+                data: {
+                    id: file.id,
+                    type: 'file',
+                    filePath: file.filePath,
+                    position: { x: pos2D.x, y: 0, z: pos2D.z },
+                    size: {
+                        width: Math.min(1 + file.size / 1000, 3),
+                        height: Math.min(0.25 + file.lines * 0.025, 5),
+                        depth: Math.min(1 + file.size / 1000, 3)
+                    },
+                    metadata: file // content included here
+                }
+            });
+        });
+
+        // Render dependencies
+        graph.edges.forEach(edge => {
             this.panel!.webview.postMessage({
                 type: 'addDependency',
                 data: {
@@ -299,24 +308,14 @@ export class CodebaseVisualizer implements WorldVisualizer {
                     source: edge.source,
                     target: edge.target,
                     type: edge.type,
-                    color: this.getDependencyColor(edge.type),
+                    color: 0x00BFFF,
                     opacity: 0.6
                 }
             });
         });
     }
 
-    private getDependencyColor(type: string): number {
-        switch (type) {
-            case 'import': return 0x00BFFF;
-            case 'extends': return 0xFF6B35;
-            case 'calls': return 0x32CD32;
-            default: return 0x888888;
-        }
-    }
-
-    private cleanup(): void {
+    private cleanup() {
         this.panel = null;
-        this.dependencyGraph = null;
     }
 }
