@@ -9,6 +9,22 @@ export class CodeObjectManager {
     private readonly GROUND_Y = 0;
     private readonly GAP = 0.5;
 
+    private languageColors: { [lang: string]: number } = {
+        typescript: 0x3178C6,
+        javascript: 0xF7DF1E,
+        python: 0x3776AB,
+        java: 0xED8B00,
+        go: 0x00ADD8,
+        csharp: 0x239120,
+        cpp: 0x00599C,
+        c: 0x555555,
+        markdown: 0xFFD700,
+        json: 0xFF8C00,
+        yaml: 0x20B2AA,
+        toml: 0x8A2BE2,
+        other: 0xAAAAAA
+    };
+
     constructor(private scene: THREE.Scene) {}
 
     private getFilename(filePath: string): string {
@@ -68,13 +84,17 @@ export class CodeObjectManager {
 
             const placeholderTexture = this.createPlaceholderTexture('CODE');
 
+            // Determine color based on language
+            const lang = data.metadata?.language?.toLowerCase() || 'other';
+            const color = data.color ?? this.languageColors[lang] ?? 0x4caf50;
+
             const materials = [
-                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }), // right
-                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }), // left
-                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }), // top
-                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }), // bottom
-                new THREE.MeshBasicMaterial({ map: placeholderTexture }),          // front
-                new THREE.MeshBasicMaterial({ map: placeholderTexture })           // back
+                new THREE.MeshLambertMaterial({ color }), // right
+                new THREE.MeshLambertMaterial({ color }), // left
+                new THREE.MeshLambertMaterial({ color }), // top
+                new THREE.MeshLambertMaterial({ color }), // bottom
+                new THREE.MeshBasicMaterial({ map: placeholderTexture }), // front
+                new THREE.MeshBasicMaterial({ map: placeholderTexture })  // back
             ];
 
             mesh = new THREE.Mesh(geometry, materials);
@@ -211,7 +231,6 @@ export class CodeObjectManager {
             targetObj.mesh.position.clone()
         ];
 
-        // shorten line a bit from object edges
         const dir = targetObj.mesh.position.clone().sub(sourceObj.mesh.position).normalize();
         points[0].add(dir.clone().multiplyScalar(0.6));
         points[1].sub(dir.clone().multiplyScalar(0.6));
