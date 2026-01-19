@@ -66,6 +66,8 @@
     "watch": "webpack --mode development --watch",
     "dev": "webpack --mode development",
     "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:coveragehtml": "jest --coverage --coverageReporters=html",
     "package": "vsce package",
     "publish": "vsce publish"
   },
