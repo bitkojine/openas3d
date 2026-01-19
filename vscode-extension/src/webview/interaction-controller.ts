@@ -66,7 +66,7 @@ export class InteractionController {
             return;
         }
 
-        // Always raycast from screen center
+        // Raycast at center to select object
         this.mouse.set(0, 0);
         this.raycaster.setFromCamera(this.mouse, this.camera);
 
@@ -86,6 +86,7 @@ export class InteractionController {
 
         if (!obj) return;
 
+        // ───────── SELECT AND HIGHLIGHT ─────────
         this.objects.selectObject(obj);
         this.showDependencies(obj.id);
 
@@ -102,13 +103,27 @@ export class InteractionController {
     }
 
     private onDoubleClick(): void {
-        const selected = this.objects.getSelectedObject?.();
-        if (!selected) return;
+        // ───────── OPEN FILE UNDER CURSOR ─────────
+        this.mouse.set(0, 0); // center of screen
+        this.raycaster.setFromCamera(this.mouse, this.camera);
 
+        const intersects = this.raycaster.intersectObjects(
+            this.objects.getObjectMeshes(),
+            true
+        );
+
+        if (intersects.length === 0) return;
+
+        const mesh = intersects[0].object as THREE.Mesh;
+        const obj = this.objects.findByMesh(mesh);
+
+        if (!obj) return;
+
+        // Open the file without affecting selection or highlighting
         this.vscode.postMessage({
             type: 'openFiles',
             data: {
-                codeFile: selected.filePath
+                codeFile: obj.filePath
             }
         });
     }

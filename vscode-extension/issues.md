@@ -6,3 +6,5 @@
 
 - in object label, change date format, and add commas to byte size numbers
 
+- bug: when we open a file by double clicking a code object, later the same file get opened when double-clicking any other code object. so the bug is that it open the first file after extension load right, but later keeps opening the same file no matter what code object we double click.
+
