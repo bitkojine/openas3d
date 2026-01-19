@@ -9,6 +9,7 @@ interface CodeFile {
     relativePath: string;
     language: string;
     size: number;
+    lines: number;
     dependencies: string[];
     complexity?: number;
     lastModified: Date;
@@ -31,13 +32,13 @@ export class CodebaseVisualizer implements WorldVisualizer {
     private panel: vscode.WebviewPanel | null = null;
     private dependencyGraph: DependencyGraph | null = null;
 
-    // ───── Zones with grid settings ─────
+    // ───── Zones with grid settings (closer together) ─────
     private zones: { [key: string]: { xStart: number; zStart: number; columns: number; spacing: number } } = {
-        source: { xStart: -50, zStart: -50, columns: 10, spacing: 5 },
-        docs: { xStart: -50, zStart: 0, columns: 10, spacing: 5 },
-        configs: { xStart: 50, zStart: -50, columns: 10, spacing: 5 },
-        build: { xStart: 50, zStart: 0, columns: 10, spacing: 5 },
-        other: { xStart: -100, zStart: 50, columns: 5, spacing: 5 }
+        source: { xStart: -30, zStart: -20, columns: 8, spacing: 4 },
+        docs: { xStart: -30, zStart: 20, columns: 8, spacing: 4 },
+        configs: { xStart: 30, zStart: -20, columns: 6, spacing: 4 },
+        build: { xStart: 30, zStart: 20, columns: 6, spacing: 4 },
+        other: { xStart: -60, zStart: 50, columns: 5, spacing: 4 }
     };
 
     public async initialize(panel: vscode.WebviewPanel, data: { targetPath: string }): Promise<() => void> {
@@ -76,9 +77,8 @@ export class CodebaseVisualizer implements WorldVisualizer {
             }
         }
 
-        // Only create dependency edges for recognized code files
         for (const file of files.values()) {
-            if (['typescript', 'javascript', 'python', 'java', 'go', 'csharp', 'cpp', 'c'].includes(file.language)) {
+            if (['typescript','javascript','python','java','go','csharp','cpp','c'].includes(file.language)) {
                 for (const depPath of file.dependencies) {
                     const targetFile = this.findFileByPath(files, depPath, path.dirname(file.filePath));
                     if (targetFile) edges.push({ source: file.id, target: targetFile.id, type: 'import' });
@@ -124,6 +124,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
             const dependencies = ['typescript','javascript','python','java','go','csharp','cpp','c'].includes(language)
                 ? this.extractDependencies(content, language)
                 : [];
+            const lines = content.split('\n').length;
             const complexity = ['typescript','javascript','python','java','go','csharp','cpp','c'].includes(language)
                 ? this.calculateComplexity(content)
                 : undefined;
@@ -134,6 +135,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
                 relativePath,
                 language,
                 size: stats.size,
+                lines,
                 dependencies,
                 complexity,
                 lastModified: stats.mtime
@@ -214,9 +216,9 @@ export class CodebaseVisualizer implements WorldVisualizer {
 
     private getZoneForFile(file: CodeFile): string {
         const ext = path.extname(file.filePath).toLowerCase();
-        if (['.ts', '.tsx', '.js', '.jsx', '.py', '.java', '.go', '.cs', '.cpp', '.c', '.h'].includes(ext)) return 'source';
+        if (['.ts','.tsx','.js','.jsx','.py','.java','.go','.cs','.cpp','.c','.h'].includes(ext)) return 'source';
         if (['.md'].includes(ext)) return 'docs';
-        if (['.json', '.yaml', '.yml', '.toml'].includes(ext)) return 'configs';
+        if (['.json','.yaml','.yml','.toml'].includes(ext)) return 'configs';
         if (file.filePath.includes('dist') || file.filePath.includes('build') || file.filePath.includes('out')) return 'build';
         return 'other';
     }
@@ -228,7 +230,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
         const col = indexInZone % zone.columns;
         const x = zone.xStart + col * zone.spacing;
         const z = zone.zStart + row * zone.spacing;
-        const y = 0.5 + Math.min((file.complexity || 0) * 0.5, 5); // capped height
+        const y = 0.5 + Math.min((file.lines || file.size / 100) * 0.05, 5); // height based on lines/size, capped
         return { x, y, z };
     }
 
@@ -237,7 +239,6 @@ export class CodebaseVisualizer implements WorldVisualizer {
 
         this.panel.webview.postMessage({ type: 'clear' });
 
-        // Group files by zone
         const zoneBuckets: { [key: string]: CodeFile[] } = {};
         Array.from(this.dependencyGraph.files.values()).forEach(file => {
             const zone = this.getZoneForFile(file);
@@ -249,8 +250,9 @@ export class CodebaseVisualizer implements WorldVisualizer {
             files.forEach((file, i) => {
                 const pos = this.getPositionInZone(file, i);
                 const color = this.getLanguageColor(file.language);
-                const height = Math.min(0.5 + (file.complexity || 0) * 2, 5); // cap height
-                const width = 0.8 + Math.min((file.complexity || 0) * 0.4, 3);
+                const width = 1 + Math.min(file.size / 500, 3);
+                const depth = 1 + Math.min(file.size / 500, 3);
+                const height = Math.min(0.5 + (file.lines || 1) * 0.05, 5);
 
                 this.panel!.webview.postMessage({
                     type: 'addObject',
@@ -260,12 +262,13 @@ export class CodebaseVisualizer implements WorldVisualizer {
                         filePath: file.filePath,
                         position: pos,
                         color,
-                        size: { width, height, depth: width },
+                        size: { width, height, depth },
                         metadata: {
                             relativePath: file.relativePath,
                             language: file.language,
                             complexity: file.complexity,
                             size: file.size,
+                            lines: file.lines,
                             lastModified: file.lastModified,
                             dependencies: file.dependencies.length
                         }
@@ -274,7 +277,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
             });
         }
 
-        // Draw dependencies only for code files
+        // Only draw dependencies for code files
         this.dependencyGraph.edges.forEach(edge => {
             this.panel!.webview.postMessage({
                 type: 'addDependency',
