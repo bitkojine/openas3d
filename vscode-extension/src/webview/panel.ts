@@ -76,10 +76,9 @@ export class WebviewPanelManager {
                     status = statusMatch ? (statusMatch[1] as any) : 'missing';
                 }
 
-                // Fallback to metadata if no Markdown summary
                 if (!summaryText && this.panel) {
                     const workspaceRoot = vscode.workspace.workspaceFolders![0].uri.fsPath;
-                    const filePath = uri.fsPath.replace(/\.md$/, ''); // original code file
+                    const filePath = uri.fsPath.replace(/\.md$/, '');
 
                     if (fs.existsSync(filePath)) {
                         const stats = fs.statSync(filePath);
@@ -90,14 +89,12 @@ export class WebviewPanelManager {
                             '.ts': 'TypeScript', '.tsx': 'TypeScript',
                             '.js': 'JavaScript', '.jsx': 'JavaScript',
                             '.py': 'Python', '.java': 'Java',
-                            '.go': 'Go', '.cs': 'C#',
-                            '.cpp': 'C++', '.c': 'C', '.h': 'C'
+                            '.go': 'Go', '.cs': 'C#', '.cpp': 'C++',
+                            '.c': 'C', '.h': 'C'
                         };
                         const language = languageMap[ext] || 'unknown';
+                        const complexity = size / 50;
 
-                        const complexity = size / 50; // crude proxy metric
-
-                        // --- NEW: multi-line metadata format ---
                         summaryText = [
                             `Filename: ${path.basename(filePath)}`,
                             `Language: ${language}`,
@@ -116,10 +113,7 @@ export class WebviewPanelManager {
                     type: 'updateObjectDescription',
                     data: {
                         filePath: uri.fsPath,
-                        description: {
-                            summary: summaryText,
-                            status
-                        }
+                        description: { summary: summaryText, status }
                     }
                 });
             } catch (err) {
@@ -132,13 +126,7 @@ export class WebviewPanelManager {
         this.watcher.onDidDelete(uri => {
             this.panel?.webview.postMessage({
                 type: 'updateObjectDescription',
-                data: {
-                    filePath: uri.fsPath,
-                    description: {
-                        summary: 'No description yet.',
-                        status: 'missing'
-                    }
-                }
+                data: { filePath: uri.fsPath, description: { summary: 'No description yet.', status: 'missing' } }
             });
         });
     }
@@ -174,6 +162,9 @@ export class WebviewPanelManager {
                 break;
             case 'ready':
                 console.log('Webview is ready');
+                break;
+            case 'perfUpdate':
+                // Webview handles this in bootstrap.js, nothing needed here
                 break;
             case 'error':
                 vscode.window.showErrorMessage(`3D World Error: ${message.data.message}`);
@@ -285,6 +276,19 @@ body { margin:0; padding:0; overflow:hidden; background-color:#87CEEB; font-fami
 #loading { position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color:#333; background: rgba(255,255,255,0.95); padding:20px 30px; border-radius:10px; font-size:18px; z-index:1001; box-shadow:0 4px 20px rgba(0,0,0,0.1); }
 .hidden { display:none; }
 #controls-help { position:absolute; bottom:10px; left:10px; color:#333; background: rgba(255,255,255,0.9); padding:12px; border-radius:8px; font-size:11px; z-index:1000; box-shadow:0 2px 10px rgba(0,0,0,0.1); border:1px solid rgba(255,255,255,0.3); }
+#perf-panel { 
+    position:absolute;
+    top:10px;
+    right:10px;
+    background: rgba(0,0,0,0.6);
+    color:white;
+    font-size:12px;
+    padding:8px;
+    border-radius:6px;
+    max-width:200px;
+    z-index:1001;
+    white-space:pre-line;
+}
 </style>
 </head>
 <body>
@@ -307,6 +311,7 @@ body { margin:0; padding:0; overflow:hidden; background-color:#87CEEB; font-fami
         Click - Select object<br>
         Double-click - Open files
     </div>
+    <div id="perf-panel">Perf: initializing...</div>
 </div>
 <script src="${rendererUri}"></script>
 </body>

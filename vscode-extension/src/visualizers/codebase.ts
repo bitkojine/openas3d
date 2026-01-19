@@ -46,7 +46,10 @@ export class CodebaseVisualizer implements WorldVisualizer {
 
         try {
             console.log('Analyzing codebase at:', data.targetPath);
+
+            const tAnalyze = performance.now();
             this.dependencyGraph = await this.analyzeCodebase(data.targetPath);
+            console.log(`Codebase analysis completed in ${(performance.now() - tAnalyze).toFixed(2)}ms`);
 
             await this.visualizeDependencyGraph();
 
@@ -66,11 +69,16 @@ export class CodebaseVisualizer implements WorldVisualizer {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         const workspaceRoot = workspaceFolder?.uri.fsPath || rootPath;
 
+        const tScan = performance.now();
         const sourceFiles = await this.findSourceFiles(rootPath);
+        console.log(`Scanning ${sourceFiles.length} files took ${(performance.now() - tScan).toFixed(2)}ms`);
 
         for (const filePath of sourceFiles) {
             try {
+                const tFile = performance.now();
                 const fileInfo = await this.analyzeFile(filePath, workspaceRoot);
+                console.log(`Analyzing ${filePath} took ${(performance.now() - tFile).toFixed(2)}ms`);
+
                 if (fileInfo) files.set(fileInfo.id, fileInfo);
             } catch (error) {
                 console.warn(`Failed to analyze file ${filePath}:`, error);
@@ -230,7 +238,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
         const col = indexInZone % zone.columns;
         const x = zone.xStart + col * zone.spacing;
         const z = zone.zStart + row * zone.spacing;
-        const y = 0.25 + Math.min((file.lines || file.size / 100) * 0.025, 5); // scaled smaller, grows up to ~1000 lines
+        const y = 0.25 + Math.min((file.lines || file.size / 100) * 0.025, 5);
         return { x, y, z };
     }
 
@@ -251,7 +259,6 @@ export class CodebaseVisualizer implements WorldVisualizer {
                 const pos = this.getPositionInZone(file, i);
                 const color = this.getLanguageColor(file.language);
 
-                // Scaled dimensions
                 const width = Math.min(1 + file.size / 1000, 3) * 0.5;
                 const depth = Math.min(1 + file.size / 1000, 3) * 0.5;
                 const height = Math.min(0.25 + (file.lines || 1) * 0.025, 5);
@@ -279,7 +286,6 @@ export class CodebaseVisualizer implements WorldVisualizer {
             });
         }
 
-        // Dependencies only for code files
         this.dependencyGraph.edges.forEach(edge => {
             this.panel!.webview.postMessage({
                 type: 'addDependency',

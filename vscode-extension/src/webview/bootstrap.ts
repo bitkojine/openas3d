@@ -49,6 +49,13 @@ window.addEventListener('message', (event) => {
             worldRenderer.clear();
             break;
 
+        case 'perfUpdate':
+            const perfPanel = document.getElementById('perf-panel');
+            if (perfPanel) {
+                perfPanel.textContent = message.data.report;
+            }
+            break;
+
         default:
             console.warn('Unknown message type:', message.type);
     }

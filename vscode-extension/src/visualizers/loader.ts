@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { CodebaseVisualizer } from './codebase';
+import { PerfTracker } from '../utils/perf-tracker';
 
 export interface VisualizerManifest {
     name: string;
@@ -20,6 +21,7 @@ export class ExtensionLoader {
     private context: vscode.ExtensionContext;
     private visualizers: Map<string, WorldVisualizer> = new Map();
     private activeCleanupFunctions: (() => void)[] = [];
+    private perf = new PerfTracker();
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
@@ -27,11 +29,10 @@ export class ExtensionLoader {
     }
 
     private initializeBuiltInVisualizers(): void {
-        // Register built-in codebase visualizer
+        const tInit = performance.now();
         const codebaseVisualizer = new CodebaseVisualizer();
         this.visualizers.set('codebase', codebaseVisualizer);
-
-        console.log('Initialized built-in visualizers:', Array.from(this.visualizers.keys()));
+        console.log('Initialized built-in visualizers:', Array.from(this.visualizers.keys()), `in ${(performance.now() - tInit).toFixed(2)}ms`);
     }
 
     public async loadCodebaseVisualizer(panel: vscode.WebviewPanel, targetPath: string): Promise<void> {
@@ -41,14 +42,17 @@ export class ExtensionLoader {
         }
 
         try {
+            const tCleanup = this.perf.start('cleanupPreviousVisualizers');
             this.cleanup();
+            this.perf.stop('cleanupPreviousVisualizers', tCleanup);
 
-            // Prepare metadata: pass down all info each file needs for default labels
+            const tLoad = this.perf.start('initializeCodebaseVisualizer');
             const cleanupFn = await visualizer.initialize(panel, { targetPath });
-
             this.activeCleanupFunctions.push(cleanupFn);
+            this.perf.stop('initializeCodebaseVisualizer', tLoad);
 
             console.log('Codebase visualizer loaded successfully');
+            this.perf.report();
         } catch (error) {
             console.error('Failed to load codebase visualizer:', error);
             throw error;
@@ -85,10 +89,11 @@ export class ExtensionLoader {
         }
 
         try {
+            const tLoad = performance.now();
             const manifestContent = fs.readFileSync(manifestPath, 'utf8');
             const manifest: VisualizerManifest = JSON.parse(manifestContent);
 
-            console.log(`Discovered visualizer: ${manifest.name} (${manifest.type})`);
+            console.log(`Discovered visualizer: ${manifest.name} (${manifest.type}) in ${(performance.now() - tLoad).toFixed(2)}ms`);
         } catch (error) {
             console.error(`Error loading visualizer from ${dirPath}:`, error);
         }

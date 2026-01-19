@@ -3,9 +3,11 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { WebviewPanelManager } from './webview/panel';
 import { ExtensionLoader } from './visualizers/loader';
+import { PerfTracker } from './utils/perf-tracker';
 
 let webviewPanelManager: WebviewPanelManager;
 let extensionLoader: ExtensionLoader;
+const perf = new PerfTracker();
 
 export function activate(context: vscode.ExtensionContext) {
     const extension = vscode.extensions.getExtension('openas3d.openas3d-vscode');
@@ -61,9 +63,12 @@ async function handleExploreDependencies(uri?: vscode.Uri) {
     }, async (progress) => {
         progress.report({ increment: 0, message: "Scanning files..." });
 
+        // ───── Track panel creation ─────
+        const tPanel = perf.start('createOrShowPanel');
         const panel = await webviewPanelManager.createOrShowPanel();
+        perf.stop('createOrShowPanel', tPanel);
 
-        // Hook into webview messages after panel creation
+        // Hook into webview messages
         panel.webview.onDidReceiveMessage(async (message) => {
             if (message.type === 'addSignAtPosition') {
                 const text = await vscode.window.showInputBox({ prompt: 'Enter sign text (short message)' });
@@ -76,7 +81,6 @@ async function handleExploreDependencies(uri?: vscode.Uri) {
                 const fileName = `sign-${timestamp}.md`;
                 const filePath = path.join(signsDir, fileName);
 
-                // Create initial Markdown content
                 const content = `---
 status: missing
 lastUpdated: ${new Date().toISOString()}
@@ -88,7 +92,6 @@ ${text}
 `;
                 fs.writeFileSync(filePath, content, { encoding: 'utf-8' });
 
-                // Send message to webview to add the CodeObject
                 webviewPanelManager.sendMessage({
                     type: 'addObject',
                     data: {
@@ -103,11 +106,25 @@ ${text}
             }
         });
 
+        // ───── Set UI callback for live perf display ─────
+        perf.setUICallback(report => {
+            webviewPanelManager.sendMessage({
+                type: 'perfUpdate',
+                data: { report }
+            });
+        });
+
         progress.report({ increment: 50, message: "Initializing 3D world..." });
 
+        // ───── Track codebase visualizer load ─────
+        const tVisualizer = perf.start('loadCodebaseVisualizer');
         await extensionLoader.loadCodebaseVisualizer(panel, targetPath);
+        perf.stop('loadCodebaseVisualizer', tVisualizer);
 
         progress.report({ increment: 100, message: "Complete!" });
+
+        // ───── Log final performance report to console as well ─────
+        perf.report();
     });
 }
 
