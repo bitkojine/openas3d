@@ -6,6 +6,9 @@ export class CodeObjectManager {
     private dependencies: Map<string, DependencyEdge> = new Map();
     private selectedObject: CodeObject | null = null;
 
+    private readonly GROUND_Y = 0;
+    private readonly GAP = 0.5;
+
     constructor(private scene: THREE.Scene) {}
 
     private getFilename(filePath: string): string {
@@ -19,7 +22,7 @@ export class CodeObjectManager {
         canvas.width = 128;
         canvas.height = 128;
         const ctx = canvas.getContext('2d')!;
-        
+
         // Fill background
         ctx.fillStyle = '#222';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -65,25 +68,32 @@ export class CodeObjectManager {
 
             geometry = new THREE.BoxGeometry(width, height, depth);
 
-            // Placeholder texture for front/back faces
             const placeholderTexture = this.createPlaceholderTexture('CODE');
 
             const materials = [
-                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }), // right
-                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }), // left
-                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }), // top
-                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }), // bottom
-                new THREE.MeshBasicMaterial({ map: placeholderTexture }),          // front
-                new THREE.MeshBasicMaterial({ map: placeholderTexture })           // back
+                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }),
+                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }),
+                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }),
+                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }),
+                new THREE.MeshBasicMaterial({ map: placeholderTexture }),
+                new THREE.MeshBasicMaterial({ map: placeholderTexture })
             ];
 
             mesh = new THREE.Mesh(geometry, materials);
         }
 
-        mesh.position.set(data.position.x, data.position.y, data.position.z);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
-        mesh.geometry.computeBoundingBox(); // ensure bounding box exists
+        mesh.geometry.computeBoundingBox();
+        const bbox = mesh.geometry.boundingBox!;
+        const meshHeight = bbox.max.y - bbox.min.y;
+
+        // Set Y so bottom is always at GROUND_Y + GAP
+        mesh.position.set(
+            data.position.x,
+            this.GROUND_Y + this.GAP + meshHeight / 2,
+            data.position.z
+        );
         this.scene.add(mesh);
 
         // ───── Description ─────
@@ -104,16 +114,12 @@ export class CodeObjectManager {
 
         const descriptionSprite = this.createTextSprite(descriptionText || 'No description');
 
-        const objectHeight = mesh.geometry.boundingBox
-            ? mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y
-            : data.type === 'sign' ? 1.0 : 1;
-        const gap = 0.5;
-
         const labelHeight = descriptionSprite.userData.height || 1;
+
         descriptionSprite.position.set(
-            data.position.x,
-            data.position.y + objectHeight + gap + labelHeight / 2,
-            data.position.z
+            mesh.position.x,
+            mesh.position.y + meshHeight / 2 + this.GAP + labelHeight / 2,
+            mesh.position.z
         );
         this.scene.add(descriptionSprite);
 
@@ -121,7 +127,7 @@ export class CodeObjectManager {
             id: data.id,
             type: data.type,
             filePath: data.filePath,
-            position: new THREE.Vector3(data.position.x, data.position.y, data.position.z),
+            position: new THREE.Vector3(mesh.position.x, mesh.position.y, mesh.position.z),
             mesh,
             metadata: data.metadata || {},
             description: descriptionText || 'No description',
@@ -133,7 +139,6 @@ export class CodeObjectManager {
         this.objects.set(data.id, codeObject);
     }
 
-    // --- rest of the code remains exactly the same as original ---
     public applyDescription(filePath: string, description: { summary: string; status: string; lastUpdated?: string }): void {
         const obj = [...this.objects.values()].find(o => o.filePath === filePath);
         if (!obj || !obj.descriptionMesh) return;
@@ -147,15 +152,15 @@ export class CodeObjectManager {
 
         const mesh = obj.mesh;
         mesh.geometry.computeBoundingBox();
-        const objectHeight = mesh.geometry.boundingBox
-            ? mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y
-            : obj.type === 'sign' ? 1.0 : 1;
-        const gap = 0.5;
+        const bbox = mesh.geometry.boundingBox!;
+        const meshHeight = bbox.max.y - bbox.min.y;
+
         const labelHeight = newSprite.userData.height || 1;
+        const gap = this.GAP;
 
         newSprite.position.set(
             obj.position.x,
-            obj.position.y + objectHeight + gap + labelHeight / 2,
+            mesh.position.y + meshHeight / 2 + gap + labelHeight / 2,
             obj.position.z
         );
 
@@ -284,22 +289,21 @@ export class CodeObjectManager {
     }
 
     public updateDescriptions(camera: THREE.Camera): void {
-        const gap = 0.5;
+        const gap = this.GAP;
         this.objects.forEach(obj => {
             if (obj.descriptionMesh) {
                 obj.descriptionMesh.lookAt(camera.position);
 
                 const mesh = obj.mesh;
                 mesh.geometry.computeBoundingBox();
-                const objectHeight = mesh.geometry.boundingBox
-                    ? mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y
-                    : obj.type === 'sign' ? 1.0 : 1;
+                const bbox = mesh.geometry.boundingBox!;
+                const meshHeight = bbox.max.y - bbox.min.y;
 
                 const labelHeight = obj.descriptionMesh.userData.height || 1;
 
                 obj.descriptionMesh.position.set(
                     obj.position.x,
-                    obj.position.y + objectHeight + gap + labelHeight / 2,
+                    mesh.position.y + meshHeight / 2 + gap + labelHeight / 2,
                     obj.position.z
                 );
 

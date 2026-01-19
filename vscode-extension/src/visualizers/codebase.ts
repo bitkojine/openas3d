@@ -231,15 +231,14 @@ export class CodebaseVisualizer implements WorldVisualizer {
         return 'other';
     }
 
-    private getPositionInZone(file: CodeFile, indexInZone: number): { x: number; y: number; z: number } {
+    private getPositionInZone(file: CodeFile, indexInZone: number): { x: number; z: number } {
         const zoneName = this.getZoneForFile(file);
         const zone = this.zones[zoneName];
         const row = Math.floor(indexInZone / zone.columns);
         const col = indexInZone % zone.columns;
         const x = zone.xStart + col * zone.spacing;
         const z = zone.zStart + row * zone.spacing;
-        const y = 0.25 + Math.min((file.lines || file.size / 100) * 0.025, 5);
-        return { x, y, z };
+        return { x, z }; // Y is now handled in CodeObjectManager
     }
 
     private async visualizeDependencyGraph(): Promise<void> {
@@ -256,12 +255,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
 
         for (const [zone, files] of Object.entries(zoneBuckets)) {
             files.forEach((file, i) => {
-                const pos = this.getPositionInZone(file, i);
-                const color = this.getLanguageColor(file.language);
-
-                const width = Math.min(1 + file.size / 1000, 3) * 0.5;
-                const depth = Math.min(1 + file.size / 1000, 3) * 0.5;
-                const height = Math.min(0.25 + (file.lines || 1) * 0.025, 5);
+                const pos2D = this.getPositionInZone(file, i);
 
                 this.panel!.webview.postMessage({
                     type: 'addObject',
@@ -269,9 +263,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
                         id: file.id,
                         type: 'file',
                         filePath: file.filePath,
-                        position: pos,
-                        color,
-                        size: { width, height, depth },
+                        position: { x: pos2D.x, y: 0, z: pos2D.z }, // Y handled in CodeObjectManager
                         metadata: {
                             relativePath: file.relativePath,
                             language: file.language,
@@ -308,26 +300,6 @@ export class CodebaseVisualizer implements WorldVisualizer {
             case 'calls': return 0x32CD32;
             default: return 0x888888;
         }
-    }
-
-    private getLanguageColor(language: string): number {
-        const colorMap: { [key: string]: number } = {
-            'typescript': 0x3178C6,
-            'javascript': 0xF7DF1E,
-            'python': 0x3776AB,
-            'java': 0xED8B00,
-            'go': 0x00ADD8,
-            'csharp': 0x239120,
-            'cpp': 0x00599C,
-            'c': 0x555555,
-            'markdown': 0xFFD700,
-            'json': 0xFF8C00,
-            'yaml': 0x20B2AA,
-            'toml': 0x8A2BE2,
-            'other': 0xAAAAAA,
-            'unknown': 0x888888
-        };
-        return colorMap[language] || colorMap['other'];
     }
 
     private cleanup(): void {
