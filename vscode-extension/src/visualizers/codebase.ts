@@ -13,7 +13,7 @@ interface CodeFile {
     dependencies: string[];
     complexity?: number;
     lastModified: Date;
-    content: string; // <-- full content for webview textures
+    content: string; // truncated content for textures
 }
 
 interface DependencyEdge {
@@ -26,6 +26,9 @@ interface DependencyGraph {
     files: Map<string, CodeFile>;
     edges: DependencyEdge[];
 }
+
+/** Maximum number of lines to send to the webview for textures */
+const MAX_CONTENT_LINES = 100;
 
 /**
  * Responsible for scanning files and extracting dependency information.
@@ -53,7 +56,7 @@ class CodebaseAnalyzer {
         for (const file of files.values()) {
             if (['typescript','javascript','python','java','go','csharp','cpp','c'].includes(file.language)) {
                 for (const depPath of file.dependencies) {
-                    const targetFile = this.findFileByPath(files, depPath, path.dirname(file.filePath));
+                    const targetFile = this.findFileByPath(files, depPath);
                     if (targetFile) edges.push({ source: file.id, target: targetFile.id, type: 'import' });
                 }
             }
@@ -89,7 +92,12 @@ class CodebaseAnalyzer {
 
     private async analyzeFile(filePath: string): Promise<CodeFile | null> {
         try {
-            const content = await fs.promises.readFile(filePath, 'utf8'); // <-- read content
+            let content = await fs.promises.readFile(filePath, 'utf8');
+
+            // Truncate content to first 100 lines for performance
+            const linesArr = content.split('\n').slice(0, MAX_CONTENT_LINES);
+            const truncatedContent = linesArr.join('\n');
+
             const stats = await fs.promises.stat(filePath);
             const relativePath = path.relative(this.workspaceRoot, filePath);
             const ext = path.extname(filePath);
@@ -112,7 +120,7 @@ class CodebaseAnalyzer {
                 dependencies,
                 complexity,
                 lastModified: stats.mtime,
-                content // <-- include content for webview
+                content: truncatedContent // <-- send only truncated content
             };
         } catch (error) {
             console.warn(`Failed to analyze file ${filePath}:`, error);
@@ -180,7 +188,7 @@ class CodebaseAnalyzer {
         return relativePath.replace(/[^a-zA-Z0-9]/g, '_');
     }
 
-    private findFileByPath(files: Map<string, CodeFile>, depPath: string, _currentDir: string): CodeFile | null {
+    private findFileByPath(files: Map<string, CodeFile>, depPath: string): CodeFile | null {
         for (const file of files.values()) {
             if (file.relativePath.includes(depPath) ||
                 path.basename(file.filePath, path.extname(file.filePath)) === depPath) return file;
@@ -278,7 +286,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
         if (!this.panel) return;
         this.panel.webview.postMessage({ type: 'clear' });
 
-        // Render files with full content for textures
+        // Render files with truncated content for textures
         graph.files.forEach(file => {
             const pos2D = positions.get(file.id)!;
 
@@ -294,7 +302,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
                         height: Math.min(0.25 + file.lines * 0.025, 5),
                         depth: Math.min(1 + file.size / 1000, 3)
                     },
-                    metadata: file // content included here
+                    metadata: file // includes truncated content (first 100 lines)
                 }
             });
         });
