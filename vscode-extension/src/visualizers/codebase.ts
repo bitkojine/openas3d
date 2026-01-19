@@ -238,7 +238,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
         const col = indexInZone % zone.columns;
         const x = zone.xStart + col * zone.spacing;
         const z = zone.zStart + row * zone.spacing;
-        return { x, z }; // Y is now handled in CodeObjectManager
+        return { x, z }; // Y handled in CodeObjectManager
     }
 
     private async visualizeDependencyGraph(): Promise<void> {
@@ -257,6 +257,11 @@ export class CodebaseVisualizer implements WorldVisualizer {
             files.forEach((file, i) => {
                 const pos2D = this.getPositionInZone(file, i);
 
+                // Compute width/depth/height based on size & lines
+                const height = Math.min(0.25 + file.lines * 0.025, 5); // grow with lines
+                const width = Math.min(1 + file.size / 1000, 3);
+                const depth = Math.min(1 + file.size / 1000, 3);
+
                 this.panel!.webview.postMessage({
                     type: 'addObject',
                     data: {
@@ -264,6 +269,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
                         type: 'file',
                         filePath: file.filePath,
                         position: { x: pos2D.x, y: 0, z: pos2D.z }, // Y handled in CodeObjectManager
+                        size: { width, height, depth },
                         metadata: {
                             relativePath: file.relativePath,
                             language: file.language,
