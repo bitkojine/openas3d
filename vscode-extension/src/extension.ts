@@ -4,7 +4,6 @@ import * as fs from 'fs';
 import { WebviewPanelManager } from './webview/panel';
 import { ExtensionLoader } from './visualizers/loader';
 import { PerfTracker } from './utils/perf-tracker';
-import { FileSystemHelper } from './utils/file-system';
 
 let webviewPanelManager: WebviewPanelManager;
 let extensionLoader: ExtensionLoader;
@@ -119,48 +118,7 @@ ${text}
 
         // ───── Track codebase visualizer load ─────
         const tVisualizer = perf.start('loadCodebaseVisualizer');
-
-        // Before loading, we read file contents and pass to metadata
-        const allFiles = await FileSystemHelper.getFilesRecursively(
-            vscode.Uri.file(targetPath),
-            ['.ts','.tsx','.js','.jsx','.py','.java','.go','.cs','.cpp','.c','.h','.json','.md']
-        );
-
-        const fileMetadataMap: { [filePath: string]: any } = {};
-        for (const fileUri of allFiles) {
-            try {
-                const content = await FileSystemHelper.readFileContent(fileUri);
-                const stats = await FileSystemHelper.getFileStat(fileUri);
-                const language = FileSystemHelper.getLanguageId(fileUri);
-
-                fileMetadataMap[fileUri.fsPath] = {
-                    content,
-                    size: stats.size,
-                    lastModified: stats.mtime,
-                    language,
-                    lines: content.split('\n').length
-                };
-            } catch (err) {
-                console.warn(`Failed to read file for metadata: ${fileUri.fsPath}`, err);
-            }
-        }
-
-        // Pass metadataMap to visualizer through loader
         await extensionLoader.loadCodebaseVisualizer(panel, targetPath);
-        // After panel is ready, send each file with its content
-        for (const filePath in fileMetadataMap) {
-            webviewPanelManager.sendMessage({
-                type: 'addObject',
-                data: {
-                    id: filePath.replace(/[^a-zA-Z0-9]/g, '_'),
-                    type: 'file',
-                    filePath,
-                    position: { x: Math.random() * 20 - 10, y: 0, z: Math.random() * 20 - 10 },
-                    metadata: fileMetadataMap[filePath]
-                }
-            });
-        }
-
         perf.stop('loadCodebaseVisualizer', tVisualizer);
 
         progress.report({ increment: 100, message: "Complete!" });

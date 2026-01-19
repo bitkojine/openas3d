@@ -2,7 +2,7 @@
   "name": "openas3d-vscode",
   "displayName": "OpenAs3D - 3D Codebase Explorer",
   "description": "Visualize codebase dependencies and architecture in navigable 3D worlds",
-  "version": "0.1.65",
+  "version": "0.1.63",
   "publisher": "openas3d",
   "repository": {
     "type": "git",

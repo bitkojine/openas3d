@@ -32,36 +32,27 @@ export class CodeObjectManager {
         return parts[parts.length - 1];
     }
 
-    /** Create a texture showing the file content as a minimap */
-    private createFileTexture(filePath: string, content?: string): THREE.Texture {
-        const canvasWidth = 256;
-        const canvasHeight = 512; // taller for vertical code layout
-        const padding = 4;
-
+    /** Create a placeholder texture with text for testing */
+    private createPlaceholderTexture(text: string): THREE.Texture {
         const canvas = document.createElement('canvas');
-        canvas.width = canvasWidth;
-        canvas.height = canvasHeight;
-
+        canvas.width = 128;
+        canvas.height = 128;
         const ctx = canvas.getContext('2d')!;
-        ctx.fillStyle = '#1e1e1e'; // dark VSCode-like background
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-        ctx.fillStyle = '#d4d4d4'; // default text color
-        ctx.font = '8px monospace';
-        ctx.textBaseline = 'top';
+        ctx.fillStyle = '#222';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        const lines = content ? content.split('\n') : [];
-        const maxLines = Math.floor((canvasHeight - padding * 2) / 10); // ~10px per line
-        for (let i = 0; i < Math.min(lines.length, maxLines); i++) {
-            let line = lines[i];
-            if (line.length > 40) line = line.slice(0, 40) + '…';
-            ctx.fillText(line, padding, padding + i * 10);
-        }
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 32px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
 
         const texture = new THREE.CanvasTexture(canvas);
         texture.needsUpdate = true;
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
+
         return texture;
     }
 
@@ -91,9 +82,9 @@ export class CodeObjectManager {
 
             geometry = new THREE.BoxGeometry(width, height, depth);
 
-            const fileContent = data.metadata?.content || ''; // file content passed from extension
-            const fileTexture = this.createFileTexture(data.filePath, fileContent);
+            const placeholderTexture = this.createPlaceholderTexture('CODE');
 
+            // Determine color based on language
             const lang = data.metadata?.language?.toLowerCase() || 'other';
             const color = data.color ?? this.languageColors[lang] ?? 0x4caf50;
 
@@ -102,13 +93,14 @@ export class CodeObjectManager {
                 new THREE.MeshLambertMaterial({ color }), // left
                 new THREE.MeshLambertMaterial({ color }), // top
                 new THREE.MeshLambertMaterial({ color }), // bottom
-                new THREE.MeshBasicMaterial({ map: fileTexture }), // front
-                new THREE.MeshBasicMaterial({ map: fileTexture })  // back
+                new THREE.MeshBasicMaterial({ map: placeholderTexture }), // front
+                new THREE.MeshBasicMaterial({ map: placeholderTexture })  // back
             ];
 
             mesh = new THREE.Mesh(geometry, materials);
         }
 
+        // ───── Adjust Y so bottom sits at fixed GAP above ground ─────
         mesh.geometry.computeBoundingBox();
         const meshHeight = mesh.geometry.boundingBox
             ? mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y
@@ -123,6 +115,7 @@ export class CodeObjectManager {
         mesh.receiveShadow = true;
         this.scene.add(mesh);
 
+        // ───── Description ─────
         let descriptionText = data.description;
         if (!descriptionText && data.metadata) {
             const meta = data.metadata;
