@@ -32,13 +32,13 @@ export class CodebaseVisualizer implements WorldVisualizer {
     private panel: vscode.WebviewPanel | null = null;
     private dependencyGraph: DependencyGraph | null = null;
 
-    // ───── Zones with grid settings (closer together) ─────
+    // ───── Zones with closer grid layout ─────
     private zones: { [key: string]: { xStart: number; zStart: number; columns: number; spacing: number } } = {
-        source: { xStart: -30, zStart: -20, columns: 8, spacing: 4 },
-        docs: { xStart: -30, zStart: 20, columns: 8, spacing: 4 },
-        configs: { xStart: 30, zStart: -20, columns: 6, spacing: 4 },
-        build: { xStart: 30, zStart: 20, columns: 6, spacing: 4 },
-        other: { xStart: -60, zStart: 50, columns: 5, spacing: 4 }
+        source: { xStart: -20, zStart: -10, columns: 8, spacing: 3 },
+        docs: { xStart: -20, zStart: 10, columns: 8, spacing: 3 },
+        configs: { xStart: 20, zStart: -10, columns: 6, spacing: 3 },
+        build: { xStart: 20, zStart: 10, columns: 6, spacing: 3 },
+        other: { xStart: -40, zStart: 30, columns: 5, spacing: 3 }
     };
 
     public async initialize(panel: vscode.WebviewPanel, data: { targetPath: string }): Promise<() => void> {
@@ -230,7 +230,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
         const col = indexInZone % zone.columns;
         const x = zone.xStart + col * zone.spacing;
         const z = zone.zStart + row * zone.spacing;
-        const y = 0.5 + Math.min((file.lines || file.size / 100) * 0.05, 5); // height based on lines/size, capped
+        const y = 0.25 + Math.min((file.lines || file.size / 100) * 0.025, 5); // scaled smaller, grows up to ~1000 lines
         return { x, y, z };
     }
 
@@ -250,9 +250,11 @@ export class CodebaseVisualizer implements WorldVisualizer {
             files.forEach((file, i) => {
                 const pos = this.getPositionInZone(file, i);
                 const color = this.getLanguageColor(file.language);
-                const width = 1 + Math.min(file.size / 500, 3);
-                const depth = 1 + Math.min(file.size / 500, 3);
-                const height = Math.min(0.5 + (file.lines || 1) * 0.05, 5);
+
+                // Scaled dimensions
+                const width = Math.min(1 + file.size / 1000, 3) * 0.5;
+                const depth = Math.min(1 + file.size / 1000, 3) * 0.5;
+                const height = Math.min(0.25 + (file.lines || 1) * 0.025, 5);
 
                 this.panel!.webview.postMessage({
                     type: 'addObject',
@@ -277,7 +279,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
             });
         }
 
-        // Only draw dependencies for code files
+        // Dependencies only for code files
         this.dependencyGraph.edges.forEach(edge => {
             this.panel!.webview.postMessage({
                 type: 'addDependency',
