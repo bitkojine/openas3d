@@ -33,46 +33,43 @@ export class CodeObjectManager {
     }
 
     /**
-     * Create a dynamic minimap texture from file content.
-     * Supports large files by sampling lines.
+     * Create a content minimap texture, similar to description labels, for front/back faces
      */
-    private createMinimapTexture(
-        content: string,
-        boxWidth: number,
-        boxHeight: number
-    ): THREE.Texture {
-        const canvasWidth = 256;
-        const maxCanvasHeight = 512; // prevent huge textures
-        const lines = content.split('\n');
+    private createContentTexture(fileContent: string, boxWidth: number, boxHeight: number): THREE.Texture {
+        const maxLines = 1000;
+        const lines = fileContent.split('\n').slice(0, maxLines);
 
-        const step = Math.max(1, Math.floor(lines.length / maxCanvasHeight));
-        const sampledLines = lines.filter((_, idx) => idx % step === 0);
+        // Compute canvas height dynamically
+        const padding = 4;
+        const fontSize = 8; // small font for minimap
+        const lineHeight = fontSize * 1.2;
 
-        const canvasHeight = Math.min(maxCanvasHeight, sampledLines.length);
+        const canvasWidth = 512;
+        const canvasHeight = Math.min(canvasWidth, padding * 2 + lines.length * lineHeight);
+
         const canvas = document.createElement('canvas');
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
-
         const ctx = canvas.getContext('2d')!;
-        ctx.fillStyle = '#1e1e1e'; // dark VSCode-like background
+
+        ctx.fillStyle = '#222';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        ctx.fillStyle = '#d4d4d4';
-        ctx.font = '8px monospace';
+        ctx.font = `${fontSize}px monospace`;
         ctx.textBaseline = 'top';
+        ctx.fillStyle = '#fff';
 
-        const maxChars = 50;
-        sampledLines.forEach((line, i) => {
-            const text = line.substring(0, maxChars);
-            ctx.fillText(text, 2, i);
-        });
+        let y = padding;
+        for (const line of lines) {
+            // Clip long lines for width
+            ctx.fillText(line.slice(0, 200), padding, y);
+            y += lineHeight;
+        }
 
         const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.wrapS = THREE.ClampToEdgeWrapping;
-        texture.wrapT = THREE.ClampToEdgeWrapping;
-        texture.needsUpdate = true;
 
         return texture;
     }
@@ -97,31 +94,32 @@ export class CodeObjectManager {
             const material = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
             mesh = new THREE.Mesh(geometry, material);
         } else {
-            const width = (data.size?.width || 1) * 0.5;
-            const height = (data.size?.height || 1) * 0.5;
-            const depth = (data.size?.depth || 1) * 0.5;
+            const width = data.size?.width ?? 1;
+            const height = data.size?.height ?? 1;
+            const depth = data.size?.depth ?? 1;
 
             geometry = new THREE.BoxGeometry(width, height, depth);
 
+            // Create minimap texture using method like labels
+            const content = data.metadata?.content || '';
+            const contentTexture = this.createContentTexture(content, width, height);
+
             const lang = data.metadata?.language?.toLowerCase() || 'other';
             const color = data.color ?? this.languageColors[lang] ?? 0x4caf50;
-
-            // ───── Create file minimap texture ─────
-            const fileContent = data.metadata?.content || ''; // extension.ts must send 'content'
-            const minimapTexture = this.createMinimapTexture(fileContent, width, height);
 
             const materials = [
                 new THREE.MeshLambertMaterial({ color }), // right
                 new THREE.MeshLambertMaterial({ color }), // left
                 new THREE.MeshLambertMaterial({ color }), // top
                 new THREE.MeshLambertMaterial({ color }), // bottom
-                new THREE.MeshBasicMaterial({ map: minimapTexture }), // front
-                new THREE.MeshBasicMaterial({ map: minimapTexture })  // back
+                new THREE.MeshBasicMaterial({ map: contentTexture }), // front
+                new THREE.MeshBasicMaterial({ map: contentTexture })  // back
             ];
 
             mesh = new THREE.Mesh(geometry, materials);
         }
 
+        // Position Y so bottom is GAP above ground
         mesh.geometry.computeBoundingBox();
         const meshHeight = mesh.geometry.boundingBox
             ? mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y
@@ -137,7 +135,7 @@ export class CodeObjectManager {
         mesh.receiveShadow = true;
         this.scene.add(mesh);
 
-        // ───── Description ─────
+        // Create description sprite above the box
         let descriptionText = data.description;
         if (!descriptionText && data.metadata) {
             const meta = data.metadata;
@@ -152,6 +150,7 @@ export class CodeObjectManager {
 
         const descriptionStatus = data.descriptionStatus || 'missing';
         const descriptionLastUpdated = data.descriptionLastUpdated || new Date().toISOString();
+
         const descriptionSprite = this.createTextSprite(descriptionText || 'No description');
 
         const labelHeight = descriptionSprite.userData.height || 1;
@@ -207,7 +206,6 @@ export class CodeObjectManager {
         this.scene.add(newSprite);
     }
 
-    // ───── Remaining existing methods unchanged ─────
     public removeObject(id: string): void {
         const obj = this.objects.get(id);
         if (obj) {
