@@ -4,11 +4,9 @@ import * as fs from 'fs';
 import { WebviewPanelManager } from './webview/panel';
 import { ExtensionLoader } from './visualizers/loader';
 import { PerfTracker } from './utils/perf-tracker';
-import { ExtensionMessaging } from './utils/messaging-extension';
 
 let webviewPanelManager: WebviewPanelManager;
 let extensionLoader: ExtensionLoader;
-let messaging: ExtensionMessaging;
 const perf = new PerfTracker();
 
 export function activate(context: vscode.ExtensionContext) {
@@ -46,9 +44,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(exploreDependenciesCommand);
     context.subscriptions.push(openAs3DWorldCommand);
 
-    vscode.window.showInformationMessage(
-        'OpenAs3D extension activated! Use "Explore Dependencies in 3D" to get started.'
-    );
+    vscode.window.showInformationMessage('OpenAs3D extension activated! Use "Explore Dependencies in 3D" to get started.');
 }
 
 async function handleExploreDependencies(uri?: vscode.Uri) {
@@ -62,32 +58,30 @@ async function handleExploreDependencies(uri?: vscode.Uri) {
 
     await vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
-        title: 'Analyzing codebase dependencies...',
+        title: "Analyzing codebase dependencies...",
         cancellable: false
     }, async (progress) => {
-        progress.report({ increment: 0, message: 'Scanning files...' });
+        progress.report({ increment: 0, message: "Scanning files..." });
 
         // ───── Track panel creation ─────
         const tPanel = perf.start('createOrShowPanel');
         const panel = await webviewPanelManager.createOrShowPanel();
         perf.stop('createOrShowPanel', tPanel);
 
-        // Initialize messaging with raw panel
-        messaging = new ExtensionMessaging(panel);
+        // Hook into webview messages
+        panel.webview.onDidReceiveMessage(async (message) => {
+            if (message.type === 'addSignAtPosition') {
+                const text = await vscode.window.showInputBox({ prompt: 'Enter sign text (short message)' });
+                if (!text) return;
 
-        // Hook into messages from webview
-        messaging.register('addSignAtPosition', async (data) => {
-            const text = await vscode.window.showInputBox({ prompt: 'Enter sign text (short message)' });
-            if (!text) return;
+                const signsDir = path.join(workspaceFolder.uri.fsPath, 'signs');
+                fs.mkdirSync(signsDir, { recursive: true });
 
-            const signsDir = path.join(workspaceFolder.uri.fsPath, 'signs');
-            fs.mkdirSync(signsDir, { recursive: true });
+                const timestamp = Date.now();
+                const fileName = `sign-${timestamp}.md`;
+                const filePath = path.join(signsDir, fileName);
 
-            const timestamp = Date.now();
-            const fileName = `sign-${timestamp}.md`;
-            const filePath = path.join(signsDir, fileName);
-
-            const content = `---
+                const content = `---
 status: missing
 lastUpdated: ${new Date().toISOString()}
 ---
@@ -96,31 +90,38 @@ lastUpdated: ${new Date().toISOString()}
 ## Summary
 ${text}
 `;
-            fs.writeFileSync(filePath, content, { encoding: 'utf-8' });
+                fs.writeFileSync(filePath, content, { encoding: 'utf-8' });
 
-            messaging.send('addObject', {
-                id: `sign-${timestamp}`,
-                type: 'sign',
-                filePath,
-                position: data.position,
-                description: text,
-                color: 0xFFDD00
-            });
+                webviewPanelManager.sendMessage({
+                    type: 'addObject',
+                    data: {
+                        id: `sign-${timestamp}`,
+                        type: 'sign',
+                        filePath,
+                        position: message.data.position,
+                        description: text,
+                        color: 0xFFDD00
+                    }
+                });
+            }
         });
 
         // ───── Set UI callback for live perf display ─────
         perf.setUICallback(report => {
-            messaging.send('perfUpdate', { report });
+            webviewPanelManager.sendMessage({
+                type: 'perfUpdate',
+                data: { report }
+            });
         });
 
-        progress.report({ increment: 50, message: 'Initializing 3D world...' });
+        progress.report({ increment: 50, message: "Initializing 3D world..." });
 
         // ───── Track codebase visualizer load ─────
         const tVisualizer = perf.start('loadCodebaseVisualizer');
         await extensionLoader.loadCodebaseVisualizer(panel, targetPath);
         perf.stop('loadCodebaseVisualizer', tVisualizer);
 
-        progress.report({ increment: 100, message: 'Complete!' });
+        progress.report({ increment: 100, message: "Complete!" });
 
         // ───── Log final performance report to console as well ─────
         perf.report();

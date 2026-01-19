@@ -16,17 +16,17 @@ export class WebviewPanelManager {
     public async createOrShowPanel(): Promise<vscode.WebviewPanel> {
         const columnToShowIn = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
-            : vscode.ViewColumn.One;
+            : undefined;
 
         if (this.panel) {
-            this.panel.reveal(columnToShowIn ?? vscode.ViewColumn.One); // ✅ fixed undefined
+            this.panel.reveal(columnToShowIn);
             return this.panel;
         }
 
         this.panel = vscode.window.createWebviewPanel(
             'openas3d-world',
             'OpenAs3D - 3D World',
-            columnToShowIn ?? vscode.ViewColumn.One, // ✅ also use default here
+            columnToShowIn || vscode.ViewColumn.One,
             {
                 enableScripts: true,
                 retainContextWhenHidden: true,
@@ -45,13 +45,19 @@ export class WebviewPanelManager {
             this.watcher = undefined;
         }, null, this.context.subscriptions);
 
+        this.panel.webview.onDidReceiveMessage(
+            message => this.handleWebviewMessage(message),
+            undefined,
+            this.context.subscriptions
+        );
+
         this.setupDescriptionWatcher();
 
         return this.panel;
     }
 
     private setupDescriptionWatcher() {
-        if (!vscode.workspace.workspaceFolders?.length) return;
+        if (!vscode.workspace.workspaceFolders) return;
 
         const pattern = new vscode.RelativePattern(vscode.workspace.workspaceFolders[0], '**/*.md');
         this.watcher = vscode.workspace.createFileSystemWatcher(pattern);
@@ -125,33 +131,132 @@ export class WebviewPanelManager {
         });
     }
 
-    /**
-     * Send a message to the webview
-     */
     public sendMessage(message: any): void {
         if (this.panel) {
             this.panel.webview.postMessage(message);
         }
     }
 
-    /**
-     * Dispose of panel and watcher
-     */
     public dispose(): void {
         if (this.panel) {
             this.panel.dispose();
             this.panel = undefined;
         }
-        if (this.watcher) {
-            this.watcher.dispose();
-            this.watcher = undefined;
+        this.watcher?.dispose();
+        this.watcher = undefined;
+    }
+
+    private handleWebviewMessage(message: any): void {
+        switch (message.type) {
+            case 'objectSelected':
+                this.handleObjectSelected(message.data);
+                break;
+            case 'openFile':
+                this.handleOpenFile(message.data);
+                break;
+            case 'openFiles':
+                this.handleOpenFiles(message.data);
+                break;
+            case 'addSignAtPosition':
+                this.handleAddSign(message.data);
+                break;
+            case 'ready':
+                console.log('Webview is ready');
+                break;
+            case 'perfUpdate':
+                // Webview handles this in bootstrap.js, nothing needed here
+                break;
+            case 'error':
+                vscode.window.showErrorMessage(`3D World Error: ${message.data.message}`);
+                break;
+            default:
+                console.log('Unknown message from webview:', message);
         }
     }
 
-    private getWebviewContent(): string {
-        if (!this.panel) return '<html><body>Loading...</body></html>';
+    private async handleObjectSelected(data: any): Promise<void> {
+        console.log('Object selected:', data);
+        if (data.filePath) {
+            vscode.window.showInformationMessage(
+                `Selected: ${path.basename(data.filePath)} (${data.type})`
+            );
+        }
+    }
 
-        const rendererUri = this.panel.webview.asWebviewUri(
+    private async handleOpenFile(data: any): Promise<void> {
+        if (!data.filePath) return;
+
+        try {
+            const uri = vscode.Uri.file(data.filePath);
+            const document = await vscode.workspace.openTextDocument(uri);
+            await vscode.window.showTextDocument(document);
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open file: ${error}`);
+        }
+    }
+
+    private async handleOpenFiles(data: { codeFile: string }): Promise<void> {
+        try {
+            const codeUri = vscode.Uri.file(data.codeFile);
+
+            if (!fs.existsSync(codeUri.fsPath)) {
+                vscode.window.showWarningMessage(`File does not exist: ${data.codeFile}`);
+                return;
+            }
+
+            const codeDoc = await vscode.workspace.openTextDocument(codeUri);
+            await vscode.window.showTextDocument(codeDoc, { preview: false });
+
+            const descUri = vscode.Uri.file(data.codeFile.endsWith('.md') ? data.codeFile : data.codeFile + '.md');
+            if (fs.existsSync(descUri.fsPath)) {
+                const descDoc = await vscode.workspace.openTextDocument(descUri);
+                await vscode.window.showTextDocument(descDoc, { preview: false });
+            }
+        } catch (err) {
+            vscode.window.showErrorMessage(`Failed to open files: ${err}`);
+        }
+    }
+
+    private async handleAddSign(data: { position: { x: number; y: number; z: number } }) {
+        if (!vscode.workspace.workspaceFolders?.length) return;
+        const workspaceFolder = vscode.workspace.workspaceFolders[0];
+
+        const text = await vscode.window.showInputBox({ prompt: 'Enter sign text (short message)' });
+        if (!text) return;
+
+        const signsDir = path.join(workspaceFolder.uri.fsPath, 'signs');
+        fs.mkdirSync(signsDir, { recursive: true });
+
+        const timestamp = Date.now();
+        const fileName = `sign-${timestamp}.md`;
+        const filePath = path.join(signsDir, fileName);
+
+        const content = `---
+status: missing
+lastUpdated: ${new Date().toISOString()}
+---
+
+# ${text}
+## Summary
+${text}
+`;
+        fs.writeFileSync(filePath, content, { encoding: 'utf-8' });
+
+        this.panel?.webview.postMessage({
+            type: 'addObject',
+            data: {
+                id: `sign-${timestamp}`,
+                type: 'sign',
+                filePath,
+                position: data.position,
+                description: text,
+                color: 0xFFDD00
+            }
+        });
+    }
+
+    private getWebviewContent(): string {
+        const rendererUri = this.panel!.webview.asWebviewUri(
             vscode.Uri.file(path.join(this.context.extensionPath, 'out', 'webview', 'renderer.js'))
         );
 
@@ -160,7 +265,7 @@ export class WebviewPanelManager {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src ${this.panel.webview.cspSource} 'unsafe-inline'; style-src ${this.panel.webview.cspSource} 'unsafe-inline';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src ${this.panel!.webview.cspSource} 'unsafe-inline'; style-src ${this.panel!.webview.cspSource} 'unsafe-inline';">
 <title>OpenAs3D - 3D World</title>
 <style>
 body { margin:0; padding:0; overflow:hidden; background-color:#87CEEB; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }

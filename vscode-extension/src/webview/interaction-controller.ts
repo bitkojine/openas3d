@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { CodeObjectManager } from './code-object-manager';
-import { WebviewMessaging } from './messaging-webview';
 
 export class InteractionController {
     private raycaster = new THREE.Raycaster();
@@ -11,8 +10,8 @@ export class InteractionController {
         private camera: THREE.Camera,
         private domElement: HTMLElement,
         private objects: CodeObjectManager,
-        private messaging: WebviewMessaging,
-        private character: any // CharacterController
+        private vscode: any,
+        private character: any // reference to CharacterController
     ) {
         this.onPointerDown = this.onPointerDown.bind(this);
         this.onDoubleClick = this.onDoubleClick.bind(this);
@@ -32,16 +31,20 @@ export class InteractionController {
         this.domElement.removeEventListener('pointerdown', this.onPointerDown);
         this.domElement.removeEventListener('dblclick', this.onDoubleClick);
         this.domElement.removeEventListener('mousemove', this.onMouseMove);
-        document.removeEventListener('pointerlockchange', this.onPointerLockChange);
+        document.removeEventListener(
+            'pointerlockchange',
+            this.onPointerLockChange
+        );
+
         this.crosshair.remove();
     }
 
-    // ────────────────────────────────
-    // Pointer / Click Handling
-    // ────────────────────────────────
+    // ────────────────────────────────────────────────
+    // Pointer + Interaction
+    // ────────────────────────────────────────────────
 
     private onPointerDown(_event: PointerEvent): void {
-        // Acquire pointer lock
+        // Acquire pointer lock on first interaction
         if (document.pointerLockElement !== this.domElement) {
             this.domElement.requestPointerLock();
             return;
@@ -54,7 +57,10 @@ export class InteractionController {
 
             const placePos = new THREE.Vector3().copy(this.camera.position).add(cameraDir.multiplyScalar(3));
 
-            this.messaging.send('addSignAtPosition', { position: { x: placePos.x, y: placePos.y, z: placePos.z } });
+            this.vscode.postMessage({
+                type: 'addSignAtPosition',
+                data: { position: { x: placePos.x, y: placePos.y, z: placePos.z } }
+            });
 
             this.character['placingSign'] = false;
             return;
@@ -64,7 +70,11 @@ export class InteractionController {
         this.mouse.set(0, 0);
         this.raycaster.setFromCamera(this.mouse, this.camera);
 
-        const intersects = this.raycaster.intersectObjects(this.objects.getObjectMeshes(), true);
+        const intersects = this.raycaster.intersectObjects(
+            this.objects.getObjectMeshes(),
+            true
+        );
+
         if (intersects.length === 0) {
             this.objects.deselectObject();
             this.resetDependencies();
@@ -73,37 +83,48 @@ export class InteractionController {
 
         const mesh = intersects[0].object as THREE.Mesh;
         const obj = this.objects.findByMesh(mesh);
+
         if (!obj) return;
 
-        // Select and highlight
+        // ───────── SELECT AND HIGHLIGHT ─────────
         this.objects.selectObject(obj);
         this.showDependencies(obj.id);
 
-        // Send selection to extension
-        this.messaging.send('objectSelected', {
-            id: obj.id,
-            type: obj.type,
-            filePath: obj.filePath,
-            metadata: obj.metadata,
-            description: obj.description
+        this.vscode.postMessage({
+            type: 'objectSelected',
+            data: {
+                id: obj.id,
+                type: obj.type,
+                filePath: obj.filePath,
+                metadata: obj.metadata,
+                description: obj.description
+            }
         });
     }
 
     private onDoubleClick(): void {
-        // Raycast at center
-        this.mouse.set(0, 0);
+        // ───────── OPEN FILE UNDER CURSOR ─────────
+        this.mouse.set(0, 0); // center of screen
         this.raycaster.setFromCamera(this.mouse, this.camera);
 
-        const intersects = this.raycaster.intersectObjects(this.objects.getObjectMeshes(), true);
+        const intersects = this.raycaster.intersectObjects(
+            this.objects.getObjectMeshes(),
+            true
+        );
+
         if (intersects.length === 0) return;
 
         const mesh = intersects[0].object as THREE.Mesh;
         const obj = this.objects.findByMesh(mesh);
+
         if (!obj) return;
 
-        // Open file without affecting selection
-        this.messaging.send('openFiles', {
-            codeFile: obj.filePath
+        // Open the file without affecting selection or highlighting
+        this.vscode.postMessage({
+            type: 'openFiles',
+            data: {
+                codeFile: obj.filePath
+            }
         });
     }
 
@@ -111,12 +132,13 @@ export class InteractionController {
         // Camera rotation handled elsewhere (CharacterController)
     }
 
-    // ────────────────────────────────
+    // ────────────────────────────────────────────────
     // Crosshair
-    // ────────────────────────────────
+    // ────────────────────────────────────────────────
 
     private createCrosshair(): HTMLDivElement {
         const crosshair = document.createElement('div');
+
         crosshair.style.position = 'fixed';
         crosshair.style.left = '50%';
         crosshair.style.top = '50%';
@@ -127,6 +149,7 @@ export class InteractionController {
         crosshair.style.pointerEvents = 'none';
         crosshair.style.zIndex = '9999';
         crosshair.style.display = 'none';
+
         crosshair.style.background = `
             linear-gradient(#fff, #fff),
             linear-gradient(#fff, #fff)
@@ -134,6 +157,7 @@ export class InteractionController {
         crosshair.style.backgroundSize = '2px 12px, 12px 2px';
         crosshair.style.backgroundPosition = 'center';
         crosshair.style.backgroundRepeat = 'no-repeat';
+
         document.body.appendChild(crosshair);
         return crosshair;
     }
@@ -147,9 +171,9 @@ export class InteractionController {
         this.crosshair.style.display = isLocked ? 'block' : 'none';
     }
 
-    // ────────────────────────────────
+    // ────────────────────────────────────────────────
     // Dependency Visualization
-    // ────────────────────────────────
+    // ────────────────────────────────────────────────
 
     private showDependencies(objectId: string): void {
         this.objects.showDependenciesForObject(objectId);
