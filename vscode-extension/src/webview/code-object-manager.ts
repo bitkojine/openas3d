@@ -294,18 +294,43 @@ export class CodeObjectManager {
         this.dependencies.forEach(dep => dep.line.visible = false);
     }
 
+
+    private setEmissiveColor(obj: CodeObject, colorHex: number): void {
+        const materials = Array.isArray(obj.mesh.material) ? obj.mesh.material : [obj.mesh.material];
+        materials.forEach(mat => {
+            if ((mat as THREE.MeshLambertMaterial).emissive) {
+                (mat as THREE.MeshLambertMaterial).emissive.setHex(colorHex);
+            }
+        });
+    }
+
     public selectObject(obj: CodeObject): void {
         this.deselectObject();
         this.selectedObject = obj;
-        const material = obj.mesh.material as THREE.MeshLambertMaterial;
-        material.emissive.setHex(0x444444);
+        this.setEmissiveColor(obj, 0x444444);
     }
 
     public deselectObject(): void {
         if (this.selectedObject) {
-            const material = this.selectedObject.mesh.material as THREE.MeshLambertMaterial;
-            material.emissive.setHex(0x000000);
+            this.setEmissiveColor(this.selectedObject, 0x000000);
             this.selectedObject = null;
+        }
+    }
+
+    public setFocusedObject(obj: CodeObject | null): void {
+        // If same object, do nothing
+        if (this.selectedObject === obj) return;
+
+        // Clear previous selection/glow
+        if (this.selectedObject) {
+            this.setEmissiveColor(this.selectedObject, 0x000000);
+        }
+
+        this.selectedObject = obj;
+
+        // Apply new glow
+        if (this.selectedObject) {
+            this.setEmissiveColor(this.selectedObject, 0xaaaaaa); // Stronger glow for focus
         }
     }
 

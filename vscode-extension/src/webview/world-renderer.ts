@@ -82,10 +82,33 @@ export class WorldRenderer {
         this.character.update(deltaTime);
         this.ui.update(deltaTime, this.objects['objects'].size, this.objects['dependencies'].size);
 
+        this.interaction.update();
+
         // Rotate all code objects slowly
         const rotationSpeed = 0.5; // radians per second
+        const focusedObject = this.objects.getSelectedObject(); // This logic relies on CoM using selectedObject as "focused"
+
         for (const obj of this.objects['objects'].values()) {
-            obj.mesh.rotation.y += rotationSpeed * deltaTime;
+            // If this is the focused object, face the camera
+            if (focusedObject && obj.id === focusedObject.id) {
+                // Smoothly rotate to face camera
+                const targetRotation = Math.atan2(
+                    this.sceneManager.camera.position.x - obj.mesh.position.x,
+                    this.sceneManager.camera.position.z - obj.mesh.position.z
+                );
+
+                // Simple lerp for smoothness
+                let rotDiff = targetRotation - obj.mesh.rotation.y;
+                // Normalize angle to -PI to PI
+                while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
+                while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
+
+                obj.mesh.rotation.y += rotDiff * 5.0 * deltaTime;
+
+            } else {
+                // Ambient rotation
+                obj.mesh.rotation.y += rotationSpeed * deltaTime;
+            }
 
             // Keep description sprite scale consistent with content
             if (obj.descriptionMesh && obj.descriptionMesh.userData.width && obj.descriptionMesh.userData.height) {

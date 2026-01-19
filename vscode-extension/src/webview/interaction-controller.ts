@@ -182,4 +182,58 @@ export class InteractionController {
     private resetDependencies(): void {
         this.objects.showAllDependencies();
     }
+
+    // ────────────────────────────────────────────────
+    // Focus / Look-At Logic
+    // ────────────────────────────────────────────────
+
+    private lastFocusTime = 0;
+    private FOCUS_COOLDOWN = 200; // ms
+
+    public update(): void {
+        // Raycast from center to find "looked at" object
+        this.mouse.set(0, 0);
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+
+        const intersects = this.raycaster.intersectObjects(
+            this.objects.getObjectMeshes(),
+            true
+        );
+
+        let targetObj: any | null = null;
+        if (intersects.length > 0) {
+            const mesh = intersects[0].object as THREE.Mesh;
+            targetObj = this.objects.findByMesh(mesh);
+        }
+
+        const currentSelected = this.objects.getSelectedObject();
+
+        if (targetObj !== currentSelected) {
+            this.objects.setFocusedObject(targetObj);
+
+            // Debounce message sending
+            const now = Date.now();
+            if (now - this.lastFocusTime > this.FOCUS_COOLDOWN) {
+                this.lastFocusTime = now;
+                if (targetObj) {
+                    // Sanitize metadata to avoid DataCloneError
+                    const safeMetadata = targetObj.metadata ? JSON.parse(JSON.stringify(targetObj.metadata)) : {};
+
+                    try {
+                        this.vscode.postMessage({
+                            type: 'objectFocused',
+                            data: {
+                                id: targetObj.id,
+                                type: targetObj.type,
+                                filePath: targetObj.filePath,
+                                metadata: safeMetadata
+                            }
+                        });
+                    } catch (err) {
+                        console.error('Failed to send objectFocused message:', err);
+                    }
+                }
+            }
+        }
+    }
 }

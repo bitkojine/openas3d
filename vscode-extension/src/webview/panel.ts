@@ -163,8 +163,28 @@ export class WebviewPanelManager {
             case 'error':
                 vscode.window.showErrorMessage(`3D World Error: ${message.data.message}`);
                 break;
+            case 'objectFocused':
+                this.handleObjectFocused(message.data);
+                break;
             default:
                 console.log('Unknown message from webview:', message);
+        }
+    }
+
+    private async handleObjectFocused(data: any): Promise<void> {
+        if (!data.filePath) return;
+        try {
+            const uri = vscode.Uri.file(data.filePath);
+            await vscode.commands.executeCommand('revealInExplorer', uri);
+
+            // Refocus the webview to allow continuous WASD movement
+            // revealInExplorer steals focus, so we grab it back immediately
+            if (this.panel) {
+                this.panel.reveal(undefined, false);
+            }
+        } catch (error) {
+            // Ignore errors if file can't be revealed (e.g. valid for some virtual files)
+            console.warn('Failed to reveal in explorer:', error);
         }
     }
 
