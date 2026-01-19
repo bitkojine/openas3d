@@ -13,6 +13,32 @@ export class CodeObjectManager {
         return parts[parts.length - 1];
     }
 
+    /** Create a placeholder texture with text for testing */
+    private createPlaceholderTexture(text: string): THREE.Texture {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d')!;
+        
+        // Fill background
+        ctx.fillStyle = '#222';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw white text
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 32px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+
+        return texture;
+    }
+
     public addObject(data: {
         id: string;
         type: 'file' | 'module' | 'class' | 'function' | 'sign';
@@ -26,23 +52,34 @@ export class CodeObjectManager {
         descriptionLastUpdated?: string;
     }): void {
         let geometry: THREE.BoxGeometry;
-        let material: THREE.MeshLambertMaterial;
+        let mesh: THREE.Mesh;
 
         if (data.type === 'sign') {
             geometry = new THREE.BoxGeometry(0.2, 1.0, 0.1);
-            material = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const material = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            mesh = new THREE.Mesh(geometry, material);
         } else {
-            geometry = new THREE.BoxGeometry(
-                data.size?.width || 1,
-                data.size?.height || 1,
-                data.size?.depth || 1
-            );
-            material = new THREE.MeshLambertMaterial({
-                color: data.color || 0x4caf50
-            });
+            const width = (data.size?.width || 1) * 0.5;
+            const height = (data.size?.height || 1) * 0.5;
+            const depth = (data.size?.depth || 1) * 0.5;
+
+            geometry = new THREE.BoxGeometry(width, height, depth);
+
+            // Placeholder texture for front/back faces
+            const placeholderTexture = this.createPlaceholderTexture('CODE');
+
+            const materials = [
+                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }), // right
+                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }), // left
+                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }), // top
+                new THREE.MeshLambertMaterial({ color: data.color || 0x4caf50 }), // bottom
+                new THREE.MeshBasicMaterial({ map: placeholderTexture }),          // front
+                new THREE.MeshBasicMaterial({ map: placeholderTexture })           // back
+            ];
+
+            mesh = new THREE.Mesh(geometry, materials);
         }
 
-        const mesh = new THREE.Mesh(geometry, material);
         mesh.position.set(data.position.x, data.position.y, data.position.z);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
@@ -51,7 +88,6 @@ export class CodeObjectManager {
 
         // ───── Description ─────
         let descriptionText = data.description;
-
         if (!descriptionText && data.metadata) {
             const meta = data.metadata;
             descriptionText = [
@@ -97,6 +133,7 @@ export class CodeObjectManager {
         this.objects.set(data.id, codeObject);
     }
 
+    // --- rest of the code remains exactly the same as original ---
     public applyDescription(filePath: string, description: { summary: string; status: string; lastUpdated?: string }): void {
         const obj = [...this.objects.values()].find(o => o.filePath === filePath);
         if (!obj || !obj.descriptionMesh) return;
@@ -260,7 +297,6 @@ export class CodeObjectManager {
 
                 const labelHeight = obj.descriptionMesh.userData.height || 1;
 
-                // bottom of label = top of object + gap
                 obj.descriptionMesh.position.set(
                     obj.position.x,
                     obj.position.y + objectHeight + gap + labelHeight / 2,
@@ -297,7 +333,6 @@ export class CodeObjectManager {
         const tempCtx = tempCanvas.getContext('2d')!;
         tempCtx.font = `${fontSize}px Arial`;
 
-        // Split lines on explicit \n, then wrap if too long
         const rawLines = message.split('\n');
         const lines: string[] = [];
         const maxTextWidth = canvasWidth - padding * 2;
