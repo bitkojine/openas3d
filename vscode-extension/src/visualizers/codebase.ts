@@ -67,10 +67,13 @@ export class CodebaseVisualizer implements WorldVisualizer {
             }
         }
 
+        // Only create dependency edges for recognized code files
         for (const file of files.values()) {
-            for (const depPath of file.dependencies) {
-                const targetFile = this.findFileByPath(files, depPath, path.dirname(file.filePath));
-                if (targetFile) edges.push({ source: file.id, target: targetFile.id, type: 'import' });
+            if (['typescript', 'javascript', 'python', 'java', 'go', 'csharp', 'cpp', 'c'].includes(file.language)) {
+                for (const depPath of file.dependencies) {
+                    const targetFile = this.findFileByPath(files, depPath, path.dirname(file.filePath));
+                    if (targetFile) edges.push({ source: file.id, target: targetFile.id, type: 'import' });
+                }
             }
         }
 
@@ -79,7 +82,6 @@ export class CodebaseVisualizer implements WorldVisualizer {
 
     private async findSourceFiles(rootPath: string): Promise<string[]> {
         const sourceFiles: string[] = [];
-        const supportedExtensions = ['.ts', '.js', '.tsx', '.jsx', '.py', '.java', '.go', '.cs', '.cpp', '.c', '.h'];
 
         const scanDirectory = async (dirPath: string): Promise<void> => {
             try {
@@ -90,7 +92,8 @@ export class CodebaseVisualizer implements WorldVisualizer {
                         if (!['node_modules', '.git', 'dist', 'build', 'out', '.vscode'].includes(entry.name)) {
                             await scanDirectory(fullPath);
                         }
-                    } else if (entry.isFile() && supportedExtensions.includes(path.extname(entry.name))) {
+                    } else if (entry.isFile()) {
+                        // Include all files
                         sourceFiles.push(fullPath);
                     }
                 }
@@ -110,8 +113,12 @@ export class CodebaseVisualizer implements WorldVisualizer {
             const relativePath = path.relative(workspaceRoot, filePath);
             const ext = path.extname(filePath);
             const language = this.getLanguageFromExtension(ext);
-            const dependencies = this.extractDependencies(content, language);
-            const complexity = this.calculateComplexity(content);
+            const dependencies = ['typescript','javascript','python','java','go','csharp','cpp','c'].includes(language)
+                ? this.extractDependencies(content, language)
+                : [];
+            const complexity = ['typescript','javascript','python','java','go','csharp','cpp','c'].includes(language)
+                ? this.calculateComplexity(content)
+                : undefined;
 
             return {
                 id: this.generateFileId(relativePath),
@@ -135,9 +142,13 @@ export class CodebaseVisualizer implements WorldVisualizer {
             '.js': 'javascript', '.jsx': 'javascript',
             '.py': 'python', '.java': 'java',
             '.go': 'go', '.cs': 'csharp',
-            '.cpp': 'cpp', '.c': 'c', '.h': 'c'
+            '.cpp': 'cpp', '.c': 'c', '.h': 'c',
+            '.md': 'markdown',
+            '.json': 'json',
+            '.yml': 'yaml', '.yaml': 'yaml',
+            '.toml': 'toml'
         };
-        return map[ext] || 'unknown';
+        return map[ext] || 'other';
     }
 
     private extractDependencies(content: string, language: string): string[] {
@@ -269,9 +280,14 @@ export class CodebaseVisualizer implements WorldVisualizer {
             'csharp': 0x239120,
             'cpp': 0x00599C,
             'c': 0x555555,
+            'markdown': 0xFFD700,
+            'json': 0xFF8C00,
+            'yaml': 0x20B2AA,
+            'toml': 0x8A2BE2,
+            'other': 0xAAAAAA,
             'unknown': 0x888888
         };
-        return colorMap[language] || colorMap['unknown'];
+        return colorMap[language] || colorMap['other'];
     }
 
     private cleanup(): void {
