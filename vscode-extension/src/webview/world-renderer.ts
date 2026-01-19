@@ -1,15 +1,11 @@
-// Declare the global VSCode API for the webview environment
-declare const acquireVsCodeApi: () => {
-    postMessage: (msg: any) => void;
-    getState: () => any;
-    setState: (state: any) => void;
-};
+// src/webview/world-renderer.ts
 
 import { SceneManager } from './scene-manager';
 import { CharacterController } from './character-controller';
 import { CodeObjectManager } from './code-object-manager';
 import { InteractionController } from './interaction-controller';
 import { StatsUI } from './stats-ui';
+import { WebviewMessaging } from './messaging-webview';
 
 export class WorldRenderer {
     private sceneManager: SceneManager;
@@ -18,7 +14,7 @@ export class WorldRenderer {
     private interaction: InteractionController;
     private ui: StatsUI;
 
-    private vscode: any = acquireVsCodeApi();
+    private messaging: WebviewMessaging;
 
     private lastTime: number = 0;
 
@@ -27,8 +23,10 @@ export class WorldRenderer {
         const statsEl = document.getElementById('stats')!;
         const loadingEl = document.getElementById('loading')!;
 
+        // Initialize scene and renderer
         this.sceneManager = new SceneManager(container);
 
+        // Initialize character controller
         this.character = new CharacterController(
             this.sceneManager.camera,
             this.sceneManager.renderer.domElement,
@@ -36,38 +34,64 @@ export class WorldRenderer {
             2.0,   // sprintMultiplier
             0.5    // groundHeight
         );
-
-        // Add placingSign property for sign mode
         (this.character as any).placingSign = false;
 
+        // Initialize object manager and UI
         this.objects = new CodeObjectManager(this.sceneManager.scene);
         this.ui = new StatsUI(statsEl, loadingEl);
 
+        // Initialize messaging
+        this.messaging = new WebviewMessaging();
+
+        // Initialize interaction controller
         this.interaction = new InteractionController(
             this.sceneManager.camera,
             this.sceneManager.renderer.domElement,
             this.objects,
-            this.vscode,
+            this.messaging,
             this.character
         );
 
+        // Hide loading overlay
         this.ui.hideLoading();
 
         // Notify extension that webview is ready
-        this.vscode.postMessage({ type: 'ready' });
+        this.messaging.send('ready', {});
 
-        // Listen for description updates from the extension
-        window.addEventListener('message', (event) => {
-            const message = event.data;
-            if (!this.objects) return;
-
-            switch (message.type) {
-                case 'updateObjectDescription':
-                    this.objects.applyDescription(message.data.filePath, message.data.description);
-                    break;
-            }
+        // Register message handlers from the extension
+        this.messaging.register('updateObjectDescription', (data) => {
+            this.objects.applyDescription(data.filePath, data.description);
         });
 
+        this.messaging.register('addObject', (data) => {
+            this.objects.addObject(data);
+        });
+
+        this.messaging.register('removeObject', (id: string) => {
+            this.objects.removeObject(id);
+        });
+
+        this.messaging.register('addDependency', (data) => {
+            this.objects.addDependency(data);
+        });
+
+        this.messaging.register('removeDependency', (id: string) => {
+            this.objects.removeDependency(id);
+        });
+
+        this.messaging.register('clear', () => {
+            this.objects.clear();
+        });
+
+        this.messaging.register('showDependencies', () => {
+            this.objects.showAllDependencies();
+        });
+
+        this.messaging.register('hideDependencies', () => {
+            this.objects.hideDependencies();
+        });
+
+        // Start animation loop
         this.animate();
     }
 
@@ -79,15 +103,17 @@ export class WorldRenderer {
         const deltaTime = this.lastTime ? (currentTime - this.lastTime) / 1000 : 0;
         this.lastTime = currentTime;
 
+        // Update character movement
         this.character.update(deltaTime);
+
+        // Update UI stats
         this.ui.update(deltaTime, this.objects['objects'].size, this.objects['dependencies'].size);
 
-        // Rotate all code objects slowly
-        const rotationSpeed = 0.5; // radians per second
+        // Rotate code objects slowly
+        const rotationSpeed = 0.5; // radians/sec
         for (const obj of this.objects['objects'].values()) {
             obj.mesh.rotation.y += rotationSpeed * deltaTime;
 
-            // Keep description sprite scale consistent with content
             if (obj.descriptionMesh && obj.descriptionMesh.userData.width && obj.descriptionMesh.userData.height) {
                 obj.descriptionMesh.scale.set(
                     obj.descriptionMesh.userData.width,
@@ -97,13 +123,17 @@ export class WorldRenderer {
             }
         }
 
-        // Update description labels to face the camera
+        // Update description labels to face camera
         this.objects.updateDescriptions(this.sceneManager.camera);
 
+        // Render scene
         this.sceneManager.renderer.render(this.sceneManager.scene, this.sceneManager.camera);
     }
 
-    /** Public API for extensions to manipulate the world */
+    // ──────────────────────────────────────────────
+    // Public API for extension messages
+    // ──────────────────────────────────────────────
+
     public addCodeObject(data: any): void {
         this.objects.addObject(data);
     }
