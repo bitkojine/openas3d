@@ -200,7 +200,7 @@ class CodebaseAnalyzer {
 /**
  * Responsible for computing 3D layout positions for files
  */
-class CodebaseLayoutEngine {
+export class CodebaseLayoutEngine {
     private zones: { [key: string]: { xStart: number; zStart: number; columns: number; spacing: number } } = {
         source: { xStart: -20, zStart: -10, columns: 8, spacing: 3 },
         docs: { xStart: -20, zStart: 10, columns: 8, spacing: 3 },

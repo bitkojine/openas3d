@@ -31,9 +31,7 @@ export class PerfTracker {
             const avg = total / durations.length;
             const max = Math.max(...durations);
             const min = Math.min(...durations);
-            reportLines.push(
-                `${label}: avg ${avg.toFixed(1)}ms | min ${min.toFixed(1)}ms | max ${max.toFixed(1)}ms`
-            );
+            reportLines.push(`${label}: avg ${avg.toFixed(1)}ms | min ${min.toFixed(1)}ms | max ${max.toFixed(1)}ms`);
         });
         console.group('Performance Report');
         reportLines.forEach(line => console.log(line));
@@ -55,8 +53,11 @@ export class PerfTracker {
 
         const lines: string[] = [];
         this.timings.forEach((durations, label) => {
-            const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
-            lines.push(`${label}: ${avg.toFixed(1)}ms`);
+            const total = durations.reduce((a, b) => a + b, 0);
+            const avg = total / durations.length;
+            const max = Math.max(...durations);
+            const min = Math.min(...durations);
+            lines.push(`${label}: avg ${avg.toFixed(1)}ms | min ${min.toFixed(1)}ms | max ${max.toFixed(1)}ms`);
         });
 
         this.uiCallback(lines.join('\n'));
