@@ -32,26 +32,47 @@ export class CodeObjectManager {
         return parts[parts.length - 1];
     }
 
-    /** Create a placeholder texture with text for testing */
-    private createPlaceholderTexture(text: string): THREE.Texture {
-        const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d')!;
+    /**
+     * Create a dynamic minimap texture from file content.
+     * Supports large files by sampling lines.
+     */
+    private createMinimapTexture(
+        content: string,
+        boxWidth: number,
+        boxHeight: number
+    ): THREE.Texture {
+        const canvasWidth = 256;
+        const maxCanvasHeight = 512; // prevent huge textures
+        const lines = content.split('\n');
 
-        ctx.fillStyle = '#222';
+        const step = Math.max(1, Math.floor(lines.length / maxCanvasHeight));
+        const sampledLines = lines.filter((_, idx) => idx % step === 0);
+
+        const canvasHeight = Math.min(maxCanvasHeight, sampledLines.length);
+        const canvas = document.createElement('canvas');
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        const ctx = canvas.getContext('2d')!;
+        ctx.fillStyle = '#1e1e1e'; // dark VSCode-like background
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 32px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+        ctx.fillStyle = '#d4d4d4';
+        ctx.font = '8px monospace';
+        ctx.textBaseline = 'top';
+
+        const maxChars = 50;
+        sampledLines.forEach((line, i) => {
+            const text = line.substring(0, maxChars);
+            ctx.fillText(text, 2, i);
+        });
 
         const texture = new THREE.CanvasTexture(canvas);
-        texture.needsUpdate = true;
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.needsUpdate = true;
 
         return texture;
     }
@@ -82,29 +103,30 @@ export class CodeObjectManager {
 
             geometry = new THREE.BoxGeometry(width, height, depth);
 
-            const placeholderTexture = this.createPlaceholderTexture('CODE');
-
-            // Determine color based on language
             const lang = data.metadata?.language?.toLowerCase() || 'other';
             const color = data.color ?? this.languageColors[lang] ?? 0x4caf50;
+
+            // ───── Create file minimap texture ─────
+            const fileContent = data.metadata?.content || ''; // extension.ts must send 'content'
+            const minimapTexture = this.createMinimapTexture(fileContent, width, height);
 
             const materials = [
                 new THREE.MeshLambertMaterial({ color }), // right
                 new THREE.MeshLambertMaterial({ color }), // left
                 new THREE.MeshLambertMaterial({ color }), // top
                 new THREE.MeshLambertMaterial({ color }), // bottom
-                new THREE.MeshBasicMaterial({ map: placeholderTexture }), // front
-                new THREE.MeshBasicMaterial({ map: placeholderTexture })  // back
+                new THREE.MeshBasicMaterial({ map: minimapTexture }), // front
+                new THREE.MeshBasicMaterial({ map: minimapTexture })  // back
             ];
 
             mesh = new THREE.Mesh(geometry, materials);
         }
 
-        // ───── Adjust Y so bottom sits at fixed GAP above ground ─────
         mesh.geometry.computeBoundingBox();
         const meshHeight = mesh.geometry.boundingBox
             ? mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y
             : data.type === 'sign' ? 1.0 : 1;
+
         mesh.position.set(
             data.position.x,
             this.GROUND_Y + this.GAP + meshHeight / 2,
@@ -130,7 +152,6 @@ export class CodeObjectManager {
 
         const descriptionStatus = data.descriptionStatus || 'missing';
         const descriptionLastUpdated = data.descriptionLastUpdated || new Date().toISOString();
-
         const descriptionSprite = this.createTextSprite(descriptionText || 'No description');
 
         const labelHeight = descriptionSprite.userData.height || 1;
@@ -186,6 +207,7 @@ export class CodeObjectManager {
         this.scene.add(newSprite);
     }
 
+    // ───── Remaining existing methods unchanged ─────
     public removeObject(id: string): void {
         const obj = this.objects.get(id);
         if (obj) {

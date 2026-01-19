@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
 import { WebviewPanelManager } from './webview/panel';
 import { ExtensionLoader } from './visualizers/loader';
 import { PerfTracker } from './utils/perf-tracker';
@@ -41,10 +40,11 @@ export function activate(context: vscode.ExtensionContext) {
         }
     );
 
-    context.subscriptions.push(exploreDependenciesCommand);
-    context.subscriptions.push(openAs3DWorldCommand);
+    context.subscriptions.push(exploreDependenciesCommand, openAs3DWorldCommand);
 
-    vscode.window.showInformationMessage('OpenAs3D extension activated! Use "Explore Dependencies in 3D" to get started.');
+    vscode.window.showInformationMessage(
+        'OpenAs3D extension activated! Use "Explore Dependencies in 3D" to get started.'
+    );
 }
 
 async function handleExploreDependencies(uri?: vscode.Uri) {
@@ -58,55 +58,24 @@ async function handleExploreDependencies(uri?: vscode.Uri) {
 
     await vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
-        title: "Analyzing codebase dependencies...",
+        title: 'Analyzing codebase dependencies...',
         cancellable: false
     }, async (progress) => {
-        progress.report({ increment: 0, message: "Scanning files..." });
+        progress.report({ increment: 0, message: 'Initializing 3D world...' });
 
-        // ───── Track panel creation ─────
+        // ───── Create or reveal the panel ─────
         const tPanel = perf.start('createOrShowPanel');
         const panel = await webviewPanelManager.createOrShowPanel();
         perf.stop('createOrShowPanel', tPanel);
 
-        // Hook into webview messages
+        // Listen for sign placement messages
         panel.webview.onDidReceiveMessage(async (message) => {
             if (message.type === 'addSignAtPosition') {
-                const text = await vscode.window.showInputBox({ prompt: 'Enter sign text (short message)' });
-                if (!text) return;
-
-                const signsDir = path.join(workspaceFolder.uri.fsPath, 'signs');
-                fs.mkdirSync(signsDir, { recursive: true });
-
-                const timestamp = Date.now();
-                const fileName = `sign-${timestamp}.md`;
-                const filePath = path.join(signsDir, fileName);
-
-                const content = `---
-status: missing
-lastUpdated: ${new Date().toISOString()}
----
-
-# ${text}
-## Summary
-${text}
-`;
-                fs.writeFileSync(filePath, content, { encoding: 'utf-8' });
-
-                webviewPanelManager.sendMessage({
-                    type: 'addObject',
-                    data: {
-                        id: `sign-${timestamp}`,
-                        type: 'sign',
-                        filePath,
-                        position: message.data.position,
-                        description: text,
-                        color: 0xFFDD00
-                    }
-                });
+                await handleAddSign(message.data.position, workspaceFolder.uri.fsPath);
             }
         });
 
-        // ───── Set UI callback for live perf display ─────
+        // Live performance reporting
         perf.setUICallback(report => {
             webviewPanelManager.sendMessage({
                 type: 'perfUpdate',
@@ -114,16 +83,14 @@ ${text}
             });
         });
 
-        progress.report({ increment: 50, message: "Initializing 3D world..." });
+        progress.report({ increment: 50, message: 'Loading codebase visualizer...' });
 
-        // ───── Track codebase visualizer load ─────
+        // ───── Load codebase visualizer ─────
         const tVisualizer = perf.start('loadCodebaseVisualizer');
         await extensionLoader.loadCodebaseVisualizer(panel, targetPath);
         perf.stop('loadCodebaseVisualizer', tVisualizer);
 
-        progress.report({ increment: 100, message: "Complete!" });
-
-        // ───── Log final performance report to console as well ─────
+        progress.report({ increment: 100, message: 'Complete!' });
         perf.report();
     });
 }
@@ -132,14 +99,45 @@ async function handleOpenAs3DWorld() {
     await handleExploreDependencies();
 }
 
+async function handleAddSign(position: { x: number; y: number; z: number }, workspaceRoot: string) {
+    const text = await vscode.window.showInputBox({ prompt: 'Enter sign text (short message)' });
+    if (!text) return;
+
+    const signsDir = path.join(workspaceRoot, 'signs');
+    vscode.workspace.fs.createDirectory(vscode.Uri.file(signsDir));
+
+    const timestamp = Date.now();
+    const fileName = `sign-${timestamp}.md`;
+    const filePath = path.join(signsDir, fileName);
+
+    const content = `---
+status: missing
+lastUpdated: ${new Date().toISOString()}
+---
+
+# ${text}
+## Summary
+${text}
+`;
+
+    await vscode.workspace.fs.writeFile(vscode.Uri.file(filePath), Buffer.from(content, 'utf-8'));
+
+    webviewPanelManager.sendMessage({
+        type: 'addObject',
+        data: {
+            id: `sign-${timestamp}`,
+            type: 'sign',
+            filePath,
+            position,
+            description: text,
+            color: 0xFFDD00
+        }
+    });
+}
+
 export function deactivate() {
     console.log('OpenAs3D extension is being deactivated');
 
-    if (webviewPanelManager) {
-        webviewPanelManager.dispose();
-    }
-
-    if (extensionLoader) {
-        extensionLoader.dispose();
-    }
+    if (webviewPanelManager) webviewPanelManager.dispose();
+    if (extensionLoader) extensionLoader.dispose();
 }

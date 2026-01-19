@@ -85,6 +85,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
             }
         }
 
+        // Build dependency edges
         for (const file of files.values()) {
             if (['typescript','javascript','python','java','go','csharp','cpp','c'].includes(file.language)) {
                 for (const depPath of file.dependencies) {
@@ -224,7 +225,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
 
     private getZoneForFile(file: CodeFile): string {
         const ext = path.extname(file.filePath).toLowerCase();
-        if (['.ts','.tsx','.js','.jsx','.py','.java','.go','.cs','.cpp','.c','.h'].includes(ext)) return 'source';
+        if (['.ts','.tsx','.js','.jsx','.py','.java','.go','.csharp','.cpp','.c','.h'].includes(ext)) return 'source';
         if (['.md'].includes(ext)) return 'docs';
         if (['.json','.yaml','.yml','.toml'].includes(ext)) return 'configs';
         if (file.filePath.includes('dist') || file.filePath.includes('build') || file.filePath.includes('out')) return 'build';
@@ -238,7 +239,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
         const col = indexInZone % zone.columns;
         const x = zone.xStart + col * zone.spacing;
         const z = zone.zStart + row * zone.spacing;
-        return { x, z }; // Y handled in CodeObjectManager
+        return { x, z };
     }
 
     private async visualizeDependencyGraph(): Promise<void> {
@@ -257,10 +258,14 @@ export class CodebaseVisualizer implements WorldVisualizer {
             files.forEach((file, i) => {
                 const pos2D = this.getPositionInZone(file, i);
 
-                // Compute width/depth/height based on size & lines
-                const height = Math.min(0.25 + file.lines * 0.025, 5); // grow with lines
+                // Compute dimensions
+                const height = Math.min(0.25 + file.lines * 0.025, 5);
                 const width = Math.min(1 + file.size / 1000, 3);
                 const depth = Math.min(1 + file.size / 1000, 3);
+
+                // Read content for minimap (safely)
+                let content = '';
+                try { content = fs.readFileSync(file.filePath, 'utf8'); } catch {}
 
                 this.panel!.webview.postMessage({
                     type: 'addObject',
@@ -268,7 +273,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
                         id: file.id,
                         type: 'file',
                         filePath: file.filePath,
-                        position: { x: pos2D.x, y: 0, z: pos2D.z }, // Y handled in CodeObjectManager
+                        position: { x: pos2D.x, y: 0, z: pos2D.z },
                         size: { width, height, depth },
                         metadata: {
                             relativePath: file.relativePath,
@@ -277,13 +282,15 @@ export class CodebaseVisualizer implements WorldVisualizer {
                             size: file.size,
                             lines: file.lines,
                             lastModified: file.lastModified,
-                            dependencies: file.dependencies.length
+                            dependencies: file.dependencies.length,
+                            content
                         }
                     }
                 });
             });
         }
 
+        // Add dependency edges
         this.dependencyGraph.edges.forEach(edge => {
             this.panel!.webview.postMessage({
                 type: 'addDependency',
