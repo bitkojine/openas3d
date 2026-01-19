@@ -4,3 +4,5 @@
 
 - When clicking on an object once in the 3D view, file should be selected in the file explorer, should stay in sync like this.
 
+- in object label, change date format, and add commas to byte size numbers
+
