@@ -172,28 +172,24 @@ export class WebviewPanelManager {
     }
 
     private async handleObjectFocused(data: any): Promise<void> {
-        if (!data.filePath) return;
-        try {
-            const uri = vscode.Uri.file(data.filePath);
-            await vscode.commands.executeCommand('revealInExplorer', uri);
-
-            // Refocus the webview to allow continuous WASD movement
-            // revealInExplorer steals focus, so we grab it back immediately
-            if (this.panel) {
-                this.panel.reveal(undefined, false);
-            }
-        } catch (error) {
-            // Ignore errors if file can't be revealed (e.g. valid for some virtual files)
-            console.warn('Failed to reveal in explorer:', error);
-        }
+        // We no longer sync explorer on focus/look-at to prevent focus thrashing and movement interruption.
+        // The webview handles the visual highlighting internally.
     }
 
     private async handleObjectSelected(data: any): Promise<void> {
         console.log('Object selected:', data);
         if (data.filePath) {
-            vscode.window.showInformationMessage(
-                `Selected: ${path.basename(data.filePath)} (${data.type})`
-            );
+            try {
+                const uri = vscode.Uri.file(data.filePath);
+                await vscode.commands.executeCommand('revealInExplorer', uri);
+
+                // Immediately return focus to the webview so the user can continue moving
+                if (this.panel) {
+                    this.panel.reveal(undefined, false);
+                }
+            } catch (error) {
+                console.warn('Failed to reveal in explorer:', error);
+            }
         }
     }
 

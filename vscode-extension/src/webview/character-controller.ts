@@ -58,6 +58,7 @@ export class CharacterController {
     private initInput(): void {
         document.addEventListener('keydown', (e) => this.onKeyDown(e));
         document.addEventListener('keyup', (e) => this.onKeyUp(e));
+        window.addEventListener('blur', () => this.resetControls());
 
         document.addEventListener('pointerlockchange', () => this.onPointerLockChange());
         document.addEventListener('pointerlockerror', () => {
@@ -120,6 +121,15 @@ export class CharacterController {
 
     private onPointerLockChange(): void {
         this.isPointerLocked = document.pointerLockElement === this.domElement;
+    }
+
+    public resetControls(): void {
+        this.controls.forward = false;
+        this.controls.backward = false;
+        this.controls.left = false;
+        this.controls.right = false;
+        this.controls.up = false;
+        this.controls.down = false;
     }
 
     private onMouseMove(event: MouseEvent): void {
