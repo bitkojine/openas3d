@@ -186,11 +186,17 @@ export class DependencyManager {
         }
 
         // Calculate start/end positions with slight offset from object centers
+        // Calculate start/end positions from object tops
         const start = sourceObj.mesh.position.clone();
+        start.y += sourceObj.getHeight() / 2;
+
         const end = targetObj.mesh.position.clone();
-        const dir = end.clone().sub(start).normalize();
-        start.add(dir.clone().multiplyScalar(0.6));
-        end.sub(dir.clone().multiplyScalar(0.6));
+        end.y += targetObj.getHeight() / 2;
+
+        // No need to offset by direction anymore as we arc from top
+        // But maybe a tiny vertical offset to not clip exactly with the surface
+        start.y += 0.05;
+        end.y += 0.05;
 
         const weight = data.weight ?? 1;
         const isCircular = data.isCircular ?? false;

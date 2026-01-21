@@ -26,11 +26,11 @@ const SIGN_CONFIG = {
  * Configuration for zone fences
  */
 const FENCE_CONFIG = {
-    postHeight: 0.8,
-    postRadius: 0.05,
-    railHeight: 0.03,
-    railWidth: 0.05,
-    postSpacing: 4.0,
+    postHeight: 3.0,
+    postRadius: 0.15,
+    railHeight: 0.15,
+    railWidth: 0.1,
+    postSpacing: 5.0,
     gapSize: 6.0,            // Gap for pathways
     postColor: 0x6d4c41,     // Dark wood
     railColor: 0x8d6e63      // Light wood
@@ -39,7 +39,7 @@ const FENCE_CONFIG = {
 /**
  * Create a zone sign with the zone name
  */
-export function createZoneSign(zone: ZoneBounds): THREE.Group {
+export function createZoneSign(zone: ZoneBounds, side: 'north' | 'south' | 'east' | 'west'): THREE.Group {
     const group = new THREE.Group();
 
     // Wooden post
@@ -56,7 +56,7 @@ export function createZoneSign(zone: ZoneBounds): THREE.Group {
     post.receiveShadow = true;
     group.add(post);
 
-    // Sign board
+    // Sign boards (Sandwich style)
     const boardGeometry = new THREE.BoxGeometry(
         SIGN_CONFIG.boardWidth,
         SIGN_CONFIG.boardHeight,
@@ -74,20 +74,50 @@ export function createZoneSign(zone: ZoneBounds): THREE.Group {
         new THREE.MeshBasicMaterial({ map: textTexture })                  // back
     ];
 
-    const board = new THREE.Mesh(boardGeometry, boardMaterials);
-    board.position.y = SIGN_CONFIG.postHeight - SIGN_CONFIG.boardHeight / 2 - 0.1;
-    board.castShadow = true;
-    board.receiveShadow = true;
-    group.add(board);
+    const yPos = SIGN_CONFIG.postHeight - SIGN_CONFIG.boardHeight / 2 - 0.1;
+    const zOffset = SIGN_CONFIG.postRadius + SIGN_CONFIG.boardDepth / 2;
 
-    // Position at the north edge of the zone (entrance)
-    group.position.set(
-        (zone.minX + zone.maxX) / 2,
-        0,
-        zone.minZ - 2
-    );
+    // Front Board
+    const frontBoard = new THREE.Mesh(boardGeometry, boardMaterials);
+    frontBoard.position.z = zOffset;
+    frontBoard.position.y = yPos;
+    frontBoard.castShadow = true;
+    frontBoard.receiveShadow = true;
+    group.add(frontBoard);
 
-    group.userData = { type: 'zoneSign', zoneName: zone.name };
+    // Back Board
+    const backBoard = new THREE.Mesh(boardGeometry, boardMaterials);
+    backBoard.position.z = -zOffset;
+    backBoard.position.y = yPos;
+    backBoard.rotation.y = Math.PI; // Rotate 180 to face backwards
+    backBoard.castShadow = true;
+    backBoard.receiveShadow = true;
+    group.add(backBoard);
+
+    // Position based on side
+    const midX = (zone.minX + zone.maxX) / 2;
+    const midZ = (zone.minZ + zone.maxZ) / 2;
+    const offset = 2.0;
+
+    switch (side) {
+        case 'north':
+            group.position.set(midX, 0, zone.minZ - offset);
+            break;
+        case 'south':
+            group.position.set(midX, 0, zone.maxZ + offset);
+            group.rotation.y = Math.PI;
+            break;
+        case 'east':
+            group.position.set(zone.maxX + offset, 0, midZ);
+            group.rotation.y = -Math.PI / 2;
+            break;
+        case 'west':
+            group.position.set(zone.minX - offset, 0, midZ);
+            group.rotation.y = Math.PI / 2;
+            break;
+    }
+
+    group.userData = { type: 'zoneSign', zoneName: zone.name, side };
     return group;
 }
 
@@ -164,20 +194,49 @@ function createFenceSide(
         ? Math.abs(x2 - x1)
         : Math.abs(z2 - z1);
 
-    const numPosts = Math.floor(length / FENCE_CONFIG.postSpacing) + 1;
-    const midPoint = numPosts / 2;
-    const gapStart = midPoint - 0.5;
-    const gapEnd = midPoint + 0.5;
+    // Calculate gap positions (always perfectly centered)
+    const midPoint = length / 2;
+    const gapHalf = FENCE_CONFIG.gapSize / 2;
+    const gapStart = midPoint - gapHalf;
+    const gapEnd = midPoint + gapHalf;
 
-    for (let i = 0; i < numPosts; i++) {
-        // Skip posts in the gap area (pathway)
-        if (i >= gapStart && i <= gapEnd) { continue; }
+    // Define mandatory post positions: Start, GapStart, GapEnd, End
+    // But clamp Gap positions to safeguard against weird small sizes (though logic handles this)
+    const mandatoryPosts = [
+        0,
+        Math.max(0, gapStart),
+        Math.min(length, gapEnd),
+        length
+    ];
 
-        const t = numPosts > 1 ? i / (numPosts - 1) : 0;
+    // Create a set of unique post positions
+    const uniquePositions = new Set<number>(mandatoryPosts);
+
+    // Fill intervals with intermediate posts
+    // Interval 0 -> gapStart
+    fillInterval(uniquePositions, 0, Math.max(0, gapStart), FENCE_CONFIG.postSpacing);
+    // Interval gapEnd -> length
+    fillInterval(uniquePositions, Math.min(length, gapEnd), length, FENCE_CONFIG.postSpacing);
+
+    // Sort positions
+    const sortedPosts = Array.from(uniquePositions).sort((a, b) => a - b);
+
+    // Render Posts and Rails
+    for (let i = 0; i < sortedPosts.length; i++) {
+        const pos = sortedPosts[i];
+
+        // Skip posts strictly INSIDE the gap (shouldn't happen with above logic, but safety check)
+        // We include gapStart and gapEnd as valid posts
+        if (pos > gapStart + 0.01 && pos < gapEnd - 0.01) {
+            continue;
+        }
+
+        // Calculate world position
+        const t = pos / length;
         const x = x1 + (x2 - x1) * t;
         const z = z1 + (z2 - z1) * t;
 
-        // Create post
+        // Render Post
         const postGeometry = new THREE.CylinderGeometry(
             FENCE_CONFIG.postRadius,
             FENCE_CONFIG.postRadius,
@@ -190,46 +249,69 @@ function createFenceSide(
         post.receiveShadow = true;
         group.add(post);
 
-        // Create rail to next post (if not at gap or end)
-        if (i < numPosts - 1 && !(i >= gapStart - 1 && i < gapEnd)) {
-            const nextT = (i + 1) / (numPosts - 1);
-            const nextX = x1 + (x2 - x1) * nextT;
-            const nextZ = z1 + (z2 - z1) * nextT;
+        // Render Rail to next post?
+        // Check if next post exists and is NOT across the gap
+        if (i < sortedPosts.length - 1) {
+            const nextPos = sortedPosts[i + 1];
 
-            const railLength = Math.sqrt(
-                Math.pow(nextX - x, 2) + Math.pow(nextZ - z, 2)
-            );
+            // If the segment [pos, nextPos] is the gap, skip rails
+            // The gap is specifically [gapStart, gapEnd]
+            // Because we forcibly added gapStart and gapEnd to the list, 
+            // the gap will exactly be one of the segments if gap > 0
+            const mid = (pos + nextPos) / 2;
+            const inGap = mid > gapStart && mid < gapEnd;
 
-            // Top rail
-            const topRailGeometry = new THREE.BoxGeometry(
-                orientation === 'horizontal' ? railLength : FENCE_CONFIG.railWidth,
-                FENCE_CONFIG.railHeight,
-                orientation === 'vertical' ? railLength : FENCE_CONFIG.railWidth
-            );
-            const topRail = new THREE.Mesh(topRailGeometry, railMaterial);
-            topRail.position.set(
-                (x + nextX) / 2,
-                FENCE_CONFIG.postHeight * 0.8,
-                (z + nextZ) / 2
-            );
-            topRail.castShadow = true;
-            group.add(topRail);
+            if (!inGap) {
+                const nextT = nextPos / length;
+                const nextX = x1 + (x2 - x1) * nextT;
+                const nextZ = z1 + (z2 - z1) * nextT;
 
-            // Bottom rail
-            const bottomRailGeometry = new THREE.BoxGeometry(
-                orientation === 'horizontal' ? railLength : FENCE_CONFIG.railWidth,
-                FENCE_CONFIG.railHeight,
-                orientation === 'vertical' ? railLength : FENCE_CONFIG.railWidth
-            );
-            const bottomRail = new THREE.Mesh(bottomRailGeometry, railMaterial);
-            bottomRail.position.set(
-                (x + nextX) / 2,
-                FENCE_CONFIG.postHeight * 0.3,
-                (z + nextZ) / 2
-            );
-            bottomRail.castShadow = true;
-            group.add(bottomRail);
+                const railLength = Math.sqrt(Math.pow(nextX - x, 2) + Math.pow(nextZ - z, 2));
+
+                // Top rail
+                const topRailGeometry = new THREE.BoxGeometry(
+                    orientation === 'horizontal' ? railLength : FENCE_CONFIG.railWidth,
+                    FENCE_CONFIG.railHeight,
+                    orientation === 'vertical' ? railLength : FENCE_CONFIG.railWidth
+                );
+                const topRail = new THREE.Mesh(topRailGeometry, railMaterial);
+                topRail.position.set(
+                    (x + nextX) / 2,
+                    FENCE_CONFIG.postHeight * 0.8,
+                    (z + nextZ) / 2
+                );
+                topRail.castShadow = true;
+                group.add(topRail);
+
+                // Bottom rail
+                const bottomRailGeometry = new THREE.BoxGeometry(
+                    orientation === 'horizontal' ? railLength : FENCE_CONFIG.railWidth,
+                    FENCE_CONFIG.railHeight,
+                    orientation === 'vertical' ? railLength : FENCE_CONFIG.railWidth
+                );
+                const bottomRail = new THREE.Mesh(bottomRailGeometry, railMaterial);
+                bottomRail.position.set(
+                    (x + nextX) / 2,
+                    FENCE_CONFIG.postHeight * 0.3,
+                    (z + nextZ) / 2
+                );
+                bottomRail.castShadow = true;
+                group.add(bottomRail);
+            }
         }
+    }
+}
+
+function fillInterval(positions: Set<number>, start: number, end: number, spacing: number) {
+    const dist = end - start;
+    if (dist <= 0) return;
+
+    // Determine how many segments fit
+    const count = Math.ceil(dist / spacing);
+    const actualSpacing = dist / count;
+
+    for (let i = 1; i < count; i++) {
+        positions.add(start + i * actualSpacing);
     }
 }
 
@@ -243,8 +325,11 @@ export function addZoneVisuals(scene: THREE.Scene, zones: ZoneBounds[]): THREE.G
     zones.forEach(zone => {
         // Only add visuals for zones with files
         if (zone.fileCount > 0) {
-            const sign = createZoneSign(zone);
-            visualsGroup.add(sign);
+            // Add signs for all 4 directions
+            visualsGroup.add(createZoneSign(zone, 'north'));
+            visualsGroup.add(createZoneSign(zone, 'south'));
+            visualsGroup.add(createZoneSign(zone, 'east'));
+            visualsGroup.add(createZoneSign(zone, 'west'));
 
             const fence = createZoneFence(zone);
             visualsGroup.add(fence);

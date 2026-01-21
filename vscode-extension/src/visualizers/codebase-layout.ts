@@ -18,13 +18,13 @@ export { ZoneConfig, ZoneBounds };
 export class CodebaseLayoutEngine {
     private zones: { [key: string]: ZoneConfig } = {
         source: { name: 'source', displayName: 'Source Code', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0x4a90d9 },
-        tests: { name: 'tests', displayName: 'Tests', xCenter: 35, zCenter: 0, spacing: 5.0, color: 0x7ed321 },
-        docs: { name: 'docs', displayName: 'Documentation', xCenter: 17, zCenter: -35, spacing: 5.0, color: 0xf5a623 },
-        configs: { name: 'configs', displayName: 'Configs', xCenter: -35, zCenter: 17, spacing: 5.0, color: 0x9b59b6 },
-        build: { name: 'build', displayName: 'Build Output', xCenter: 0, zCenter: 35, spacing: 5.0, color: 0x95a5a6 },
-        assets: { name: 'assets', displayName: 'Assets', xCenter: -17, zCenter: -35, spacing: 5.0, color: 0xe91e63 },
-        scripts: { name: 'scripts', displayName: 'Scripts', xCenter: -35, zCenter: -17, spacing: 5.0, color: 0x00bcd4 },
-        other: { name: 'other', displayName: 'Other Files', xCenter: 35, zCenter: 35, spacing: 5.0, color: 0x607d8b }
+        tests: { name: 'tests', displayName: 'Tests', xCenter: 50, zCenter: 0, spacing: 5.0, color: 0x7ed321 },
+        docs: { name: 'docs', displayName: 'Documentation', xCenter: 25, zCenter: -50, spacing: 5.0, color: 0xf5a623 },
+        configs: { name: 'configs', displayName: 'Configs', xCenter: -50, zCenter: 25, spacing: 5.0, color: 0x9b59b6 },
+        build: { name: 'build', displayName: 'Build Output', xCenter: 0, zCenter: 50, spacing: 5.0, color: 0x95a5a6 },
+        assets: { name: 'assets', displayName: 'Assets', xCenter: -25, zCenter: -50, spacing: 5.0, color: 0xe91e63 },
+        scripts: { name: 'scripts', displayName: 'Scripts', xCenter: -50, zCenter: -25, spacing: 5.0, color: 0x00bcd4 },
+        other: { name: 'other', displayName: 'Other Files', xCenter: 50, zCenter: 50, spacing: 5.0, color: 0x607d8b }
     };
 
     private zoneBounds: Map<string, ZoneBounds> = new Map();
