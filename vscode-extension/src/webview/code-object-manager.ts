@@ -137,7 +137,71 @@ export class CodeObjectManager {
         const lineNumberWidth = 45; // Space for line numbers
 
         const canvasWidth = 1024;
-        const canvasHeight = Math.max(256, Math.min(1024, padding * 2 + lines.length * lineHeight));
+        const codeAreaWidth = canvasWidth - lineNumberWidth - padding * 2; // Available width for code
+
+        // Pre-calculate wrapped lines to determine canvas height
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d')!;
+        tempCtx.font = `${fontSize}px "Consolas", "Monaco", "Courier New", monospace`;
+
+        // Structure to hold wrapped lines with their original line number
+        const wrappedLines: Array<{ lineNum: number; text: string; isWrap: boolean }> = [];
+
+        lines.forEach((line, idx) => {
+            const lineNum = idx + 1;
+
+            if (line.length === 0) {
+                wrappedLines.push({ lineNum, text: '', isWrap: false });
+                return;
+            }
+
+            // Wrap the line if it exceeds the available width
+            let remaining = line;
+            let isFirstPart = true;
+
+            while (remaining.length > 0) {
+                // Find how many characters fit in the available width
+                let fitChars = remaining.length;
+                let textWidth = tempCtx.measureText(remaining).width;
+
+                if (textWidth > codeAreaWidth) {
+                    // Binary search for the right cutoff point
+                    let low = 1, high = remaining.length;
+                    while (low < high) {
+                        const mid = Math.ceil((low + high) / 2);
+                        if (tempCtx.measureText(remaining.slice(0, mid)).width <= codeAreaWidth) {
+                            low = mid;
+                        } else {
+                            high = mid - 1;
+                        }
+                    }
+                    fitChars = low;
+
+                    // Try to break at a reasonable point (space, punctuation)
+                    if (fitChars > 10) {
+                        const breakChars = [' ', ',', '.', ';', ':', '{', '}', '(', ')', '[', ']', '+', '-', '*', '/', '='];
+                        for (let i = fitChars - 1; i > fitChars - 20 && i > 0; i--) {
+                            if (breakChars.includes(remaining[i])) {
+                                fitChars = i + 1;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                const part = remaining.slice(0, fitChars);
+                wrappedLines.push({
+                    lineNum,
+                    text: part,
+                    isWrap: !isFirstPart
+                });
+
+                remaining = remaining.slice(fitChars);
+                isFirstPart = false;
+            }
+        });
+
+        const canvasHeight = Math.max(256, Math.min(1024, padding * 2 + wrappedLines.length * lineHeight));
 
         const canvas = document.createElement('canvas');
         canvas.width = canvasWidth;
@@ -161,19 +225,28 @@ export class CodeObjectManager {
         ctx.textBaseline = 'top';
 
         let y = padding;
-        lines.forEach((line, idx) => {
-            const lineNum = idx + 1;
+        let lastRenderedLineNum = -1;
 
-            // Draw line number
-            ctx.fillStyle = this.syntaxColors.lineNumber;
+        for (const wrappedLine of wrappedLines) {
+            if (y + lineHeight > canvasHeight - 40) break; // Leave room for truncation indicator
+
+            // Draw line number (only for first part of wrapped line)
             ctx.textAlign = 'right';
-            ctx.fillText(String(lineNum), lineNumberWidth - 8, y);
+            if (!wrappedLine.isWrap) {
+                ctx.fillStyle = this.syntaxColors.lineNumber;
+                ctx.fillText(String(wrappedLine.lineNum), lineNumberWidth - 8, y);
+                lastRenderedLineNum = wrappedLine.lineNum;
+            } else {
+                // Draw wrap indicator for wrapped lines
+                ctx.fillStyle = '#4a4a4a';
+                ctx.fillText('↳', lineNumberWidth - 8, y);
+            }
 
             // Draw code with syntax highlighting
             ctx.textAlign = 'left';
             let x = lineNumberWidth + 8;
 
-            const tokens = this.tokenizeLine(line.slice(0, 120)); // Limit line length
+            const tokens = this.tokenizeLine(wrappedLine.text);
             for (const token of tokens) {
                 ctx.fillStyle = token.color;
                 ctx.fillText(token.text, x, y);
@@ -181,10 +254,10 @@ export class CodeObjectManager {
             }
 
             y += lineHeight;
-        });
+        }
 
         // Add fade at bottom if content is truncated
-        if (lines.length >= maxLines) {
+        if (wrappedLines.length * lineHeight > canvasHeight - padding * 2 - 40 || lines.length >= maxLines) {
             const gradient = ctx.createLinearGradient(0, canvasHeight - 40, 0, canvasHeight);
             gradient.addColorStop(0, 'rgba(30, 30, 30, 0)');
             gradient.addColorStop(1, 'rgba(30, 30, 30, 1)');
