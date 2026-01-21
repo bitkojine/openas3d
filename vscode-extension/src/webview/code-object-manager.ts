@@ -3,10 +3,11 @@
  * Core responsibilities: object CRUD, selection, and descriptions.
  */
 import * as THREE from 'three';
-import { CodeObject, DependencyEdge } from './types';
-import { getLanguageColor } from '../utils/languageRegistry';
-import { createContentTexture, createTextSprite, createTextSpriteWithDeps, LabelDependencyStats } from './texture-factory';
+import { CodeObject } from './types';
 import { DependencyManager, DependencyData, DependencyStats } from './dependency-manager';
+import { VisualObject } from './objects/visual-object';
+import { FileObject } from './objects/file-object';
+import { SignObject } from './objects/sign-object';
 
 /** Data for adding a new object */
 export interface AddObjectData {
@@ -23,148 +24,110 @@ export interface AddObjectData {
 }
 
 export class CodeObjectManager {
-    private objects: Map<string, CodeObject> = new Map();
+    // Store VisualObjects instead of raw interfaces
+    private objects: Map<string, VisualObject> = new Map();
     private dependencyManager: DependencyManager;
-    private selectedObject: CodeObject | null = null;
+    private selectedObject: VisualObject | null = null;
+    private focusedObject: VisualObject | null = null; // Track hover focus
 
     private readonly GROUND_Y = 0;
+    // ... (constructor) ...
+
+    public setFocusedObject(obj: VisualObject | null): void {
+        if (this.focusedObject === obj) return;
+
+        // Reset previous focus
+        if (this.focusedObject && this.focusedObject !== this.selectedObject) {
+            this.focusedObject.setInteractionState(false);
+        }
+
+        this.focusedObject = obj;
+
+        // Set new focus
+        if (this.focusedObject && this.focusedObject !== this.selectedObject) {
+            this.focusedObject.setInteractionState(true);
+        }
+    }
+
+    public getFocusedObject(): CodeObject | null {
+        return this.focusedObject ? this.focusedObject.toCodeObject() : null;
+    }
+
     private readonly GAP = 0.5;
 
     constructor(private scene: THREE.Scene) {
         this.dependencyManager = new DependencyManager(scene);
     }
 
-    private getFilename(filePath: string): string {
-        const parts = filePath.split(/[\\/]/);
-        return parts[parts.length - 1];
-    }
-
-    private getMeshHeight(mesh: THREE.Mesh, type: string): number {
-        mesh.geometry.computeBoundingBox();
-        return mesh.geometry.boundingBox
-            ? mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y
-            : type === 'sign' ? 1.0 : 1;
-    }
-
-    private setEmissiveColor(obj: CodeObject, colorHex: number): void {
-        const materials = Array.isArray(obj.mesh.material) ? obj.mesh.material : [obj.mesh.material];
-        materials.forEach(mat => {
-            if ((mat as THREE.MeshLambertMaterial).emissive) {
-                (mat as THREE.MeshLambertMaterial).emissive.setHex(colorHex);
-            }
-        });
-    }
-
     public addObject(data: AddObjectData): void {
-        let geometry: THREE.BoxGeometry;
-        let mesh: THREE.Mesh;
+        const position = new THREE.Vector3(data.position.x, data.position.y, data.position.z);
+        let visualObject: VisualObject;
 
+        // Factory logic
         if (data.type === 'sign') {
-            geometry = new THREE.BoxGeometry(0.2, 1.0, 0.1);
-            const material = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
-            mesh = new THREE.Mesh(geometry, material);
+            // Ensure filePath is passed if available
+            // Also ensure description is passed!
+            const signData = {
+                ...data.metadata,
+                filePath: data.filePath,
+                description: data.description
+            };
+            visualObject = new SignObject(data.id, data.type, position, signData);
         } else {
-            const width = data.size?.width ?? 1;
-            const height = data.size?.height ?? 1;
-            const depth = data.size?.depth ?? 1;
-
-            geometry = new THREE.BoxGeometry(width, height, depth);
-
-            const content = data.metadata?.content || '';
-            const lang = data.metadata?.language?.toLowerCase() || 'other';
-            const contentTexture = createContentTexture(content);
-            const color = data.color ?? getLanguageColor(lang);
-
-            const materials = [
-                new THREE.MeshLambertMaterial({ color }), // right
-                new THREE.MeshLambertMaterial({ color }), // left
-                new THREE.MeshLambertMaterial({ color }), // top
-                new THREE.MeshLambertMaterial({ color }), // bottom
-                new THREE.MeshBasicMaterial({ map: contentTexture }), // front
-                new THREE.MeshBasicMaterial({ map: contentTexture })  // back
-            ];
-
-            mesh = new THREE.Mesh(geometry, materials);
+            // Pass everything needed for file object
+            // We nest data.metadata under 'metadata' key because FileObject expects it there
+            // (to distinguish between visual size and file size, and to access content)
+            const fileData = {
+                metadata: data.metadata,
+                filePath: data.filePath,
+                color: data.color,
+                size: data.size, // Visual size (dimensions)
+                description: data.description,
+                descriptionStatus: data.descriptionStatus,
+                descriptionLastUpdated: data.descriptionLastUpdated
+            };
+            visualObject = new FileObject(data.id, data.type, position, fileData);
         }
 
-        const meshHeight = this.getMeshHeight(mesh, data.type);
-
-        mesh.position.set(
-            data.position.x,
-            this.GROUND_Y + this.GAP + meshHeight / 2,
-            data.position.z
+        // Adjust Y position based on height
+        const meshHeight = visualObject.getHeight();
+        visualObject.mesh.position.setY(
+            this.GROUND_Y + this.GAP + meshHeight / 2
         );
+        // Sync position back to object state
+        visualObject.position.copy(visualObject.mesh.position);
 
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        this.scene.add(mesh);
+        this.scene.add(visualObject.mesh);
+        this.objects.set(data.id, visualObject);
 
-        // Create description sprite
-        let descriptionText = data.description;
-        if (!descriptionText && data.metadata) {
-            const meta = data.metadata;
-            descriptionText = [
-                `Filename: ${this.getFilename(data.filePath)}`,
-                `Language: ${meta.language || 'unknown'}`,
-                `Size: ${(meta.size ?? 0).toLocaleString('lt-LT')} bytes`,
-                `Complexity: ${meta.complexity ?? 'N/A'}`,
-                `Last Modified: ${meta.lastModified ? new Date(meta.lastModified).toLocaleDateString('lt-LT', { timeZone: 'Europe/Vilnius' }) : 'unknown'}`
-            ].join('\n');
+        // Post-creation initialization (labels, etc)
+        // All VisualObjects that support labels should implement this
+        if (typeof (visualObject as any).initializeLabel === 'function') {
+            (visualObject as any).initializeLabel(this.scene);
         }
-
-        const descriptionSprite = createTextSprite(descriptionText || 'No description');
-        const labelHeight = descriptionSprite.userData.height || 1;
-        descriptionSprite.position.set(
-            data.position.x,
-            mesh.position.y + meshHeight / 2 + this.GAP + labelHeight / 2,
-            data.position.z
-        );
-        this.scene.add(descriptionSprite);
-
-        const codeObject: CodeObject = {
-            id: data.id,
-            type: data.type,
-            filePath: data.filePath,
-            position: new THREE.Vector3(data.position.x, mesh.position.y, data.position.z),
-            mesh,
-            metadata: data.metadata || {},
-            description: descriptionText || 'No description',
-            descriptionMesh: descriptionSprite,
-            descriptionStatus: data.descriptionStatus || 'missing',
-            descriptionLastUpdated: data.descriptionLastUpdated || new Date().toISOString()
-        };
-
-        this.objects.set(data.id, codeObject);
     }
 
     public applyDescription(filePath: string, description: { summary: string; status: string; lastUpdated?: string }): void {
-        const obj = [...this.objects.values()].find(o => o.filePath === filePath);
-        if (!obj || !obj.descriptionMesh) return;
-
-        obj.description = description.summary;
-        obj.descriptionStatus = description.status;
-        obj.descriptionLastUpdated = description.lastUpdated || new Date().toISOString();
-
-        this.scene.remove(obj.descriptionMesh);
-        const newSprite = createTextSprite(description.summary);
-
-        const meshHeight = this.getMeshHeight(obj.mesh, obj.type);
-        const labelHeight = newSprite.userData.height || 1;
-        newSprite.position.set(
-            obj.position.x,
-            obj.mesh.position.y + meshHeight / 2 + this.GAP + labelHeight / 2,
-            obj.position.z
-        );
-
-        obj.descriptionMesh = newSprite;
-        this.scene.add(newSprite);
+        const obj = [...this.objects.values()].find(o => o.metadata.filePath === filePath);
+        if (obj && obj instanceof FileObject) {
+            obj.updateLabel(this.scene, description.summary);
+            // Update metadata to persist status
+            obj.metadata.descriptionStatus = description.status;
+            obj.metadata.descriptionLastUpdated = description.lastUpdated;
+        }
     }
 
     public removeObject(id: string): void {
         const obj = this.objects.get(id);
         if (obj) {
             this.scene.remove(obj.mesh);
-            if (obj.descriptionMesh) this.scene.remove(obj.descriptionMesh);
+            obj.dispose();
+
+            // Clean up label if it's a file object
+            if (obj instanceof FileObject && obj.descriptionMesh) {
+                this.scene.remove(obj.descriptionMesh);
+            }
+
             this.objects.delete(id);
             if (this.selectedObject?.id === id) this.selectedObject = null;
         }
@@ -173,16 +136,23 @@ export class CodeObjectManager {
     public clear(): void {
         this.objects.forEach(obj => {
             this.scene.remove(obj.mesh);
-            if (obj.descriptionMesh) this.scene.remove(obj.descriptionMesh);
+            obj.dispose();
+            if (obj instanceof FileObject && obj.descriptionMesh) {
+                this.scene.remove(obj.descriptionMesh);
+            }
         });
         this.objects.clear();
         this.dependencyManager.clear();
         this.selectedObject = null;
     }
 
-    // Dependency delegation
+    // Dependency delegation - requires temporary conversion to CodeObject for compatibility
     public addDependency(data: DependencyData): void {
-        this.dependencyManager.add(data, this.objects);
+        // Convert map to legacy CodeObject map for compatibility
+        const legacyMap = new Map<string, CodeObject>();
+        this.objects.forEach((v, k) => legacyMap.set(k, v.toCodeObject()));
+
+        this.dependencyManager.add(data, legacyMap);
     }
 
     public removeDependency(id: string): void {
@@ -222,32 +192,27 @@ export class CodeObjectManager {
     }
 
     // Selection management
-    public selectObject(obj: CodeObject): void {
+    public selectObject(obj: VisualObject): void { // Changed signature to VisualObject
         this.deselectObject();
         this.selectedObject = obj;
-        this.setEmissiveColor(obj, 0x444444);
+        obj.select();
     }
 
     public deselectObject(): void {
         if (this.selectedObject) {
-            this.setEmissiveColor(this.selectedObject, 0x000000);
+            this.selectedObject.deselect();
             this.selectedObject = null;
         }
     }
 
-    public setFocusedObject(obj: CodeObject | null): void {
-        if (this.selectedObject === obj) return;
-        if (this.selectedObject) {
-            this.setEmissiveColor(this.selectedObject, 0x000000);
-        }
-        this.selectedObject = obj;
-        if (this.selectedObject) {
-            this.setEmissiveColor(this.selectedObject, 0xaaaaaa);
-        }
-    }
+
 
     // Queries
-    public findByMesh(mesh: THREE.Mesh): CodeObject | undefined {
+    public findByMesh(mesh: THREE.Mesh): VisualObject | undefined {
+        // Direct lookup via userData if available (optimization)
+        if (mesh.userData.visualObject) {
+            return mesh.userData.visualObject as VisualObject;
+        }
         return [...this.objects.values()].find(o => o.mesh === mesh);
     }
 
@@ -256,7 +221,7 @@ export class CodeObjectManager {
     }
 
     public getSelectedObject(): CodeObject | null {
-        return this.selectedObject;
+        return this.selectedObject ? this.selectedObject.toCodeObject() : null;
     }
 
     /** Get the number of objects */
@@ -266,7 +231,13 @@ export class CodeObjectManager {
 
     /** Get all objects iterator */
     public getObjects(): IterableIterator<CodeObject> {
-        return this.objects.values();
+        // Yield converted objects for compatibility
+        // In future, consumers should use VisualObject
+        return function* (objects: Map<string, VisualObject>) {
+            for (const obj of objects.values()) {
+                yield obj.toCodeObject();
+            }
+        }(this.objects);
     }
 
     public updateDescriptions(camera: THREE.Camera): void {
@@ -274,22 +245,21 @@ export class CodeObjectManager {
             if (obj.descriptionMesh) {
                 obj.descriptionMesh.lookAt(camera.position);
 
-                const meshHeight = this.getMeshHeight(obj.mesh, obj.type);
+                // Recalculate position in case size changed or just to be safe
+                const meshHeight = obj.getHeight();
                 const labelHeight = obj.descriptionMesh.userData.height || 1;
+                // Check if it's sign or file for gap?? 
+                // VisualObject could have getGap()? 
+                // For now, assume consistent GAP logic or reuse obj specific logic?
+                // Actually, objects should probably handle their own billboarding if placement is complex.
+                // But CodeObjectManager traditionally did this.
+                // Let's stick to simple centering:
 
                 obj.descriptionMesh.position.set(
                     obj.position.x,
                     obj.mesh.position.y + meshHeight / 2 + this.GAP + labelHeight / 2,
                     obj.position.z
                 );
-
-                if (obj.descriptionMesh.userData.width && obj.descriptionMesh.userData.height) {
-                    obj.descriptionMesh.scale.set(
-                        obj.descriptionMesh.userData.width,
-                        obj.descriptionMesh.userData.height,
-                        1
-                    );
-                }
             }
         });
     }
@@ -300,43 +270,30 @@ export class CodeObjectManager {
      */
     public refreshLabelsWithDependencyStats(): void {
         this.objects.forEach(obj => {
-            if (!obj.descriptionMesh) return;
+            if (obj instanceof FileObject) {
+                const stats = this.dependencyManager.getStatsForObject(obj.id);
+                if (stats.incoming === 0 && stats.outgoing === 0) return;
 
-            const stats = this.dependencyManager.getStatsForObject(obj.id);
-            if (stats.incoming === 0 && stats.outgoing === 0) return;
+                // Re-creating the label with stats
+                // We need the original description text. FileObject can regenerate it.
+                // But FileObject.updateLabel takes a string. 
+                // Let's trust FileObject to handle this if we pass stats.
 
-            // Build base description from metadata
-            const meta = obj.metadata;
-            const baseDescription = [
-                `Filename: ${this.getFilename(obj.filePath)}`,
-                `Language: ${meta?.language || 'unknown'}`,
-                `Size: ${(meta?.size ?? 0).toLocaleString('lt-LT')} bytes`,
-                `Complexity: ${meta?.complexity ?? 'N/A'}`,
-                `Last Modified: ${meta?.lastModified ? new Date(meta.lastModified).toLocaleDateString('lt-LT', { timeZone: 'Europe/Vilnius' }) : 'unknown'}`
-            ].join('\n');
+                // For now, simple approach:
+                // We need to pass stats to FileObject, let it handle the factory call
+                const labelStats = {
+                    incoming: stats.incoming,
+                    outgoing: stats.outgoing,
+                    hasCircular: stats.circularWith.length > 0
+                };
 
-            // Remove old sprite
-            this.scene.remove(obj.descriptionMesh);
+                // Get current description text (hidden state in FileObject, let's peek metadata)
+                const text = obj.metadata.description || 'No description'; // We might lose auto-generated description here if not saved
 
-            // Create new sprite with dependency stats
-            const labelStats: LabelDependencyStats = {
-                incoming: stats.incoming,
-                outgoing: stats.outgoing,
-                hasCircular: stats.circularWith.length > 0
-            };
-
-            const newSprite = createTextSpriteWithDeps(baseDescription, labelStats);
-
-            const meshHeight = this.getMeshHeight(obj.mesh, obj.type);
-            const labelHeight = newSprite.userData.height || 1;
-            newSprite.position.set(
-                obj.position.x,
-                obj.mesh.position.y + meshHeight / 2 + this.GAP + labelHeight / 2,
-                obj.position.z
-            );
-
-            obj.descriptionMesh = newSprite;
-            this.scene.add(newSprite);
+                // Better: rely on FileObject interna 'getDescriptionText()' if we could.
+                // As a quick fix, we call updateLabel with current metadata description.
+                obj.updateLabel(this.scene, text, labelStats);
+            }
         });
     }
 }

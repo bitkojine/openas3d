@@ -93,7 +93,7 @@ export class WorldRenderer {
 
         // Rotate all code objects slowly
         const rotationSpeed = 0.5; // radians per second
-        const focusedObject = this.objects.getSelectedObject(); // This logic relies on CoM using selectedObject as "focused"
+        const focusedObject = this.objects.getFocusedObject(); // Use hover focus for rotation
 
         for (const obj of this.objects.getObjects()) {
             // If this is the focused object, face the camera
