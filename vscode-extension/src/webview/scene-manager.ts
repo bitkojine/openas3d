@@ -21,7 +21,7 @@ export class SceneManager {
     private createScene(): THREE.Scene {
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb); // Sky blue
-        scene.fog = new THREE.Fog(0x87ceeb, 100, 300); // Light blue fog
+        scene.fog = new THREE.Fog(0x87ceeb, 200, 600); // Extended fog for larger park
         return scene;
     }
 
@@ -59,10 +59,10 @@ export class SceneManager {
         sunLight.shadow.mapSize.height = 2048;
         sunLight.shadow.camera.near = 0.5;
         sunLight.shadow.camera.far = 500;
-        sunLight.shadow.camera.left = -100;
-        sunLight.shadow.camera.right = 100;
-        sunLight.shadow.camera.top = 100;
-        sunLight.shadow.camera.bottom = -100;
+        sunLight.shadow.camera.left = -250;
+        sunLight.shadow.camera.right = 250;
+        sunLight.shadow.camera.top = 250;
+        sunLight.shadow.camera.bottom = -250;
         this.scene.add(sunLight);
 
         // Warm fill light
@@ -72,16 +72,85 @@ export class SceneManager {
     }
 
     private addGround(): void {
-        const groundGeometry = new THREE.PlaneGeometry(400, 400);
+        // Create procedural grass texture
+        const grassTexture = this.createGrassTexture();
+
+        // Larger ground for expanded park (1000x1000)
+        const groundGeometry = new THREE.PlaneGeometry(1000, 1000);
         const groundMaterial = new THREE.MeshLambertMaterial({
-            color: 0x90ee90, // light green
-            transparent: true,
-            opacity: 0.9
+            map: grassTexture,
+            transparent: false
         });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
         this.scene.add(ground);
+    }
+
+    /**
+     * Create a procedural grass texture using canvas
+     */
+    private createGrassTexture(): THREE.Texture {
+        const canvas = document.createElement('canvas');
+        const size = 512;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d')!;
+
+        // Base grass color
+        ctx.fillStyle = '#4a7c23';
+        ctx.fillRect(0, 0, size, size);
+
+        // Add grass color variations
+        const grassColors = [
+            '#3d6b1e', // dark green
+            '#5a8f2a', // medium green
+            '#6ba832', // light green
+            '#4a7c23', // base green
+            '#3e6920', // darker green
+        ];
+
+        // Draw random grass blades/patches
+        for (let i = 0; i < 8000; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const bladeWidth = 1 + Math.random() * 2;
+            const bladeHeight = 3 + Math.random() * 8;
+
+            ctx.fillStyle = grassColors[Math.floor(Math.random() * grassColors.length)];
+            ctx.fillRect(x, y, bladeWidth, bladeHeight);
+        }
+
+        // Add some lighter spots for depth
+        for (let i = 0; i < 500; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const radius = 2 + Math.random() * 6;
+
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(120, 180, 60, ${0.1 + Math.random() * 0.2})`;
+            ctx.fill();
+        }
+
+        // Add some darker patches for shadows/depth
+        for (let i = 0; i < 300; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const radius = 3 + Math.random() * 8;
+
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(40, 70, 20, ${0.1 + Math.random() * 0.15})`;
+            ctx.fill();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(50, 50); // Repeat across the large ground
+
+        return texture;
     }
 
     private addAtmosphere(): void {

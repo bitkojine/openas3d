@@ -11,6 +11,7 @@ import { CodeObjectManager } from './code-object-manager';
 import { InteractionController } from './interaction-controller';
 import { StatsUI } from './stats-ui';
 import { TestBridge } from './test-utils/test-bridge';
+import { addZoneVisuals, removeZoneVisuals, ZoneBounds } from './zone-visuals';
 
 export class WorldRenderer {
     private sceneManager: SceneManager;
@@ -60,7 +61,7 @@ export class WorldRenderer {
         // Listen for description updates from the extension
         window.addEventListener('message', (event) => {
             const message = event.data;
-            if (!this.objects) {return;}
+            if (!this.objects) { return; }
 
             switch (message.type) {
                 case 'updateObjectDescription':
@@ -118,8 +119,8 @@ export class WorldRenderer {
                 // Simple lerp for smoothness
                 let rotDiff = targetRotation - obj.mesh.rotation.y;
                 // Normalize angle to -PI to PI
-                while (rotDiff > Math.PI) {rotDiff -= Math.PI * 2;}
-                while (rotDiff < -Math.PI) {rotDiff += Math.PI * 2;}
+                while (rotDiff > Math.PI) { rotDiff -= Math.PI * 2; }
+                while (rotDiff < -Math.PI) { rotDiff += Math.PI * 2; }
 
                 obj.mesh.rotation.y += rotDiff * 5.0 * deltaTime;
 
@@ -175,5 +176,14 @@ export class WorldRenderer {
 
     public refreshLabels(): void {
         this.objects.refreshLabelsWithDependencyStats();
+    }
+
+    /** Set zone bounds and create visual markers (signs and fences) */
+    public setZoneBounds(zones: ZoneBounds[]): void {
+        // Remove previous zone visuals if any
+        removeZoneVisuals(this.sceneManager.scene);
+
+        // Add new zone signs and fences
+        addZoneVisuals(this.sceneManager.scene, zones);
     }
 }

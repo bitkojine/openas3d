@@ -41,6 +41,15 @@ export class CodebaseVisualizer implements WorldVisualizer {
             (file) => this.addFileToScene(file),
             (edges) => {
                 this.addEdgesToScene(edges);
+
+                // Compute zone bounds from accumulated file counts (streaming mode)
+                const zoneBounds = this.layout.computeZoneBoundsFromCounts(this.fileZoneCounts);
+
+                this.panel?.webview.postMessage({
+                    type: 'setZoneBounds',
+                    data: zoneBounds
+                });
+
                 this.panel?.webview.postMessage({ type: 'dependenciesComplete' });
             }
         ).catch(err => {
@@ -52,11 +61,11 @@ export class CodebaseVisualizer implements WorldVisualizer {
     }
 
     private addFileToScene(file: CodeFile): void {
-        if (!this.panel) {return;}
+        if (!this.panel) { return; }
 
         // Compute position based on zone and file count in that zone
         const zone = this.layout.getZoneForFile(file);
-        if (!this.fileZoneCounts[zone]) {this.fileZoneCounts[zone] = 0;}
+        if (!this.fileZoneCounts[zone]) { this.fileZoneCounts[zone] = 0; }
         const indexInZone = this.fileZoneCounts[zone]++;
         const pos2D = this.layout.getPositionForZone(zone, indexInZone);
 
@@ -78,7 +87,7 @@ export class CodebaseVisualizer implements WorldVisualizer {
     }
 
     private addEdgesToScene(edges: DependencyEdge[]): void {
-        if (!this.panel) {return;}
+        if (!this.panel) { return; }
 
         edges.forEach(edge => {
             this.panel!.webview.postMessage({

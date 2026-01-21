@@ -4,25 +4,53 @@ import { CodeFile } from './types';
 /**
  * Zone configuration for file layout
  */
-interface ZoneConfig {
-    xStart: number;
-    zStart: number;
-    columns: number;
+export interface ZoneConfig {
+    name: string;
+    displayName: string;
+    xCenter: number;
+    zCenter: number;
     spacing: number;
+    color: number; // For visual theming (signs/fences)
+}
+
+/**
+ * Zone bounds calculated after layout
+ */
+export interface ZoneBounds {
+    name: string;
+    displayName: string;
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+    fileCount: number;
+    color: number;
 }
 
 /**
  * Responsible for computing 3D layout positions for files.
- * Organizes files into zones based on their type (source, docs, configs, etc.)
+ * Organizes files into 8 zones with spiral expansion for infinite scalability.
+ * 
+ * Zone Layout (top view):
+ *              NORTH
+ *         [assets] [docs]
+ *   WEST  [scripts][source][tests]  EAST
+ *         [configs][build] [other]
+ *              SOUTH
  */
 export class CodebaseLayoutEngine {
     private zones: { [key: string]: ZoneConfig } = {
-        source: { xStart: -20, zStart: -10, columns: 8, spacing: 3 },
-        docs: { xStart: -20, zStart: 10, columns: 8, spacing: 3 },
-        configs: { xStart: 20, zStart: -10, columns: 6, spacing: 3 },
-        build: { xStart: 20, zStart: 10, columns: 6, spacing: 3 },
-        other: { xStart: -40, zStart: 30, columns: 5, spacing: 3 }
+        source: { name: 'source', displayName: 'Source Code', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0x4a90d9 },
+        tests: { name: 'tests', displayName: 'Tests', xCenter: 35, zCenter: 0, spacing: 5.0, color: 0x7ed321 },
+        docs: { name: 'docs', displayName: 'Documentation', xCenter: 17, zCenter: -35, spacing: 5.0, color: 0xf5a623 },
+        configs: { name: 'configs', displayName: 'Configs', xCenter: -35, zCenter: 17, spacing: 5.0, color: 0x9b59b6 },
+        build: { name: 'build', displayName: 'Build Output', xCenter: 0, zCenter: 35, spacing: 5.0, color: 0x95a5a6 },
+        assets: { name: 'assets', displayName: 'Assets', xCenter: -17, zCenter: -35, spacing: 5.0, color: 0xe91e63 },
+        scripts: { name: 'scripts', displayName: 'Scripts', xCenter: -35, zCenter: -17, spacing: 5.0, color: 0x00bcd4 },
+        other: { name: 'other', displayName: 'Other Files', xCenter: 35, zCenter: 35, spacing: 5.0, color: 0x607d8b }
     };
+
+    private zoneBounds: Map<string, ZoneBounds> = new Map();
 
     /**
      * Compute positions for all files in the dependency graph
@@ -30,17 +58,45 @@ export class CodebaseLayoutEngine {
     public computePositions(files: CodeFile[]): Map<string, { x: number; z: number }> {
         const zoneBuckets: { [zone: string]: CodeFile[] } = {};
 
+        // Initialize zone bounds tracking
+        this.zoneBounds.clear();
+
         files.forEach(file => {
             const zone = this.getZoneForFile(file);
-            if (!zoneBuckets[zone]) {zoneBuckets[zone] = [];}
+            if (!zoneBuckets[zone]) { zoneBuckets[zone] = []; }
             zoneBuckets[zone].push(file);
         });
 
         const positions = new Map<string, { x: number; z: number }>();
-        Object.entries(zoneBuckets).forEach(([zone, filesInZone]) => {
+
+        Object.entries(zoneBuckets).forEach(([zoneName, filesInZone]) => {
+            let minX = Infinity, maxX = -Infinity;
+            let minZ = Infinity, maxZ = -Infinity;
+
             filesInZone.forEach((file, i) => {
-                const pos = this.getPositionForZone(zone, i);
+                const pos = this.getPositionForZone(zoneName, i);
                 positions.set(file.id, pos);
+
+                // Track bounds
+                minX = Math.min(minX, pos.x);
+                maxX = Math.max(maxX, pos.x);
+                minZ = Math.min(minZ, pos.z);
+                maxZ = Math.max(maxZ, pos.z);
+            });
+
+            const zoneConfig = this.zones[zoneName] || this.zones['other'];
+
+            // Store zone bounds with padding for fences
+            const padding = zoneConfig.spacing;
+            this.zoneBounds.set(zoneName, {
+                name: zoneName,
+                displayName: zoneConfig.displayName,
+                minX: minX - padding,
+                maxX: maxX + padding,
+                minZ: minZ - padding,
+                maxZ: maxZ + padding,
+                fileCount: filesInZone.length,
+                color: zoneConfig.color
             });
         });
 
@@ -48,34 +104,185 @@ export class CodebaseLayoutEngine {
     }
 
     /**
+     * Get computed zone bounds for sign/fence placement
+     */
+    public getZoneBounds(): ZoneBounds[] {
+        return Array.from(this.zoneBounds.values());
+    }
+
+    /**
+     * Compute zone bounds from file counts (for streaming mode).
+     * Call this instead of getZoneBounds() when using streaming file additions.
+     */
+    public computeZoneBoundsFromCounts(zoneCounts: { [zone: string]: number }): ZoneBounds[] {
+        const bounds: ZoneBounds[] = [];
+
+        Object.entries(zoneCounts).forEach(([zoneName, fileCount]) => {
+            if (fileCount === 0) { return; }
+
+            const zoneConfig = this.zones[zoneName] || this.zones['other'];
+
+            // Calculate bounds from spiral positions
+            let minX = Infinity, maxX = -Infinity;
+            let minZ = Infinity, maxZ = -Infinity;
+
+            for (let i = 0; i < fileCount; i++) {
+                const pos = this.getPositionForZone(zoneName, i);
+                minX = Math.min(minX, pos.x);
+                maxX = Math.max(maxX, pos.x);
+                minZ = Math.min(minZ, pos.z);
+                maxZ = Math.max(maxZ, pos.z);
+            }
+
+            const padding = zoneConfig.spacing;
+            bounds.push({
+                name: zoneName,
+                displayName: zoneConfig.displayName,
+                minX: minX - padding,
+                maxX: maxX + padding,
+                minZ: minZ - padding,
+                maxZ: maxZ + padding,
+                fileCount,
+                color: zoneConfig.color
+            });
+        });
+
+        return bounds;
+    }
+
+    /**
+     * Get zone config by name
+     */
+    public getZoneConfig(zoneName: string): ZoneConfig | undefined {
+        return this.zones[zoneName];
+    }
+
+    /**
+     * Get all zone configs
+     */
+    public getAllZones(): ZoneConfig[] {
+        return Object.values(this.zones);
+    }
+
+    /**
      * Determine which zone a file belongs to based on its extension and path
      */
     public getZoneForFile(file: CodeFile): string {
         const ext = path.extname(file.filePath).toLowerCase();
-        if (['.ts', '.tsx', '.js', '.jsx', '.py', '.java', '.go', '.csharp', '.cpp', '.c', '.h'].includes(ext)) {
+        const lowerPath = file.filePath.toLowerCase();
+
+        // Test files first (higher priority than source extension check)
+        if (lowerPath.includes('.test.') ||
+            lowerPath.includes('.spec.') ||
+            lowerPath.includes('__tests__') ||
+            lowerPath.includes('/test/') ||
+            lowerPath.includes('/tests/')) {
+            return 'tests';
+        }
+
+        // Scripts (.sh, .bash, .ps1, .cmd, .bat)
+        if (['.sh', '.bash', '.ps1', '.cmd', '.bat', '.zsh'].includes(ext)) {
+            return 'scripts';
+        }
+
+        // Assets (images, fonts, media)
+        if (['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp',
+            '.woff', '.woff2', '.ttf', '.eot', '.otf',
+            '.mp3', '.mp4', '.webm', '.wav', '.ogg'].includes(ext)) {
+            return 'assets';
+        }
+
+        // Source code
+        if (['.ts', '.tsx', '.js', '.jsx', '.py', '.java', '.go',
+            '.cs', '.cpp', '.c', '.h', '.hpp', '.rs', '.rb', '.php'].includes(ext)) {
             return 'source';
         }
-        if (['.md'].includes(ext)) {
+
+        // Documentation
+        if (['.md', '.txt', '.rst', '.adoc'].includes(ext)) {
             return 'docs';
         }
-        if (['.json', '.yaml', '.yml', '.toml'].includes(ext)) {
+
+        // Config files
+        if (['.json', '.yaml', '.yml', '.toml', '.ini', '.env',
+            '.editorconfig', '.prettierrc', '.eslintrc'].includes(ext) ||
+            lowerPath.includes('config')) {
             return 'configs';
         }
-        if (file.filePath.includes('dist') || file.filePath.includes('build') || file.filePath.includes('out')) {
+
+        // Build output
+        if (lowerPath.includes('dist/') ||
+            lowerPath.includes('build/') ||
+            lowerPath.includes('out/') ||
+            lowerPath.includes('.next/') ||
+            lowerPath.includes('node_modules/')) {
             return 'build';
         }
+
         return 'other';
     }
 
     /**
-     * Calculate grid position within a zone
+     * Calculate grid position within a zone using spiral expansion.
+     * Files are placed in an outward spiral from the zone center,
+     * ensuring the zone can grow infinitely.
      */
     public getPositionForZone(zoneName: string, indexInZone: number): { x: number; z: number } {
         const zone = this.zones[zoneName] || this.zones['other'];
-        const row = Math.floor(indexInZone / zone.columns);
-        const col = indexInZone % zone.columns;
-        const x = zone.xStart + col * zone.spacing;
-        const z = zone.zStart + row * zone.spacing;
+        const { x: spiralX, z: spiralZ } = this.spiralPosition(indexInZone);
+
+        return {
+            x: zone.xCenter + spiralX * zone.spacing,
+            z: zone.zCenter + spiralZ * zone.spacing
+        };
+    }
+
+    /**
+     * Generate spiral coordinates for a given index.
+     * Creates an outward-expanding square spiral pattern:
+     * 
+     *   16 15 14 13 12
+     *   17  4  3  2 11
+     *   18  5  0  1 10
+     *   19  6  7  8  9
+     *   20 21 22 23 24
+     */
+    private spiralPosition(index: number): { x: number; z: number } {
+        if (index === 0) { return { x: 0, z: 0 }; }
+
+        // Find which ring we're on (ring 0 = center, ring 1 = first layer, etc.)
+        let ring = Math.ceil((Math.sqrt(index + 1) - 1) / 2);
+
+        // How many cells are in rings 0 to (ring-1)?
+        const cellsInPreviousRings = (2 * ring - 1) ** 2;
+        const positionInRing = index - cellsInPreviousRings;
+
+        // Each ring has 4 sides, each side has (2 * ring) cells
+        const sideLength = 2 * ring;
+        const side = Math.floor(positionInRing / sideLength);
+        const posOnSide = positionInRing % sideLength;
+
+        let x = 0, z = 0;
+
+        switch (side) {
+            case 0: // Right side (going up)
+                x = ring;
+                z = -ring + 1 + posOnSide;
+                break;
+            case 1: // Top side (going left)
+                x = ring - 1 - posOnSide;
+                z = ring;
+                break;
+            case 2: // Left side (going down)
+                x = -ring;
+                z = ring - 1 - posOnSide;
+                break;
+            case 3: // Bottom side (going right)
+                x = -ring + 1 + posOnSide;
+                z = -ring;
+                break;
+        }
+
         return { x, z };
     }
 }
