@@ -15,6 +15,7 @@ module.exports = {
   // Mock vscode for tests
   moduleNameMapper: {
     '^vscode$': '<rootDir>/src/__mocks__/vscode.ts',
+    '^three$': '<rootDir>/src/__mocks__/three.ts',
   },
 
   // Automatically clear mocks between tests
