@@ -15,7 +15,7 @@ export class PerfTracker {
      */
     public stop(label: string, startTime: number): void {
         const duration = performance.now() - startTime;
-        if (!this.timings.has(label)) this.timings.set(label, []);
+        if (!this.timings.has(label)) {this.timings.set(label, []);}
         this.timings.get(label)!.push(duration);
 
         this.reportToUI();
@@ -49,7 +49,7 @@ export class PerfTracker {
      * Internal method to report to UI panel if a callback is set
      */
     private reportToUI() {
-        if (!this.uiCallback) return;
+        if (!this.uiCallback) {return;}
 
         const lines: string[] = [];
         this.timings.forEach((durations, label) => {

@@ -65,7 +65,7 @@ export class WebviewPanelManager {
     }
 
     private setupDescriptionWatcher() {
-        if (!vscode.workspace.workspaceFolders) return;
+        if (!vscode.workspace.workspaceFolders) {return;}
 
         const pattern = new vscode.RelativePattern(vscode.workspace.workspaceFolders[0], '**/*');
         this.watcher = vscode.workspace.createFileSystemWatcher(pattern);
@@ -151,7 +151,7 @@ export class WebviewPanelManager {
     private isReady = false;
 
     public async ensureReady(): Promise<void> {
-        if (this.isReady) return;
+        if (this.isReady) {return;}
         console.log('Waiting for webview to be ready...');
         await this.waitForMessage('ready');
         console.log('Webview is ready (ensureReady verified)');
@@ -175,11 +175,11 @@ export class WebviewPanelManager {
             this.messageWaiters.splice(waiterIndex, 1);
             waiter.resolve(message.data);
             // Stop processing if it's a test message we were waiting for
-            if (message.type.startsWith('TEST_')) return;
+            if (message.type.startsWith('TEST_')) {return;}
         }
 
         // Also ignore fire-and-forget test messages that might arrive late
-        if (message.type.startsWith('TEST_')) return;
+        if (message.type.startsWith('TEST_')) {return;}
 
         switch (message.type) {
             case 'objectSelected':
@@ -238,7 +238,7 @@ export class WebviewPanelManager {
     }
 
     private async handleOpenFile(data: any): Promise<void> {
-        if (!data.filePath) return;
+        if (!data.filePath) {return;}
 
         try {
             const uri = vscode.Uri.file(data.filePath);
@@ -272,11 +272,11 @@ export class WebviewPanelManager {
     }
 
     private async handleAddSign(data: { position: { x: number; y: number; z: number } }) {
-        if (!vscode.workspace.workspaceFolders?.length) return;
+        if (!vscode.workspace.workspaceFolders?.length) {return;}
         const workspaceFolder = vscode.workspace.workspaceFolders[0];
 
         const text = await vscode.window.showInputBox({ prompt: 'Enter sign text (short message)' });
-        if (!text) return;
+        if (!text) {return;}
 
         const signsDir = path.join(workspaceFolder.uri.fsPath, 'signs');
         fs.mkdirSync(signsDir, { recursive: true });

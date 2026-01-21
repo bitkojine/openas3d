@@ -134,7 +134,7 @@ export function createContentTexture(fileContent: string): THREE.Texture {
 
     let y = padding;
     for (const wrappedLine of wrappedLines) {
-        if (y + lineHeight > canvasHeight - 40) break;
+        if (y + lineHeight > canvasHeight - 40) {break;}
 
         // Draw line number or wrap indicator
         ctx.textAlign = 'right';
@@ -263,8 +263,8 @@ function renderLabel(
     let depsLine = '';
     if (deps && (deps.incoming > 0 || deps.outgoing > 0)) {
         const parts: string[] = [];
-        if (deps.outgoing > 0) parts.push(`↓${deps.outgoing}`);
-        if (deps.incoming > 0) parts.push(`↑${deps.incoming}`);
+        if (deps.outgoing > 0) {parts.push(`↓${deps.outgoing}`);}
+        if (deps.incoming > 0) {parts.push(`↑${deps.incoming}`);}
         depsLine = parts.join(' ');
 
         // Add status icon to the stats line
@@ -279,16 +279,16 @@ function renderLabel(
         words.forEach((word, idx) => {
             const testLine = currentLine ? currentLine + ' ' + word : word;
             if (tempCtx.measureText(testLine).width > maxTextWidth) {
-                if (currentLine) lines.push(currentLine);
+                if (currentLine) {lines.push(currentLine);}
                 currentLine = word;
             } else {
                 currentLine = testLine;
             }
-            if (idx === words.length - 1) lines.push(currentLine);
+            if (idx === words.length - 1) {lines.push(currentLine);}
         });
     });
 
-    if (depsLine) lines.push(depsLine);
+    if (depsLine) {lines.push(depsLine);}
 
     const canvasHeight = padding * 2 + lines.length * lineHeight;
     const canvas = document.createElement('canvas');

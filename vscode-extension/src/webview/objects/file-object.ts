@@ -52,7 +52,7 @@ export class FileObject extends VisualObject {
         // Handle updates (e.g. content change, size change)
         // For now, we mainly update metadata
         this.metadata = { ...this.metadata, ...data };
-        if (data.filePath) this.filePath = data.filePath;
+        if (data.filePath) {this.filePath = data.filePath;}
     }
 
     public updateLabel(scene: THREE.Scene, text: string, stats?: LabelDependencyStats): void {
@@ -86,8 +86,8 @@ export class FileObject extends VisualObject {
     }
 
     private getDescriptionText(): string {
-        if (this.description && this.description !== 'No description') return this.description;
-        if (this.metadata.description) return this.metadata.description;
+        if (this.description && this.description !== 'No description') {return this.description;}
+        if (this.metadata.description) {return this.metadata.description;}
 
         // Fallback to metadata-based description
         if (this.metadata.metadata) {
@@ -105,7 +105,7 @@ export class FileObject extends VisualObject {
     }
 
     private getFilename(filePath: string): string {
-        if (!filePath) return 'unknown';
+        if (!filePath) {return 'unknown';}
         const parts = filePath.split(/[\\/]/);
         return parts[parts.length - 1];
     }

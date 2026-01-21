@@ -84,7 +84,7 @@ export class InteractionController {
         const mesh = intersects[0].object as THREE.Mesh;
         const obj = this.objects.findByMesh(mesh);
 
-        if (!obj) return;
+        if (!obj) {return;}
 
         // ───────── SELECT AND HIGHLIGHT ─────────
         this.objects.selectObject(obj);
@@ -112,12 +112,12 @@ export class InteractionController {
             true
         );
 
-        if (intersects.length === 0) return;
+        if (intersects.length === 0) {return;}
 
         const mesh = intersects[0].object as THREE.Mesh;
         const obj = this.objects.findByMesh(mesh);
 
-        if (!obj) return;
+        if (!obj) {return;}
 
         // Open the file without affecting selection or highlighting
         this.vscode.postMessage({

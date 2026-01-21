@@ -60,7 +60,7 @@ export class WorldRenderer {
         // Listen for description updates from the extension
         window.addEventListener('message', (event) => {
             const message = event.data;
-            if (!this.objects) return;
+            if (!this.objects) {return;}
 
             switch (message.type) {
                 case 'updateObjectDescription':
@@ -118,8 +118,8 @@ export class WorldRenderer {
                 // Simple lerp for smoothness
                 let rotDiff = targetRotation - obj.mesh.rotation.y;
                 // Normalize angle to -PI to PI
-                while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
-                while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
+                while (rotDiff > Math.PI) {rotDiff -= Math.PI * 2;}
+                while (rotDiff < -Math.PI) {rotDiff += Math.PI * 2;}
 
                 obj.mesh.rotation.y += rotDiff * 5.0 * deltaTime;
 

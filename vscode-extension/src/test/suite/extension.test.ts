@@ -32,20 +32,17 @@ suite('Extension Integration Test Suite', () => {
         // Ensure webview is open and focused
         await vscode.commands.executeCommand('openas3d.openAs3DWorld');
 
-        console.log('Triggering exploration...');
         await vscode.commands.executeCommand('openas3d.exploreDependencies');
 
         // Wait for webview to initialize and populate
         await getSceneState();
 
         // 2. Verify Initial State (Population & Dependencies)
-        console.log('Verifying initial state...');
         let state: any = await getSceneState();
         assert.ok(state.objectCount > 0, 'Scene should be populated');
         assert.ok(state.dependencyCount > 0, 'Dependencies should be visualized');
 
         // 3. Simulate "Real" Movement (Walking)
-        console.log('Simulating walking (KeyW)...');
         // Initial position logic is handled by CharacterController (starts at 0,2,20 looking at 0,0,0)
         // Moving Forward (W) -> -Z direction.
         const startPos = await getCameraPosition(); // We need to expose this or infer it
@@ -61,7 +58,6 @@ suite('Extension Integration Test Suite', () => {
         // But if commands run, we trust it.
 
         // 3.5 Look Around (Simulate Mouse Movement)
-        console.log('Looking around...');
         // Look left smoothly
         await vscode.commands.executeCommand('openas3d.test.lookAt', -10, 2, 0, 1000);
         // Look right smoothly
@@ -70,7 +66,6 @@ suite('Extension Integration Test Suite', () => {
         await vscode.commands.executeCommand('openas3d.test.lookAt', 0, 2, 0, 1000);
 
         // 4. Create a Sign (Interaction)
-        console.log('Creating a sign...');
         // Mock InputBox
         const originalShowInputBox = vscode.window.showInputBox;
         vscode.window.showInputBox = async () => "Integration Test Sign";
@@ -97,7 +92,6 @@ suite('Extension Integration Test Suite', () => {
         assert.ok(sign.userData.description === "Integration Test Sign", 'Sign text should match');
 
         // 5. Edit a File (Watcher)
-        console.log('Editing utils.ts...');
         const utilsPath = path.join(workspacePath, 'utils.ts');
         const originalContent = fs.readFileSync(utilsPath, 'utf-8');
         const newContent = originalContent + '\nexport const y = 2; // Added by test';
@@ -111,9 +105,9 @@ suite('Extension Integration Test Suite', () => {
         await waitFor(async () => {
             state = await getSceneState();
             utilsObj = state.objects.find((o: any) => o.userData.filePath && o.userData.filePath.endsWith('utils.ts'));
-            if (!utilsObj) return false;
+            if (!utilsObj) { return false; }
             const sizeMatch = utilsObj.userData.description.match(/Size: (\d+)/);
-            if (!sizeMatch) return false;
+            if (!sizeMatch) { return false; }
             const size = parseInt(sizeMatch[1]);
             return size > 20;
         }, 5000, 'File watcher failing to update size description');
@@ -137,7 +131,6 @@ suite('Extension Integration Test Suite', () => {
         await new Promise(r => setTimeout(r, 2000));
 
         // 1. Test Jump
-        console.log('Testing Jump...');
         let pos: any = await vscode.commands.executeCommand('openas3d.test.getPosition');
         // First position might take a moment to be available
         if (!pos) {
@@ -160,7 +153,6 @@ suite('Extension Integration Test Suite', () => {
         await new Promise(r => setTimeout(r, 2000));
 
         // 2. Test Flight Mode
-        console.log('Testing Flight Mode...');
         await vscode.commands.executeCommand('openas3d.test.simulateInput', 'keydown', 'KeyF');
         await vscode.commands.executeCommand('openas3d.test.simulateInput', 'keyup', 'KeyF');
 
@@ -182,7 +174,6 @@ suite('Extension Integration Test Suite', () => {
         assert.ok(pos.y < highY, `Expected to fly down, got ${pos.y}`);
 
         // 3. Test Object Focus (Hover)
-        console.log('Testing Object Focus...');
         // Find index.ts again
         const state: any = await vscode.commands.executeCommand('openas3d.test.getSceneState');
         const indexObj = state.objects.find((o: any) => o.userData.filePath && o.userData.filePath.endsWith('index.ts'));
@@ -197,8 +188,6 @@ suite('Extension Integration Test Suite', () => {
         pos = await vscode.commands.executeCommand('openas3d.test.getPosition');
         // Check near teleport target
         assert.ok(Math.abs(pos.z - (indexObj.position.z + 8)) < 1.0, 'Teleport should have moved character');
-        // Check near teleport target
-        assert.ok(Math.abs(pos.z - (indexObj.position.z + 8)) < 1.0, 'Teleport should have moved character');
     });
 
     test('Lifecycle: Re-open and Context Menu', async () => {
@@ -206,7 +195,6 @@ suite('Extension Integration Test Suite', () => {
         // Simulate triggering "Explore Dependencies" on a specific folder/file
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (workspaceFolders) {
-            console.log('Testing Context Menu Launch...');
             await vscode.commands.executeCommand('openas3d.exploreDependencies', workspaceFolders[0].uri);
 
             // Verify it opened and populated
@@ -215,7 +203,6 @@ suite('Extension Integration Test Suite', () => {
         }
 
         // 2. Test Re-opening (Persistence/Cleanup)
-        console.log('Testing Re-opening...');
         // Close the webview (simulate by disposing panel if possible, 
         // or just calling open again which should focus or re-create)
         // Since we can't easily "close" the tab via API, we just call openAs3DWorld again
@@ -230,7 +217,7 @@ suite('Extension Integration Test Suite', () => {
 async function waitFor(condition: () => Promise<boolean>, timeout = 5000, message = 'Timeout waiting for condition') {
     const start = Date.now();
     while (Date.now() - start < timeout) {
-        if (await condition()) return;
+        if (await condition()) { return; }
         await new Promise(r => setTimeout(r, 100));
     }
     throw new Error(message);

@@ -210,25 +210,25 @@ export class CodebaseAnalyzer {
             case 'javascript':
                 const importRegex = /import\s+.*?\s+from\s+['"]([^'"]+)['"]/g;
                 const requireRegex = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
-                while ((match = importRegex.exec(content))) deps.push(match[1]);
-                while ((match = requireRegex.exec(content))) deps.push(match[1]);
+                while ((match = importRegex.exec(content))) {deps.push(match[1]);}
+                while ((match = requireRegex.exec(content))) {deps.push(match[1]);}
                 break;
 
             case 'python':
                 const pyRegex = /(?:from\s+(\S+)\s+import|import\s+(\S+))/g;
-                while ((match = pyRegex.exec(content))) deps.push(match[1] || match[2]);
+                while ((match = pyRegex.exec(content))) {deps.push(match[1] || match[2]);}
                 break;
 
             case 'java':
                 const javaRegex = /import\s+([^;]+);/g;
-                while ((match = javaRegex.exec(content))) deps.push(match[1]);
+                while ((match = javaRegex.exec(content))) {deps.push(match[1]);}
                 break;
 
             case 'go':
                 const goRegex = /import\s+(?:\(\s*([^)]+)\s*\)|"([^"]+)")/g;
                 while ((match = goRegex.exec(content))) {
-                    if (match[1]) deps.push(...match[1].split('\n').map(l => l.trim().replace(/"/g, '')).filter(Boolean));
-                    else deps.push(match[2]);
+                    if (match[1]) {deps.push(...match[1].split('\n').map(l => l.trim().replace(/"/g, '')).filter(Boolean));}
+                    else {deps.push(match[2]);}
                 }
                 break;
         }
@@ -258,7 +258,7 @@ export class CodebaseAnalyzer {
     public findFileByPath(files: Map<string, CodeFile>, depPath: string): CodeFile | null {
         for (const file of files.values()) {
             if (file.relativePath.includes(depPath) ||
-                path.basename(file.filePath, path.extname(file.filePath)) === depPath) return file;
+                path.basename(file.filePath, path.extname(file.filePath)) === depPath) {return file;}
         }
         return null;
     }

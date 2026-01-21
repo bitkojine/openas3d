@@ -81,7 +81,7 @@ export class CharacterController {
             case 'KeyA': this.controls.left = true; break;
             case 'KeyD': this.controls.right = true; break;
             case 'Space':
-                if (this.controls.flightMode) this.controls.up = true;
+                if (this.controls.flightMode) {this.controls.up = true;}
                 else if (this.isOnGround) {
                     this.velocity.y = this.jumpForce;
                     this.isOnGround = false;
@@ -89,7 +89,7 @@ export class CharacterController {
                 event.preventDefault();
                 break;
             case 'KeyC':
-                if (this.controls.flightMode) this.controls.down = true;
+                if (this.controls.flightMode) {this.controls.down = true;}
                 break;
             case 'KeyF':
                 this.controls.flightMode = !this.controls.flightMode;
@@ -103,7 +103,7 @@ export class CharacterController {
                 this.placingSign = !this.placingSign;
                 break;
             case 'Escape':
-                if (this.isPointerLocked) document.exitPointerLock();
+                if (this.isPointerLocked) {document.exitPointerLock();}
                 break;
         }
     }
@@ -133,7 +133,7 @@ export class CharacterController {
     }
 
     private onMouseMove(event: MouseEvent): void {
-        if (!this.isPointerLocked) return;
+        if (!this.isPointerLocked) {return;}
 
         const movementX = event.movementX || 0;
         const movementY = event.movementY || 0;
@@ -147,12 +147,12 @@ export class CharacterController {
     private updateMovement(deltaTime: number): void {
         const direction = new THREE.Vector3();
 
-        if (this.controls.forward) direction.z -= 1;
-        if (this.controls.backward) direction.z += 1;
-        if (this.controls.left) direction.x -= 1;
-        if (this.controls.right) direction.x += 1;
+        if (this.controls.forward) {direction.z -= 1;}
+        if (this.controls.backward) {direction.z += 1;}
+        if (this.controls.left) {direction.x -= 1;}
+        if (this.controls.right) {direction.x += 1;}
 
-        if (direction.lengthSq() > 0) direction.normalize();
+        if (direction.lengthSq() > 0) {direction.normalize();}
 
         const rotatedDirection = direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
 
@@ -164,8 +164,8 @@ export class CharacterController {
 
         if (this.controls.flightMode) {
             let vertical = 0;
-            if (this.controls.up) vertical += 1;
-            if (this.controls.down) vertical -= 1;
+            if (this.controls.up) {vertical += 1;}
+            if (this.controls.down) {vertical -= 1;}
 
             const targetY = vertical * this.moveSpeed;
             this.velocity.y = this.lerp(this.velocity.y, targetY, frictionForce * deltaTime);

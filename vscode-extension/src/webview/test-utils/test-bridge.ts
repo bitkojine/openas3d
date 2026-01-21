@@ -150,8 +150,8 @@ export class TestBridge {
 
             // Normalize angles for shortest path interpolation
             let diffYaw = targetYaw - startYaw;
-            while (diffYaw < -Math.PI) diffYaw += Math.PI * 2;
-            while (diffYaw > Math.PI) diffYaw -= Math.PI * 2;
+            while (diffYaw < -Math.PI) { diffYaw += Math.PI * 2; }
+            while (diffYaw > Math.PI) { diffYaw -= Math.PI * 2; }
             const finalYaw = startYaw + diffYaw;
 
             const animate = (time: number) => {
@@ -175,8 +175,6 @@ export class TestBridge {
     }
 
     public selectObject(id: string) {
-        console.log('TestBridge: selectObject', id);
-
         // Find visual object in CodeObjectManager
         // We can iterate or assume we can access map?
         // CodeObjectManager doesn't expose `get` easily unless we iterate.
@@ -211,7 +209,6 @@ export class TestBridge {
     }
 
     private exposeToWindow() {
-        console.log('[TestBridge] exposing to window...');
         (window as any).__OPENAS3D_TEST_BRIDGE__ = {
             getSceneState: () => this.getSceneState(),
             simulateSelection: (id: string) => this.selectObject(id),
@@ -244,28 +241,26 @@ export class TestBridge {
                 }
             } else if (message.type === 'TEST_SIMULATE_SELECTION') {
                 this.selectObject(message.data.id);
-                if (this.vscode) this.vscode.postMessage({ type: 'TEST_SELECTION_DONE' });
+                if (this.vscode) { this.vscode.postMessage({ type: 'TEST_SELECTION_DONE' }); }
             } else if (message.type === 'TEST_SIMULATE_MOVE') {
                 this.simulateMove(message.data.x, message.data.z);
-                if (this.vscode) this.vscode.postMessage({ type: 'TEST_MOVE_DONE' });
+                if (this.vscode) { this.vscode.postMessage({ type: 'TEST_MOVE_DONE' }); }
             } else if (message.type === 'TEST_SIMULATE_INPUT') {
-                if (message.data.kind === 'keydown') this.simulateKeyDown(message.data.code);
-                if (message.data.kind === 'keyup') this.simulateKeyUp(message.data.code);
-                if (message.data.kind === 'pointerdown') this.simulatePointerDown();
+                if (message.data.kind === 'keydown') { this.simulateKeyDown(message.data.code); }
+                if (message.data.kind === 'keyup') { this.simulateKeyUp(message.data.code); }
+                if (message.data.kind === 'pointerdown') { this.simulatePointerDown(); }
 
-                if (this.vscode) this.vscode.postMessage({ type: 'TEST_INPUT_DONE' });
+                if (this.vscode) { this.vscode.postMessage({ type: 'TEST_INPUT_DONE' }); }
             } else if (message.type === 'TEST_TELEPORT') {
                 this.teleport(message.data.x, message.data.y, message.data.z);
-                if (this.vscode) this.vscode.postMessage({ type: 'TEST_TELEPORT_DONE' });
+                if (this.vscode) { this.vscode.postMessage({ type: 'TEST_TELEPORT_DONE' }); }
             } else if (message.type === 'TEST_LOOK_AT') {
                 await this.lookAt(message.data.x, message.data.y, message.data.z, message.data.duration);
-                if (this.vscode) this.vscode.postMessage({ type: 'TEST_LOOK_AT_DONE' });
+                if (this.vscode) { this.vscode.postMessage({ type: 'TEST_LOOK_AT_DONE' }); }
             } else if (message.type === 'TEST_GET_POSITION') {
                 const pos = { x: this.character.position.x, y: this.character.position.y, z: this.character.position.z };
-                if (this.vscode) this.vscode.postMessage({ type: 'TEST_POSITION', data: pos });
+                if (this.vscode) { this.vscode.postMessage({ type: 'TEST_POSITION', data: pos }); }
             }
         });
-
-        console.log('[TestBridge] OpenAs3D Test Bridge initialized');
     }
 }

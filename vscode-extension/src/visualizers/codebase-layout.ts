@@ -32,7 +32,7 @@ export class CodebaseLayoutEngine {
 
         files.forEach(file => {
             const zone = this.getZoneForFile(file);
-            if (!zoneBuckets[zone]) zoneBuckets[zone] = [];
+            if (!zoneBuckets[zone]) {zoneBuckets[zone] = [];}
             zoneBuckets[zone].push(file);
         });
 

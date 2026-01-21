@@ -12,7 +12,7 @@ export class SignService {
      * Handles user input, file creation, and webview messaging.
      */
     public async addSignAtPosition(position: { x: number; y: number; z: number }) {
-        if (!vscode.workspace.workspaceFolders?.length) return;
+        if (!vscode.workspace.workspaceFolders?.length) {return;}
 
         const workspaceFolder = vscode.workspace.workspaceFolders[0];
 
@@ -20,7 +20,7 @@ export class SignService {
         const text = await vscode.window.showInputBox({
             prompt: 'Enter sign text (short message)'
         });
-        if (!text) return;
+        if (!text) {return;}
 
         // Ensure the "signs" folder exists
         const signsDir = path.join(workspaceFolder.uri.fsPath, 'signs');
