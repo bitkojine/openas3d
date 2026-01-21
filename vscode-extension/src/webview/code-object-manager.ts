@@ -31,10 +31,9 @@ export class CodeObjectManager {
     private focusedObject: VisualObject | null = null; // Track hover focus
 
     private readonly GROUND_Y = 0;
-    // ... (constructor) ...
 
     public setFocusedObject(obj: VisualObject | null): void {
-        if (this.focusedObject === obj) {return;}
+        if (this.focusedObject === obj) { return; }
 
         // Reset previous focus
         if (this.focusedObject && this.focusedObject !== this.selectedObject) {
@@ -132,7 +131,7 @@ export class CodeObjectManager {
             }
 
             this.objects.delete(id);
-            if (this.selectedObject?.id === id) {this.selectedObject = null;}
+            if (this.selectedObject?.id === id) { this.selectedObject = null; }
         }
     }
 
@@ -276,7 +275,7 @@ export class CodeObjectManager {
         this.objects.forEach(obj => {
             if (obj instanceof FileObject) {
                 const stats = this.dependencyManager.getStatsForObject(obj.id);
-                if (stats.incoming === 0 && stats.outgoing === 0) {return;}
+                if (stats.incoming === 0 && stats.outgoing === 0) { return; }
 
                 // Re-creating the label with stats
                 // We need the original description text. FileObject can regenerate it.

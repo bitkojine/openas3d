@@ -58,14 +58,12 @@ export class WebviewPanelManager {
 
         this.setupDescriptionWatcher();
 
-        this.setupDescriptionWatcher();
-
         this.isReady = false; // Reset readiness
         return this.panel;
     }
 
     private setupDescriptionWatcher() {
-        if (!vscode.workspace.workspaceFolders) {return;}
+        if (!vscode.workspace.workspaceFolders) { return; }
 
         const pattern = new vscode.RelativePattern(vscode.workspace.workspaceFolders[0], '**/*');
         this.watcher = vscode.workspace.createFileSystemWatcher(pattern);
@@ -151,10 +149,8 @@ export class WebviewPanelManager {
     private isReady = false;
 
     public async ensureReady(): Promise<void> {
-        if (this.isReady) {return;}
-        console.log('Waiting for webview to be ready...');
+        if (this.isReady) { return; }
         await this.waitForMessage('ready');
-        console.log('Webview is ready (ensureReady verified)');
     }
 
     public dispose(): void {
@@ -167,7 +163,6 @@ export class WebviewPanelManager {
     }
 
     private handleWebviewMessage(message: any): void {
-        console.log('WebviewPanelManager received message:', message.type);
         // Init Check waiters
         const waiterIndex = this.messageWaiters.findIndex(w => w.type === message.type);
         if (waiterIndex !== -1) {
@@ -175,11 +170,11 @@ export class WebviewPanelManager {
             this.messageWaiters.splice(waiterIndex, 1);
             waiter.resolve(message.data);
             // Stop processing if it's a test message we were waiting for
-            if (message.type.startsWith('TEST_')) {return;}
+            if (message.type.startsWith('TEST_')) { return; }
         }
 
         // Also ignore fire-and-forget test messages that might arrive late
-        if (message.type.startsWith('TEST_')) {return;}
+        if (message.type.startsWith('TEST_')) { return; }
 
         switch (message.type) {
             case 'objectSelected':
@@ -196,7 +191,6 @@ export class WebviewPanelManager {
                 break;
             case 'ready':
                 this.isReady = true;
-                console.log('Webview is ready');
                 break;
             case 'perfUpdate':
                 // Webview handles this in bootstrap.js, nothing needed here
@@ -208,20 +202,18 @@ export class WebviewPanelManager {
                 this.handleObjectFocused(message.data);
                 break;
             case 'log':
-                console.log('[Webview]', message.data.message);
+                // Webview logs forwarded - can be enabled for debugging
                 break;
             default:
                 console.log('Unknown message from webview:', message);
         }
     }
 
-    private async handleObjectFocused(data: any): Promise<void> {
-        // We no longer sync explorer on focus/look-at to prevent focus thrashing and movement interruption.
-        // The webview handles the visual highlighting internally.
+    private async handleObjectFocused(_data: any): Promise<void> {
+        // No-op: visual highlighting is handled internally by the webview
     }
 
     private async handleObjectSelected(data: any): Promise<void> {
-        console.log('Object selected:', data);
         if (data.filePath) {
             try {
                 const uri = vscode.Uri.file(data.filePath);
@@ -238,7 +230,7 @@ export class WebviewPanelManager {
     }
 
     private async handleOpenFile(data: any): Promise<void> {
-        if (!data.filePath) {return;}
+        if (!data.filePath) { return; }
 
         try {
             const uri = vscode.Uri.file(data.filePath);
@@ -272,11 +264,11 @@ export class WebviewPanelManager {
     }
 
     private async handleAddSign(data: { position: { x: number; y: number; z: number } }) {
-        if (!vscode.workspace.workspaceFolders?.length) {return;}
+        if (!vscode.workspace.workspaceFolders?.length) { return; }
         const workspaceFolder = vscode.workspace.workspaceFolders[0];
 
         const text = await vscode.window.showInputBox({ prompt: 'Enter sign text (short message)' });
-        if (!text) {return;}
+        if (!text) { return; }
 
         const signsDir = path.join(workspaceFolder.uri.fsPath, 'signs');
         fs.mkdirSync(signsDir, { recursive: true });
@@ -311,13 +303,10 @@ ${text}
 
     private getWebviewContent(): string {
         const jsPath = path.join(this.context.extensionPath, 'out', 'webview', 'renderer.js');
-        console.log('Renderer JS Path:', jsPath);
-        console.log('Renderer JS Exists:', fs.existsSync(jsPath));
 
         const rendererUri = this.panel!.webview.asWebviewUri(
             vscode.Uri.file(jsPath)
         );
-        console.log('Renderer URI:', rendererUri.toString());
 
         return generateWebviewHtml(rendererUri, this.panel!.webview.cspSource, this.version);
     }

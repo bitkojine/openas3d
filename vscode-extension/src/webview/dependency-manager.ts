@@ -46,9 +46,9 @@ const DEPENDENCY_COLORS = {
 
 /** Get color for dependency based on type and state */
 export function getDependencyColor(type: DependencyType, importKind?: ImportKind, isCircular?: boolean): number {
-    if (isCircular) {return DEPENDENCY_COLORS.circular;}
-    if (importKind === 'type') {return DEPENDENCY_COLORS.typeOnly;}
-    if (importKind === 'reexport') {return DEPENDENCY_COLORS.reexport;}
+    if (isCircular) { return DEPENDENCY_COLORS.circular; }
+    if (importKind === 'type') { return DEPENDENCY_COLORS.typeOnly; }
+    if (importKind === 'reexport') { return DEPENDENCY_COLORS.reexport; }
 
     switch (type) {
         case 'import': return DEPENDENCY_COLORS.import;
@@ -182,8 +182,7 @@ export class DependencyManager {
         const targetObj = objects.get(data.target);
 
         if (!sourceObj || !targetObj) {
-            console.warn(`Cannot create dependency line: ${data.source} → ${data.target}`);
-            return;
+            return; // Skip if source or target not found
         }
 
         // Calculate start/end positions with slight offset from object centers
@@ -267,7 +266,7 @@ export class DependencyManager {
     public getCircularCount(): number {
         let count = 0;
         this.dependencies.forEach(dep => {
-            if (dep.isCircular) {count++;}
+            if (dep.isCircular) { count++; }
         });
         // Divide by 2 since circular deps are counted for both directions
         return Math.floor(count / 2);

@@ -42,9 +42,7 @@ window.addEventListener('DOMContentLoaded', () => {
             logToExtension('error', msg);
         };
 
-        console.log('Bootstrap finished. WorldRenderer initialized.');
-
-        // Notify extension that we are ready ONLY after everything is set up
+        // Notify extension that we are ready
         vscode.postMessage({ type: 'ready' });
 
     } catch (error: any) {
@@ -70,11 +68,9 @@ window.addEventListener('message', (event) => {
         switch (message.type) {
             case 'loadWorld':
                 worldRenderer.clear();
-                console.log('Loading world data:', message.data);
                 break;
 
             case 'addObject':
-                console.log('Adding object:', message.data.id);
                 try {
                     worldRenderer.addCodeObject(message.data);
                 } catch (e: any) {
