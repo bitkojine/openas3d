@@ -80,7 +80,7 @@ export class WorldRenderer {
         this.lastTime = currentTime;
 
         this.character.update(deltaTime);
-        this.ui.update(deltaTime, this.objects['objects'].size, this.objects['dependencies'].size);
+        this.ui.update(deltaTime, this.objects.getObjectCount(), 0);
 
         this.interaction.update();
 
@@ -88,7 +88,7 @@ export class WorldRenderer {
         const rotationSpeed = 0.5; // radians per second
         const focusedObject = this.objects.getSelectedObject(); // This logic relies on CoM using selectedObject as "focused"
 
-        for (const obj of this.objects['objects'].values()) {
+        for (const obj of this.objects.getObjects()) {
             // If this is the focused object, face the camera
             if (focusedObject && obj.id === focusedObject.id) {
                 // Smoothly rotate to face camera
