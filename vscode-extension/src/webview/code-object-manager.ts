@@ -109,8 +109,11 @@ export class CodeObjectManager {
 
     public applyDescription(filePath: string, description: { summary: string; status: string; lastUpdated?: string }): void {
         const obj = [...this.objects.values()].find(o => o.metadata.filePath === filePath);
-        if (obj && obj instanceof FileObject) {
-            obj.updateLabel(this.scene, description.summary);
+
+        // Allow any object that supports label updates to receive them
+        if (obj && typeof (obj as any).updateLabel === 'function') {
+            (obj as any).updateLabel(this.scene, description.summary);
+
             // Update metadata to persist status
             obj.metadata.descriptionStatus = description.status;
             obj.metadata.descriptionLastUpdated = description.lastUpdated;
@@ -146,13 +149,9 @@ export class CodeObjectManager {
         this.selectedObject = null;
     }
 
-    // Dependency delegation - requires temporary conversion to CodeObject for compatibility
+    // Dependency delegation
     public addDependency(data: DependencyData): void {
-        // Convert map to legacy CodeObject map for compatibility
-        const legacyMap = new Map<string, CodeObject>();
-        this.objects.forEach((v, k) => legacyMap.set(k, v.toCodeObject()));
-
-        this.dependencyManager.add(data, legacyMap);
+        this.dependencyManager.add(data, this.objects);
     }
 
     public removeDependency(id: string): void {

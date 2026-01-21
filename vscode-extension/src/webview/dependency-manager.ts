@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import { CodeObject, DependencyEdge, ImportKind } from './types';
+import { VisualObject } from './objects/visual-object';
 
 /** Dependency type for import/extends/calls relationships */
 export type DependencyType = 'import' | 'extends' | 'calls';
@@ -175,7 +176,7 @@ export class DependencyManager {
      */
     public add(
         data: DependencyData,
-        objects: Map<string, CodeObject>
+        objects: Map<string, VisualObject>
     ): void {
         const sourceObj = objects.get(data.source);
         const targetObj = objects.get(data.target);
