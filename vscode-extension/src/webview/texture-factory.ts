@@ -234,6 +234,31 @@ function renderLabel(
     const lines: string[] = [];
     const maxTextWidth = canvasWidth - padding * 2;
 
+    // Determine State and Icons
+    let statusIcon = '';
+    let statusColor = '#444444'; // Default Grey
+    let bgTint = 'rgba(15, 15, 20, 0.90)'; // Default Black
+
+    if (deps) {
+        if (deps.hasCircular) {
+            statusIcon = '🔄'; // Circular
+            statusColor = '#ff4444'; // Red
+            bgTint = 'rgba(40, 10, 10, 0.95)'; // Slight Red Tint
+        } else if (deps.incoming > 5 || deps.outgoing > 5) {
+            statusIcon = '🔥'; // Hot
+            statusColor = '#00bfff'; // Cyan
+            bgTint = 'rgba(10, 20, 30, 0.95)'; // Slight Cyan Tint
+        } else if (deps.outgoing === 0 && deps.incoming > 0) {
+            statusIcon = '🌱'; // Leaf
+            statusColor = '#7cfc00'; // Lawn Green
+            bgTint = 'rgba(15, 25, 15, 0.95)'; // Slight Green Tint
+        } else if (deps.incoming === 0 && deps.outgoing > 0) {
+            statusIcon = '💎'; // Root
+            statusColor = '#ffd700'; // Gold
+            bgTint = 'rgba(25, 25, 15, 0.95)'; // Slight Gold Tint
+        }
+    }
+
     // Add dependency line if stats exist
     let depsLine = '';
     if (deps && (deps.incoming > 0 || deps.outgoing > 0)) {
@@ -241,7 +266,11 @@ function renderLabel(
         if (deps.outgoing > 0) parts.push(`↓${deps.outgoing}`);
         if (deps.incoming > 0) parts.push(`↑${deps.incoming}`);
         depsLine = parts.join(' ');
-        if (deps.hasCircular) depsLine += ' ⚠️';
+
+        // Add status icon to the stats line
+        if (statusIcon) {
+            depsLine += ` ${statusIcon}`;
+        }
     }
 
     rawLines.forEach(rawLine => {
@@ -274,30 +303,16 @@ function renderLabel(
     // Clear
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-    // Determines status color
-    let borderColor = '#444444'; // default grey
-    let shadowColor = 'rgba(0,0,0,0.5)';
-
-    if (deps) {
-        if (deps.hasCircular) {
-            borderColor = '#ff4444'; // Red for circular
-            shadowColor = 'rgba(255, 68, 68, 0.4)';
-        } else if (deps.incoming > 5 || deps.outgoing > 5) {
-            borderColor = '#00bfff'; // Cyan for hot files
-            shadowColor = 'rgba(0, 191, 255, 0.4)';
-        }
-    }
-
     // Draw Glass Card Background
     roundRect(ctx, borderWidth / 2, borderWidth / 2, canvasWidth - borderWidth, canvasHeight - borderWidth, cornerRadius);
 
-    // Fill: Dark Matte Black
-    ctx.fillStyle = 'rgba(15, 15, 20, 0.90)';
+    // Fill: Tinted Background
+    ctx.fillStyle = bgTint;
     ctx.fill();
 
     // Border
     ctx.lineWidth = borderWidth;
-    ctx.strokeStyle = borderColor;
+    ctx.strokeStyle = statusColor;
     ctx.stroke();
 
     // Text Rendering
@@ -309,8 +324,8 @@ function renderLabel(
         const isDepLine = depsLine && idx === lines.length - 1;
 
         if (isDepLine) {
-            // Stats line styling
-            ctx.fillStyle = deps?.hasCircular ? '#ff6b35' : (deps && (deps.incoming > 5 || deps.outgoing > 5)) ? '#00bfff' : '#aaaaaa';
+            // Stats line styling - matches status color
+            ctx.fillStyle = statusColor === '#444444' ? '#cccccc' : statusColor;
             ctx.font = `bold ${fontSize}px ${font}`;
         } else if (idx === 0 && line.startsWith('Filename:')) {
             // Title styling
