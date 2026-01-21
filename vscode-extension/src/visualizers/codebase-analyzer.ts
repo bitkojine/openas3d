@@ -40,7 +40,7 @@ export class CodebaseAnalyzer {
                     const fullPath = path.join(dirPath, entry.name);
 
                     if (entry.isDirectory()) {
-                        if (!['node_modules', '.git', 'dist', 'build', 'out', '.vscode'].includes(entry.name)) {
+                        if (!['node_modules', '.git', 'dist', 'build', 'out', '.vscode', '.3d-descriptions'].includes(entry.name)) {
                             await processDirectory(fullPath);
                         }
                     } else if (entry.isFile()) {
@@ -63,19 +63,94 @@ export class CodebaseAnalyzer {
         await processDirectory(this.workspaceRoot);
 
         // Build dependency edges after all files are loaded
-        const edges: DependencyEdge[] = [];
+
+        // Create lookup map for fast absolute path resolution
+        const fileLookup = new Map<string, CodeFile>();
+        for (const file of files.values()) {
+            fileLookup.set(file.filePath, file);
+        }
+
+        // Track edges for circular dependency detection
+        const edgeMap = new Map<string, DependencyEdge>();
+        const dependencyPairs = new Set<string>(); // "source:target" pairs
+
         for (const file of files.values()) {
             if (isCodeLanguage(file.language)) {
+                // Count how many times each target is imported (for weight)
+                const targetCounts = new Map<string, number>();
+
                 for (const depPath of file.dependencies) {
-                    const targetFile = this.findFileByPath(files, depPath);
+                    let targetFile: CodeFile | null = null;
+
+                    if (depPath.startsWith('.')) {
+                        // Resolve relative path
+                        // Note: path uses system separators, but imports use forward slashes. 
+                        // Usually path.resolve handles consistent separators if running on same OS.
+                        const absPath = path.resolve(path.dirname(file.filePath), depPath);
+
+                        // Try exact and extensions
+                        const candidates = [
+                            absPath,
+                            absPath + '.ts', absPath + '.tsx',
+                            absPath + '.js', absPath + '.jsx',
+                            absPath + '.py', absPath + '.java', absPath + '.go',
+                            path.join(absPath, 'index.ts'), path.join(absPath, 'index.tsx'),
+                            path.join(absPath, 'index.js'), path.join(absPath, 'index.jsx')
+                        ];
+
+                        for (const candidate of candidates) {
+                            if (fileLookup.has(candidate)) {
+                                targetFile = fileLookup.get(candidate)!;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Fallback to fuzzy search if not found or not relative
+                    if (!targetFile) {
+                        targetFile = this.findFileByPath(files, depPath);
+                    }
+
                     if (targetFile) {
-                        edges.push({ source: file.id, target: targetFile.id, type: 'import' });
+                        const count = targetCounts.get(targetFile.id) || 0;
+                        targetCounts.set(targetFile.id, count + 1);
+                    }
+                }
+
+                // Create edges with weight
+                for (const [targetId, weight] of targetCounts) {
+                    const edgeId = `${file.id}-${targetId}`;
+                    const pairKey = `${file.id}:${targetId}`;
+                    const reversePairKey = `${targetId}:${file.id}`;
+
+                    // Check for circular dependency
+                    const isCircular = dependencyPairs.has(reversePairKey);
+
+                    const edge: DependencyEdge = {
+                        source: file.id,
+                        target: targetId,
+                        type: 'import',
+                        weight,
+                        isCircular,
+                        // Could distinguish types/re-exports here if parser supported it
+                    };
+
+                    edgeMap.set(edgeId, edge);
+                    dependencyPairs.add(pairKey);
+
+                    // If circular, also mark the reverse edge
+                    if (isCircular) {
+                        const reverseEdgeId = `${targetId}-${file.id}`;
+                        const reverseEdge = edgeMap.get(reverseEdgeId);
+                        if (reverseEdge) {
+                            reverseEdge.isCircular = true;
+                        }
                     }
                 }
             }
         }
 
-        onComplete(edges);
+        onComplete(Array.from(edgeMap.values()));
     }
 
     /**
@@ -157,7 +232,7 @@ export class CodebaseAnalyzer {
                 break;
         }
 
-        return deps.filter(d => d && !d.startsWith('.') && !d.startsWith('/'));
+        return deps.filter(d => d && !d.startsWith('/'));
     }
 
     /**

@@ -20,12 +20,23 @@ export interface CodeFile {
 }
 
 /**
+ * Import kind for visual distinction
+ */
+export type ImportKind = 'value' | 'type' | 'reexport';
+
+/**
  * Represents a dependency relationship between two files
  */
 export interface DependencyEdge {
     source: string;
     target: string;
     type: 'import' | 'extends' | 'calls';
+    /** Number of imports from source to target (for line thickness) */
+    weight?: number;
+    /** True if this is part of a circular dependency */
+    isCircular?: boolean;
+    /** Kind of import for visual styling */
+    importKind?: ImportKind;
 }
 
 /**

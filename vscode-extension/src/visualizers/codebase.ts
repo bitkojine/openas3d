@@ -39,7 +39,10 @@ export class CodebaseVisualizer implements WorldVisualizer {
         // Start streaming - don't await! Files will appear progressively
         analyzer.analyzeStreaming(
             (file) => this.addFileToScene(file),
-            (edges) => this.addEdgesToScene(edges)
+            (edges) => {
+                this.addEdgesToScene(edges);
+                this.panel?.webview.postMessage({ type: 'dependenciesComplete' });
+            }
         ).catch(err => {
             console.error('Failed during streaming analysis:', err);
             vscode.window.showErrorMessage(`Failed to analyze codebase: ${err}`);
@@ -85,8 +88,9 @@ export class CodebaseVisualizer implements WorldVisualizer {
                     source: edge.source,
                     target: edge.target,
                     type: edge.type,
-                    color: 0x00BFFF,
-                    opacity: 0.6
+                    weight: edge.weight ?? 1,
+                    isCircular: edge.isCircular ?? false,
+                    importKind: edge.importKind ?? 'value'
                 }
             });
         });

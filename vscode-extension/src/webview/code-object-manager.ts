@@ -5,8 +5,8 @@
 import * as THREE from 'three';
 import { CodeObject, DependencyEdge } from './types';
 import { getLanguageColor } from '../utils/languageRegistry';
-import { createContentTexture, createTextSprite } from './texture-factory';
-import { DependencyManager, DependencyData } from './dependency-manager';
+import { createContentTexture, createTextSprite, createTextSpriteWithDeps, LabelDependencyStats } from './texture-factory';
+import { DependencyManager, DependencyData, DependencyStats } from './dependency-manager';
 
 /** Data for adding a new object */
 export interface AddObjectData {
@@ -201,6 +201,26 @@ export class CodeObjectManager {
         this.dependencyManager.hideAll();
     }
 
+    /** Get total number of dependency edges */
+    public getDependencyCount(): number {
+        return this.dependencyManager.getDependencyCount();
+    }
+
+    /** Get count of circular dependencies */
+    public getCircularCount(): number {
+        return this.dependencyManager.getCircularCount();
+    }
+
+    /** Get dependency stats for a specific object */
+    public getDependencyStats(objectId: string): DependencyStats {
+        return this.dependencyManager.getStatsForObject(objectId);
+    }
+
+    /** Update dependency animations */
+    public updateDependencies(deltaTime: number): void {
+        this.dependencyManager.update(deltaTime);
+    }
+
     // Selection management
     public selectObject(obj: CodeObject): void {
         this.deselectObject();
@@ -273,4 +293,51 @@ export class CodeObjectManager {
             }
         });
     }
+
+    /**
+     * Refresh all object labels with dependency statistics.
+     * Call this after all dependencies have been added.
+     */
+    public refreshLabelsWithDependencyStats(): void {
+        this.objects.forEach(obj => {
+            if (!obj.descriptionMesh) return;
+
+            const stats = this.dependencyManager.getStatsForObject(obj.id);
+            if (stats.incoming === 0 && stats.outgoing === 0) return;
+
+            // Build base description from metadata
+            const meta = obj.metadata;
+            const baseDescription = [
+                `Filename: ${this.getFilename(obj.filePath)}`,
+                `Language: ${meta?.language || 'unknown'}`,
+                `Size: ${(meta?.size ?? 0).toLocaleString('lt-LT')} bytes`,
+                `Complexity: ${meta?.complexity ?? 'N/A'}`,
+                `Last Modified: ${meta?.lastModified ? new Date(meta.lastModified).toLocaleDateString('lt-LT', { timeZone: 'Europe/Vilnius' }) : 'unknown'}`
+            ].join('\n');
+
+            // Remove old sprite
+            this.scene.remove(obj.descriptionMesh);
+
+            // Create new sprite with dependency stats
+            const labelStats: LabelDependencyStats = {
+                incoming: stats.incoming,
+                outgoing: stats.outgoing,
+                hasCircular: stats.circularWith.length > 0
+            };
+
+            const newSprite = createTextSpriteWithDeps(baseDescription, labelStats);
+
+            const meshHeight = this.getMeshHeight(obj.mesh, obj.type);
+            const labelHeight = newSprite.userData.height || 1;
+            newSprite.position.set(
+                obj.position.x,
+                obj.mesh.position.y + meshHeight / 2 + this.GAP + labelHeight / 2,
+                obj.position.z
+            );
+
+            obj.descriptionMesh = newSprite;
+            this.scene.add(newSprite);
+        });
+    }
 }
+

@@ -80,7 +80,14 @@ export class WorldRenderer {
         this.lastTime = currentTime;
 
         this.character.update(deltaTime);
-        this.ui.update(deltaTime, this.objects.getObjectCount(), 0);
+
+        // Pass actual dependency and circular counts to UI
+        const depCount = this.objects.getDependencyCount();
+        const circularCount = this.objects.getCircularCount();
+        this.ui.update(deltaTime, this.objects.getObjectCount(), depCount, circularCount);
+
+        // Update dependency animations (pulsing for circular deps)
+        this.objects.updateDependencies(deltaTime);
 
         this.interaction.update();
 
@@ -153,5 +160,9 @@ export class WorldRenderer {
 
     public hideDependencies(): void {
         this.objects.hideDependencies();
+    }
+
+    public refreshLabels(): void {
+        this.objects.refreshLabelsWithDependencyStats();
     }
 }

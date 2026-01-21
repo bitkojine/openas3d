@@ -45,6 +45,10 @@ window.addEventListener('message', (event) => {
             worldRenderer.hideDependencies();
             break;
 
+        case 'dependenciesComplete':
+            worldRenderer.refreshLabels();
+            break;
+
         case 'clear':
             worldRenderer.clear();
             break;

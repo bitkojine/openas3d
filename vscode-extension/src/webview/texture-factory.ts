@@ -242,3 +242,112 @@ export function createTextSprite(message: string): THREE.Sprite {
 
     return sprite;
 }
+
+/** Dependency stats for enhanced label display */
+export interface LabelDependencyStats {
+    incoming: number;
+    outgoing: number;
+    hasCircular: boolean;
+}
+
+/**
+ * Create a text sprite with dependency indicators
+ * Shows ↓X (imports X files) and ↑Y (imported by Y files)
+ */
+export function createTextSpriteWithDeps(
+    message: string,
+    deps: LabelDependencyStats
+): THREE.Sprite {
+    const { canvasWidth, padding, fontSize, lineHeight, font } = SPRITE_CONFIG;
+
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d')!;
+    tempCtx.font = `${fontSize}px ${font}`;
+
+    // Build dependency line
+    let depsLine = '';
+    if (deps.incoming > 0 || deps.outgoing > 0) {
+        const parts: string[] = [];
+        if (deps.outgoing > 0) parts.push(`↓${deps.outgoing}`); // this file imports X others
+        if (deps.incoming > 0) parts.push(`↑${deps.incoming}`); // X files import this
+        depsLine = parts.join(' ');
+        if (deps.hasCircular) depsLine += ' ⚠️';
+    }
+
+    const rawLines = message.split('\n');
+    const lines: string[] = [];
+    const maxTextWidth = canvasWidth - padding * 2;
+
+    rawLines.forEach(rawLine => {
+        const words = rawLine.split(' ');
+        let currentLine = '';
+        words.forEach((word, idx) => {
+            const testLine = currentLine ? currentLine + ' ' + word : word;
+            if (tempCtx.measureText(testLine).width > maxTextWidth) {
+                if (currentLine) lines.push(currentLine);
+                currentLine = word;
+            } else {
+                currentLine = testLine;
+            }
+            if (idx === words.length - 1) lines.push(currentLine);
+        });
+    });
+
+    // Add deps line if present
+    if (depsLine) {
+        lines.push(depsLine);
+    }
+
+    const canvasHeight = padding * 2 + lines.length * lineHeight;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    const ctx = canvas.getContext('2d')!;
+    ctx.font = `${fontSize}px ${font}`;
+    ctx.textBaseline = 'top';
+
+    // Background with slight gradient for deps-heavy files
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
+    if (deps.hasCircular) {
+        bgGradient.addColorStop(0, '#2a1a1a');
+        bgGradient.addColorStop(1, '#1a0a0a');
+    } else if (deps.incoming > 5 || deps.outgoing > 5) {
+        bgGradient.addColorStop(0, '#1a2a2a');
+        bgGradient.addColorStop(1, '#0a1a1a');
+    } else {
+        bgGradient.addColorStop(0, '#000000');
+        bgGradient.addColorStop(1, '#000000');
+    }
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    let y = padding;
+    lines.forEach((line, idx) => {
+        const isDepLine = depsLine && idx === lines.length - 1;
+        if (isDepLine) {
+            // Style dependency line differently
+            ctx.fillStyle = deps.hasCircular ? '#ff6b35' : '#00bfff';
+            ctx.font = `bold ${fontSize}px ${font}`;
+        } else {
+            ctx.fillStyle = 'white';
+            ctx.font = `${fontSize}px ${font}`;
+        }
+        ctx.fillText(line, padding, y);
+        y += lineHeight;
+    });
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: false });
+    const sprite = new THREE.Sprite(spriteMaterial);
+
+    sprite.userData.width = canvasWidth / 200;
+    sprite.userData.height = canvasHeight / 200;
+    sprite.scale.set(sprite.userData.width, sprite.userData.height, 1);
+
+    return sprite;
+}
+

@@ -45,6 +45,9 @@ export interface CodeObject {
     descriptionLastUpdated?: string;
 }
 
+/** Import kind for visual distinction */
+export type ImportKind = 'value' | 'type' | 'reexport';
+
 /**
  * A visual dependency edge between two CodeObjects
  */
@@ -53,9 +56,15 @@ export interface DependencyEdge {
     source: string; // CodeObject.id
     target: string; // CodeObject.id
     type: 'import' | 'extends' | 'calls';
+    /** Number of imports from source to target (for line thickness) */
+    weight: number;
+    /** True if this is part of a circular dependency */
+    isCircular: boolean;
+    /** Kind of import for visual styling */
+    importKind: ImportKind;
 
     /**
-     * Three.js line rendered in the scene
+     * Three.js group containing the curve line and arrow
      */
-    line: THREE.Line;
+    line: THREE.Group;
 }
