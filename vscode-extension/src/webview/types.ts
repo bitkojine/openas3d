@@ -3,7 +3,10 @@ import * as THREE from 'three';
 /**
  * A visualized code entity in the 3D world
  */
-export interface CodeObject {
+/**
+ * A visualized code entity in the 3D world
+ */
+export interface CodeEntityDTO {
     id: string;
     type: 'file' | 'module' | 'class' | 'function' | 'sign'; // ✅ added 'sign'
     filePath: string;
@@ -51,7 +54,7 @@ export type ImportKind = 'value' | 'type' | 'reexport';
 /**
  * A visual dependency edge between two CodeObjects
  */
-export interface DependencyEdge {
+export interface DependencyDTO {
     id: string;
     source: string; // CodeObject.id
     target: string; // CodeObject.id

@@ -3,21 +3,8 @@
  * Creates visual markers for zone boundaries in the 3D code park.
  */
 import * as THREE from 'three';
-
-/**
- * Zone bounds data received from extension.
- * Must match ZoneBounds from codebase-layout.ts
- */
-export interface ZoneBounds {
-    name: string;
-    displayName: string;
-    minX: number;
-    maxX: number;
-    minZ: number;
-    maxZ: number;
-    fileCount: number;
-    color: number;
-}
+import { ZoneBounds } from '../shared/zone';
+export { ZoneBounds };
 
 /**
  * Configuration for zone signs

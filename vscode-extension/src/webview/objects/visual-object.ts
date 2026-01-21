@@ -4,9 +4,9 @@
  * Implements CodeObject interface for compatibility with existing systems.
  */
 import * as THREE from 'three';
-import { CodeObject } from '../types';
+import { CodeEntityDTO } from '../types';
 
-export abstract class VisualObject implements CodeObject {
+export abstract class VisualObject implements CodeEntityDTO {
     public mesh: THREE.Mesh;
     public id: string;
     public type: 'file' | 'module' | 'class' | 'function' | 'sign';
@@ -35,8 +35,8 @@ export abstract class VisualObject implements CodeObject {
         this.description = metadata.description || 'No description';
 
         // Initialize description state from metadata if present
-        if (metadata.descriptionStatus) {this.descriptionStatus = metadata.descriptionStatus;}
-        if (metadata.descriptionLastUpdated) {this.descriptionLastUpdated = metadata.descriptionLastUpdated;}
+        if (metadata.descriptionStatus) { this.descriptionStatus = metadata.descriptionStatus; }
+        if (metadata.descriptionLastUpdated) { this.descriptionLastUpdated = metadata.descriptionLastUpdated; }
 
         this.mesh = this.createMesh(); // Template method
         this.mesh.position.copy(position);
@@ -88,7 +88,7 @@ export abstract class VisualObject implements CodeObject {
      * Clean up resources (geometries, materials)
      */
     public dispose(): void {
-        if (this.mesh.geometry) {this.mesh.geometry.dispose();}
+        if (this.mesh.geometry) { this.mesh.geometry.dispose(); }
 
         const materials = Array.isArray(this.mesh.material)
             ? this.mesh.material
@@ -112,7 +112,7 @@ export abstract class VisualObject implements CodeObject {
      * Convert to the CodeObject interface expected by legacy systems/DependencyManager
      * TODO: Eventually migrate DependencyManager to use VisualObject directly
      */
-    public toCodeObject(): CodeObject {
+    public toCodeObject(): CodeEntityDTO {
         return this;
     }
 }

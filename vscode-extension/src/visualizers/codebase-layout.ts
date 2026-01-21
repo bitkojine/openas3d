@@ -1,31 +1,8 @@
 import * as path from 'path';
 import { CodeFile } from './types';
+import { ZoneConfig, ZoneBounds } from '../shared/zone';
 
-/**
- * Zone configuration for file layout
- */
-export interface ZoneConfig {
-    name: string;
-    displayName: string;
-    xCenter: number;
-    zCenter: number;
-    spacing: number;
-    color: number; // For visual theming (signs/fences)
-}
-
-/**
- * Zone bounds calculated after layout
- */
-export interface ZoneBounds {
-    name: string;
-    displayName: string;
-    minX: number;
-    maxX: number;
-    minZ: number;
-    maxZ: number;
-    fileCount: number;
-    color: number;
-}
+export { ZoneConfig, ZoneBounds };
 
 /**
  * Responsible for computing 3D layout positions for files.

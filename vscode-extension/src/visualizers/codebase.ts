@@ -1,25 +1,16 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { WorldVisualizer, VisualizerManifest } from './loader';
 import { CodebaseAnalyzer } from './codebase-analyzer';
 import { CodebaseLayoutEngine } from './codebase-layout';
 import { CodeFile, DependencyEdge } from './types';
 
 // Re-export types for backward compatibility within the module if needed
 export { CodeFile, DependencyEdge };
-
 /**
  * Facade class for the VSCode extension loader.
  * Orchestrates analysis and layout to visualize the codebase in 3D.
  */
-export class CodebaseVisualizer implements WorldVisualizer {
-    public manifest: VisualizerManifest = {
-        name: 'Codebase Dependencies Visualizer',
-        type: 'codebase',
-        version: '1.0.0',
-        languages: ['typescript', 'javascript', 'python', 'java', 'go'],
-        description: 'Visualize code dependencies and architecture in 3D'
-    };
+export class CodebaseVisualizer {
 
     private panel: vscode.WebviewPanel | null = null;
     private layout = new CodebaseLayoutEngine();

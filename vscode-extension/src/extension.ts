@@ -1,13 +1,12 @@
 // extension.ts
 import * as vscode from 'vscode';
 import { WebviewPanelManager } from './webview/panel';
-import { ExtensionLoader } from './visualizers/loader';
+import { CodebaseVisualizer } from './visualizers/codebase'; // Explicit import
 import { PerfTracker } from './utils/perf-tracker';
 import { ExploreDependenciesService } from './services/explore-dependencies-service';
 import { SignService } from './services/sign-service';
 
 let webviewPanelManager: WebviewPanelManager;
-let extensionLoader: ExtensionLoader;
 let perf: PerfTracker;
 
 let exploreService: ExploreDependenciesService;
@@ -20,14 +19,14 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Initialize core managers
     webviewPanelManager = new WebviewPanelManager(context, version);
-    extensionLoader = new ExtensionLoader(context);
+    const codebaseVisualizer = new CodebaseVisualizer();
     perf = new PerfTracker();
 
     // Initialize services
     signService = new SignService(webviewPanelManager);
     exploreService = new ExploreDependenciesService(
         webviewPanelManager,
-        extensionLoader,
+        codebaseVisualizer,
         perf,
         signService // inject SignService here
     );
@@ -119,7 +118,7 @@ export function activate(context: vscode.ExtensionContext) {
         const testTeleportCommand = vscode.commands.registerCommand(
             'openas3d.test.teleport',
             async (x: number, y: number, z: number) => {
-                if (!webviewPanelManager) {throw new Error('WebviewPanelManager not initialized');}
+                if (!webviewPanelManager) { throw new Error('WebviewPanelManager not initialized'); }
                 webviewPanelManager.dispatchMessage({ type: 'TEST_TELEPORT', data: { x, y, z } });
                 const response = webviewPanelManager.waitForMessage('TEST_TELEPORT_DONE');
                 return Promise.race([response, new Promise((_, r) => setTimeout(() => r(new Error('Timeout')), 5000))]);
@@ -129,7 +128,7 @@ export function activate(context: vscode.ExtensionContext) {
         const testLookAtCommand = vscode.commands.registerCommand(
             'openas3d.test.lookAt',
             async (x: number, y: number, z: number, duration?: number) => {
-                if (!webviewPanelManager) {throw new Error('WebviewPanelManager not initialized');}
+                if (!webviewPanelManager) { throw new Error('WebviewPanelManager not initialized'); }
                 webviewPanelManager.dispatchMessage({ type: 'TEST_LOOK_AT', data: { x, y, z, duration } });
                 const response = webviewPanelManager.waitForMessage('TEST_LOOK_AT_DONE');
                 // Increase timeout for animations
@@ -141,7 +140,7 @@ export function activate(context: vscode.ExtensionContext) {
         const testGetPositionCommand = vscode.commands.registerCommand(
             'openas3d.test.getPosition',
             async () => {
-                if (!webviewPanelManager) {throw new Error('WebviewPanelManager not initialized');}
+                if (!webviewPanelManager) { throw new Error('WebviewPanelManager not initialized'); }
                 webviewPanelManager.dispatchMessage({ type: 'TEST_GET_POSITION' });
                 const response = webviewPanelManager.waitForMessage('TEST_POSITION');
                 return Promise.race([response, new Promise((_, r) => setTimeout(() => r(new Error('Timeout')), 5000))]);
@@ -167,6 +166,6 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
     console.log('OpenAs3D extension is being deactivated');
 
-    if (webviewPanelManager) {webviewPanelManager.dispose();}
-    if (extensionLoader) {extensionLoader.dispose();}
+    if (webviewPanelManager) { webviewPanelManager.dispose(); }
+    // CodebaseVisualizer doesn't have a dispose method currently, cleanup happens via initialize return fn
 }

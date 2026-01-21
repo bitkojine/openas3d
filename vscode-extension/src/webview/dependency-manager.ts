@@ -4,7 +4,7 @@
  * and animated flow effects.
  */
 import * as THREE from 'three';
-import { CodeObject, DependencyEdge, ImportKind } from './types';
+import { CodeEntityDTO, DependencyDTO, ImportKind } from './types';
 import { VisualObject } from './objects/visual-object';
 
 /** Dependency type for import/extends/calls relationships */
@@ -165,7 +165,7 @@ function createCurvedLineWithArrow(
  * Manages dependency lines between code objects
  */
 export class DependencyManager {
-    private dependencies: Map<string, DependencyEdge> = new Map();
+    private dependencies: Map<string, DependencyDTO> = new Map();
     private objectStats: Map<string, DependencyStats> = new Map();
     private animationTime: number = 0;
 
@@ -204,7 +204,7 @@ export class DependencyManager {
 
         this.scene.add(lineGroup);
 
-        const dep: DependencyEdge = {
+        const dep: DependencyDTO = {
             id: data.id,
             source: data.source,
             target: data.target,
@@ -362,7 +362,7 @@ export class DependencyManager {
     /**
      * Get all dependency edges
      */
-    public getAll(): IterableIterator<DependencyEdge> {
+    public getAll(): IterableIterator<DependencyDTO> {
         return this.dependencies.values();
     }
 }

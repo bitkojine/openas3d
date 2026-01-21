@@ -2,14 +2,14 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { WebviewPanelManager } from '../webview/panel';
-import { ExtensionLoader } from '../visualizers/loader';
+import { CodebaseVisualizer } from '../visualizers/codebase';
 import { PerfTracker } from '../utils/perf-tracker';
 import { SignService } from './sign-service';
 
 export class ExploreDependenciesService {
     constructor(
         private panelManager: WebviewPanelManager,
-        private loader: ExtensionLoader,
+        private visualizer: CodebaseVisualizer,
         private perf: PerfTracker,
         private signService: SignService // Inject SignService
     ) { }
@@ -58,7 +58,10 @@ export class ExploreDependenciesService {
 
             // ───── Load codebase visualizer ─────
             const tVisualizer = this.perf.start('loadCodebaseVisualizer');
-            await this.loader.loadCodebaseVisualizer(panel, targetPath);
+            // FIX: call visualizer.initialize directly
+            // We need to manage the cleanup function returned by initialize if we want to be correct, 
+            // but for now let's just await it.
+            await this.visualizer.initialize(panel, { targetPath });
             this.perf.stop('loadCodebaseVisualizer', tVisualizer);
 
             progress.report({ increment: 100, message: 'Complete!' });

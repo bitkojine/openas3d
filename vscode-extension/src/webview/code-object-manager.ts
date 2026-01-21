@@ -3,7 +3,7 @@
  * Core responsibilities: object CRUD, selection, and descriptions.
  */
 import * as THREE from 'three';
-import { CodeObject, DependencyEdge } from './types';
+import { CodeEntityDTO, DependencyDTO } from './types';
 import { DependencyManager, DependencyData, DependencyStats } from './dependency-manager';
 import { VisualObject } from './objects/visual-object';
 import { FileObject } from './objects/file-object';
@@ -48,7 +48,7 @@ export class CodeObjectManager {
         }
     }
 
-    public getFocusedObject(): CodeObject | null {
+    public getFocusedObject(): CodeEntityDTO | null {
         return this.focusedObject ? this.focusedObject.toCodeObject() : null;
     }
 
@@ -175,7 +175,7 @@ export class CodeObjectManager {
     }
 
     /** Get all dependency edges */
-    public getAllDependencies(): IterableIterator<DependencyEdge> {
+    public getAllDependencies(): IterableIterator<DependencyDTO> {
         return this.dependencyManager.getAll();
     }
 
@@ -223,7 +223,7 @@ export class CodeObjectManager {
         return [...this.objects.values()].map(o => o.mesh);
     }
 
-    public getSelectedObject(): CodeObject | null {
+    public getSelectedObject(): CodeEntityDTO | null {
         return this.selectedObject ? this.selectedObject.toCodeObject() : null;
     }
 
@@ -233,7 +233,7 @@ export class CodeObjectManager {
     }
 
     /** Get all objects iterator */
-    public getObjects(): IterableIterator<CodeObject> {
+    public getObjects(): IterableIterator<CodeEntityDTO> {
         // Yield converted objects for compatibility
         // In future, consumers should use VisualObject
         return function* (objects: Map<string, VisualObject>) {
