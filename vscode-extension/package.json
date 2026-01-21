@@ -2,7 +2,7 @@
   "name": "openas3d-vscode",
   "displayName": "OpenAs3D - 3D Codebase Explorer",
   "description": "Visualize codebase dependencies and architecture in navigable 3D worlds",
-  "version": "0.1.125",
+  "version": "0.1.129",
   "publisher": "openas3d",
   "repository": {
     "type": "git",
@@ -73,14 +73,18 @@
     "build-install-test": "npm run build && VSIX=$(node -p \"require('./package.json').version\") && code --install-extension ./openas3d-vscode-$VSIX.vsix --force && code --reload-window && npm run test"
   },
   "devDependencies": {
+    "@types/glob": "^8.1.0",
     "@types/jest": "^30.0.0",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^18.0.0",
     "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^5.45.0",
     "@typescript-eslint/parser": "^5.45.0",
     "@vscode/test-electron": "^2.2.0",
     "eslint": "^8.28.0",
+    "glob": "^13.0.0",
     "jest": "^30.2.0",
+    "mocha": "^11.7.5",
     "ts-jest": "^29.4.6",
     "ts-loader": "^9.4.2",
     "typescript": "^4.9.4",

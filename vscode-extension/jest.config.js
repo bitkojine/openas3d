@@ -12,6 +12,14 @@ module.exports = {
     ...tsJestTransformCfg,
   },
 
+  testMatch: [
+    "<rootDir>/src/**/__tests__/**/*.[jt]s?(x)"
+  ],
+  testPathIgnorePatterns: [
+    "/node_modules/",
+    "<rootDir>/src/test/"
+  ],
+
   // Mock vscode for tests
   moduleNameMapper: {
     '^vscode$': '<rootDir>/src/__mocks__/vscode.ts',

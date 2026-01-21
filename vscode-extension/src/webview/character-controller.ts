@@ -13,8 +13,8 @@ interface ControlsState {
 export class CharacterController {
     public position: THREE.Vector3 = new THREE.Vector3(0, 2, 20);
     private velocity: THREE.Vector3 = new THREE.Vector3();
-    private yaw: number = 0;
-    private pitch: number = 0;
+    public yaw: number = 0;
+    public pitch: number = 0;
 
     private controls: ControlsState = {
         forward: false,

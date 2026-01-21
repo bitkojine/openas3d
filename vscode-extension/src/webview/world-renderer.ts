@@ -10,6 +10,7 @@ import { CharacterController } from './character-controller';
 import { CodeObjectManager } from './code-object-manager';
 import { InteractionController } from './interaction-controller';
 import { StatsUI } from './stats-ui';
+import { TestBridge } from './test-utils/test-bridge';
 
 export class WorldRenderer {
     private sceneManager: SceneManager;
@@ -18,16 +19,17 @@ export class WorldRenderer {
     private interaction: InteractionController;
     private ui: StatsUI;
 
-    private vscode: any = acquireVsCodeApi();
+    private vscode: any;
 
     private lastTime: number = 0;
 
-    constructor() {
+    constructor(vscodeApi: any) {
+        this.vscode = vscodeApi;
         const container = document.getElementById('renderer')!;
         const statsEl = document.getElementById('stats')!;
         const loadingEl = document.getElementById('loading')!;
 
-        this.sceneManager = new SceneManager(container);
+        this.sceneManager = new SceneManager(container, this.vscode);
 
         this.character = new CharacterController(
             this.sceneManager.camera,
@@ -53,8 +55,7 @@ export class WorldRenderer {
 
         this.ui.hideLoading();
 
-        // Notify extension that webview is ready
-        this.vscode.postMessage({ type: 'ready' });
+        this.ui.hideLoading();
 
         // Listen for description updates from the extension
         window.addEventListener('message', (event) => {
@@ -67,6 +68,16 @@ export class WorldRenderer {
                     break;
             }
         });
+
+        // Initialize Test Bridge for automated testing
+        // Delay initialization to avoid blocking the main thread during startup
+        setTimeout(() => {
+            try {
+                new TestBridge(this.sceneManager, this.objects, this.character, this.vscode);
+            } catch (e) {
+                console.error('Failed to initialize TestBridge:', e);
+            }
+        }, 1000);
 
         this.animate();
     }

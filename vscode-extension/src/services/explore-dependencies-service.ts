@@ -12,7 +12,7 @@ export class ExploreDependenciesService {
         private loader: ExtensionLoader,
         private perf: PerfTracker,
         private signService: SignService // Inject SignService
-    ) {}
+    ) { }
 
     /** Handle the "Explore Dependencies" command */
     public async exploreDependencies(uri?: vscode.Uri) {
@@ -36,12 +36,15 @@ export class ExploreDependenciesService {
             const panel = await this.panelManager.createOrShowPanel();
             this.perf.stop('createOrShowPanel', tPanel);
 
-            // Listen for sign placement messages and delegate to SignService
             panel.webview.onDidReceiveMessage(async (message) => {
                 if (message.type === 'addSignAtPosition') {
                     await this.signService.addSignAtPosition(message.data.position);
                 }
             });
+
+            // Ensure webview is ready before sending large data streams
+            // This prevents race conditions where 'addObject' messages are lost
+            await this.panelManager.ensureReady();
 
             // Live performance reporting
             this.perf.setUICallback(report => {

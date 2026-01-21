@@ -33,6 +33,7 @@ export class CodebaseAnalyzer {
         const yieldToEventLoop = () => new Promise(resolve => setImmediate(resolve));
 
         const processDirectory = async (dirPath: string): Promise<void> => {
+            // console.log('[Analyzer] Processing dir:', dirPath);
             try {
                 const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
 
@@ -40,7 +41,7 @@ export class CodebaseAnalyzer {
                     const fullPath = path.join(dirPath, entry.name);
 
                     if (entry.isDirectory()) {
-                        if (!['node_modules', '.git', 'dist', 'build', 'out', '.vscode', '.3d-descriptions'].includes(entry.name)) {
+                        if (!['node_modules', '.git', 'dist', 'build', 'out', '.vscode', '.3d-descriptions', '.vscode-test', 'bin', 'obj'].includes(entry.name)) {
                             await processDirectory(fullPath);
                         }
                     } else if (entry.isFile()) {

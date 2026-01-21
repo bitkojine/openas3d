@@ -10,6 +10,9 @@ export class WebviewPanelManager {
     private version: string;
     private watcher: vscode.FileSystemWatcher | undefined;
 
+    // For testing: allow waiting for specific message types
+    private messageWaiters: Array<{ type: string; resolve: (data: any) => void }> = [];
+
     constructor(context: vscode.ExtensionContext, version: string = '0.0.0') {
         this.context = context;
         this.version = version;
@@ -55,13 +58,16 @@ export class WebviewPanelManager {
 
         this.setupDescriptionWatcher();
 
+        this.setupDescriptionWatcher();
+
+        this.isReady = false; // Reset readiness
         return this.panel;
     }
 
     private setupDescriptionWatcher() {
         if (!vscode.workspace.workspaceFolders) return;
 
-        const pattern = new vscode.RelativePattern(vscode.workspace.workspaceFolders[0], '**/*.md');
+        const pattern = new vscode.RelativePattern(vscode.workspace.workspaceFolders[0], '**/*');
         this.watcher = vscode.workspace.createFileSystemWatcher(pattern);
 
         const updateDescription = (uri: vscode.Uri) => {
@@ -132,6 +138,25 @@ export class WebviewPanelManager {
         }
     }
 
+    public dispatchMessage(message: any) {
+        this.panel?.webview.postMessage(message);
+    }
+
+    public waitForMessage(type: string): Promise<any> {
+        return new Promise(resolve => {
+            this.messageWaiters.push({ type, resolve });
+        });
+    }
+
+    private isReady = false;
+
+    public async ensureReady(): Promise<void> {
+        if (this.isReady) return;
+        console.log('Waiting for webview to be ready...');
+        await this.waitForMessage('ready');
+        console.log('Webview is ready (ensureReady verified)');
+    }
+
     public dispose(): void {
         if (this.panel) {
             this.panel.dispose();
@@ -142,6 +167,20 @@ export class WebviewPanelManager {
     }
 
     private handleWebviewMessage(message: any): void {
+        console.log('WebviewPanelManager received message:', message.type);
+        // Init Check waiters
+        const waiterIndex = this.messageWaiters.findIndex(w => w.type === message.type);
+        if (waiterIndex !== -1) {
+            const waiter = this.messageWaiters[waiterIndex];
+            this.messageWaiters.splice(waiterIndex, 1);
+            waiter.resolve(message.data);
+            // Stop processing if it's a test message we were waiting for
+            if (message.type.startsWith('TEST_')) return;
+        }
+
+        // Also ignore fire-and-forget test messages that might arrive late
+        if (message.type.startsWith('TEST_')) return;
+
         switch (message.type) {
             case 'objectSelected':
                 this.handleObjectSelected(message.data);
@@ -156,6 +195,7 @@ export class WebviewPanelManager {
                 this.handleAddSign(message.data);
                 break;
             case 'ready':
+                this.isReady = true;
                 console.log('Webview is ready');
                 break;
             case 'perfUpdate':
@@ -166,6 +206,9 @@ export class WebviewPanelManager {
                 break;
             case 'objectFocused':
                 this.handleObjectFocused(message.data);
+                break;
+            case 'log':
+                console.log('[Webview]', message.data.message);
                 break;
             default:
                 console.log('Unknown message from webview:', message);
@@ -267,9 +310,15 @@ ${text}
     }
 
     private getWebviewContent(): string {
+        const jsPath = path.join(this.context.extensionPath, 'out', 'webview', 'renderer.js');
+        console.log('Renderer JS Path:', jsPath);
+        console.log('Renderer JS Exists:', fs.existsSync(jsPath));
+
         const rendererUri = this.panel!.webview.asWebviewUri(
-            vscode.Uri.file(path.join(this.context.extensionPath, 'out', 'webview', 'renderer.js'))
+            vscode.Uri.file(jsPath)
         );
+        console.log('Renderer URI:', rendererUri.toString());
+
         return generateWebviewHtml(rendererUri, this.panel!.webview.cspSource, this.version);
     }
 }

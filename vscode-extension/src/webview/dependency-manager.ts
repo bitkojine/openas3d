@@ -359,4 +359,11 @@ export class DependencyManager {
         this.dependencies.clear();
         this.objectStats.clear();
     }
+
+    /**
+     * Get all dependency edges
+     */
+    public getAll(): IterableIterator<DependencyEdge> {
+        return this.dependencies.values();
+    }
 }

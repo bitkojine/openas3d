@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 
+
 export class SceneManager {
     public readonly scene: THREE.Scene;
     public readonly camera: THREE.PerspectiveCamera;
     public readonly renderer: THREE.WebGLRenderer;
 
-    constructor(container: HTMLElement) {
+    constructor(container: HTMLElement, vscodeApi?: any) {
         this.scene = this.createScene();
         this.camera = this.createCamera();
         this.renderer = this.createRenderer(container);

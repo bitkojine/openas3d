@@ -3,7 +3,7 @@
  * Core responsibilities: object CRUD, selection, and descriptions.
  */
 import * as THREE from 'three';
-import { CodeObject } from './types';
+import { CodeObject, DependencyEdge } from './types';
 import { DependencyManager, DependencyData, DependencyStats } from './dependency-manager';
 import { VisualObject } from './objects/visual-object';
 import { FileObject } from './objects/file-object';
@@ -173,6 +173,11 @@ export class CodeObjectManager {
     /** Get total number of dependency edges */
     public getDependencyCount(): number {
         return this.dependencyManager.getDependencyCount();
+    }
+
+    /** Get all dependency edges */
+    public getAllDependencies(): IterableIterator<DependencyEdge> {
+        return this.dependencyManager.getAll();
     }
 
     /** Get count of circular dependencies */
