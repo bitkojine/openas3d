@@ -5,7 +5,7 @@ import { CodeFile, DependencyEdge } from './types';
 import { getLanguageFromExtension, isCodeLanguage } from '../utils/languageRegistry';
 
 /** Maximum number of lines to send to the webview for textures */
-const MAX_CONTENT_LINES = 100;
+const MAX_CONTENT_LINES = 150;
 
 /**
  * Responsible for scanning files and extracting dependency information.

@@ -19,44 +19,189 @@ export class CodeObjectManager {
         return parts[parts.length - 1];
     }
 
+    // Syntax highlighting color palette (VS Code dark theme inspired)
+    private readonly syntaxColors = {
+        background: '#1e1e1e',
+        text: '#d4d4d4',
+        keyword: '#569cd6',
+        string: '#ce9178',
+        comment: '#6a9955',
+        number: '#b5cea8',
+        function: '#dcdcaa',
+        type: '#4ec9b0',
+        lineNumber: '#858585',
+        lineNumberBg: '#1e1e1e'
+    };
+
+    // Keywords for various languages
+    private readonly keywords = new Set([
+        // JavaScript/TypeScript
+        'const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', 'do',
+        'switch', 'case', 'break', 'continue', 'default', 'try', 'catch', 'finally', 'throw',
+        'new', 'delete', 'typeof', 'instanceof', 'void', 'this', 'super', 'class', 'extends',
+        'import', 'export', 'from', 'as', 'default', 'async', 'await', 'yield', 'static',
+        'public', 'private', 'protected', 'readonly', 'abstract', 'interface', 'type', 'enum',
+        'implements', 'namespace', 'module', 'declare', 'get', 'set', 'constructor',
+        'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
+        // Python
+        'def', 'class', 'if', 'elif', 'else', 'for', 'while', 'try', 'except', 'finally',
+        'with', 'as', 'import', 'from', 'return', 'yield', 'raise', 'pass', 'break', 'continue',
+        'and', 'or', 'not', 'in', 'is', 'lambda', 'global', 'nonlocal', 'True', 'False', 'None',
+        // Common
+        'int', 'float', 'double', 'string', 'boolean', 'bool', 'void', 'char', 'byte', 'long'
+    ]);
+
     /**
-     * Create a content minimap texture, similar to description labels, for front/back faces
+     * Tokenize a line of code for syntax highlighting
      */
-    private createContentTexture(fileContent: string, boxWidth: number, boxHeight: number): THREE.Texture {
-        const maxLines = 1000;
+    private tokenizeLine(line: string): Array<{ text: string; color: string }> {
+        const tokens: Array<{ text: string; color: string }> = [];
+        let remaining = line;
+        let inString: string | null = null;
+        let inComment = false;
+
+        while (remaining.length > 0) {
+            // Check for line comment
+            if (!inString && (remaining.startsWith('//') || remaining.startsWith('#'))) {
+                tokens.push({ text: remaining, color: this.syntaxColors.comment });
+                break;
+            }
+
+            // Check for string start/end
+            if (!inComment) {
+                const stringMatch = remaining.match(/^(['"`])/);
+                if (stringMatch && !inString) {
+                    inString = stringMatch[1];
+                    // Find end of string
+                    let endIdx = 1;
+                    while (endIdx < remaining.length) {
+                        if (remaining[endIdx] === inString && remaining[endIdx - 1] !== '\\') {
+                            endIdx++;
+                            break;
+                        }
+                        endIdx++;
+                    }
+                    tokens.push({ text: remaining.slice(0, endIdx), color: this.syntaxColors.string });
+                    remaining = remaining.slice(endIdx);
+                    inString = null;
+                    continue;
+                }
+            }
+
+            // Check for numbers
+            const numberMatch = remaining.match(/^(\d+\.?\d*)/);
+            if (numberMatch && (tokens.length === 0 || /\W$/.test(tokens[tokens.length - 1]?.text || ''))) {
+                tokens.push({ text: numberMatch[1], color: this.syntaxColors.number });
+                remaining = remaining.slice(numberMatch[1].length);
+                continue;
+            }
+
+            // Check for keywords and identifiers
+            const wordMatch = remaining.match(/^([a-zA-Z_$][a-zA-Z0-9_$]*)/);
+            if (wordMatch) {
+                const word = wordMatch[1];
+                if (this.keywords.has(word)) {
+                    tokens.push({ text: word, color: this.syntaxColors.keyword });
+                } else if (remaining.slice(word.length).match(/^\s*\(/)) {
+                    // Followed by ( - likely a function call
+                    tokens.push({ text: word, color: this.syntaxColors.function });
+                } else if (word[0] === word[0].toUpperCase() && word.length > 1) {
+                    // PascalCase - likely a type
+                    tokens.push({ text: word, color: this.syntaxColors.type });
+                } else {
+                    tokens.push({ text: word, color: this.syntaxColors.text });
+                }
+                remaining = remaining.slice(word.length);
+                continue;
+            }
+
+            // Default: single character
+            tokens.push({ text: remaining[0], color: this.syntaxColors.text });
+            remaining = remaining.slice(1);
+        }
+
+        return tokens;
+    }
+
+    /**
+     * Create a content minimap texture with syntax highlighting and line numbers
+     */
+    private createContentTexture(fileContent: string, boxWidth: number, boxHeight: number, language?: string): THREE.Texture {
+        const maxLines = 150;
         const lines = fileContent.split('\n').slice(0, maxLines);
 
-        // Compute canvas height dynamically
-        const padding = 4;
-        const fontSize = 8; // small font for minimap
-        const lineHeight = fontSize * 1.2;
+        // Higher resolution for better quality
+        const padding = 12;
+        const fontSize = 14;
+        const lineHeight = fontSize * 1.4;
+        const lineNumberWidth = 45; // Space for line numbers
 
-        const canvasWidth = 512;
-        const canvasHeight = Math.min(canvasWidth, padding * 2 + lines.length * lineHeight);
+        const canvasWidth = 1024;
+        const canvasHeight = Math.max(256, Math.min(1024, padding * 2 + lines.length * lineHeight));
 
         const canvas = document.createElement('canvas');
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
         const ctx = canvas.getContext('2d')!;
 
-        ctx.fillStyle = '#222';
+        // Enable better text rendering
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        // Dark background
+        ctx.fillStyle = this.syntaxColors.background;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        ctx.font = `${fontSize}px monospace`;
+        // Line number background (slightly different shade)
+        ctx.fillStyle = '#252526';
+        ctx.fillRect(0, 0, lineNumberWidth, canvas.height);
+
+        // Use a good monospace font
+        ctx.font = `${fontSize}px "Consolas", "Monaco", "Courier New", monospace`;
         ctx.textBaseline = 'top';
-        ctx.fillStyle = '#fff';
 
         let y = padding;
-        for (const line of lines) {
-            // Clip long lines for width
-            ctx.fillText(line.slice(0, 200), padding, y);
+        lines.forEach((line, idx) => {
+            const lineNum = idx + 1;
+
+            // Draw line number
+            ctx.fillStyle = this.syntaxColors.lineNumber;
+            ctx.textAlign = 'right';
+            ctx.fillText(String(lineNum), lineNumberWidth - 8, y);
+
+            // Draw code with syntax highlighting
+            ctx.textAlign = 'left';
+            let x = lineNumberWidth + 8;
+
+            const tokens = this.tokenizeLine(line.slice(0, 120)); // Limit line length
+            for (const token of tokens) {
+                ctx.fillStyle = token.color;
+                ctx.fillText(token.text, x, y);
+                x += ctx.measureText(token.text).width;
+            }
+
             y += lineHeight;
+        });
+
+        // Add fade at bottom if content is truncated
+        if (lines.length >= maxLines) {
+            const gradient = ctx.createLinearGradient(0, canvasHeight - 40, 0, canvasHeight);
+            gradient.addColorStop(0, 'rgba(30, 30, 30, 0)');
+            gradient.addColorStop(1, 'rgba(30, 30, 30, 1)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, canvasHeight - 40, canvasWidth, 40);
+
+            // "..." indicator
+            ctx.fillStyle = this.syntaxColors.lineNumber;
+            ctx.textAlign = 'center';
+            ctx.fillText('...', canvasWidth / 2, canvasHeight - 20);
         }
 
         const texture = new THREE.CanvasTexture(canvas);
         texture.needsUpdate = true;
-        texture.minFilter = THREE.LinearFilter;
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
         texture.magFilter = THREE.LinearFilter;
+        texture.anisotropy = 4; // Better quality at angles
 
         return texture;
     }
@@ -89,9 +234,8 @@ export class CodeObjectManager {
 
             // Create minimap texture using method like labels
             const content = data.metadata?.content || '';
-            const contentTexture = this.createContentTexture(content, width, height);
-
             const lang = data.metadata?.language?.toLowerCase() || 'other';
+            const contentTexture = this.createContentTexture(content, width, height, lang);
             const color = data.color ?? getLanguageColor(lang);
 
             const materials = [
