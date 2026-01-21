@@ -84,9 +84,12 @@ const CONTROLS_HELP = `
     <span style="color:#94a3b8">WASD</span> <span>Move character</span>
     <span style="color:#94a3b8">Mouse</span> <span>Look around</span>
     <span style="color:#94a3b8">Space</span> <span>Jump / Fly Up</span>
+    <span style="color:#94a3b8">C</span> <span>Fly Down</span>
     <span style="color:#94a3b8">Click</span> <span>Select Object</span>
     <span style="color:#94a3b8">Double</span> <span>Open File</span>
     <span style="color:#94a3b8">F</span> <span>Toggle Flight</span>
+    <span style="color:#94a3b8">E</span> <span>Sign Mode (Click to Place)</span>
+    <span style="color:#94a3b8">Esc</span> <span>Release Cursor</span>
 </div>
 `;
 
