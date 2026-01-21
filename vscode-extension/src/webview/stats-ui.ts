@@ -31,21 +31,21 @@ export class StatsUI {
         if (this.frameCount % 60 === 0) { // update once per second-ish
             const fps = Math.round(1 / deltaTime);
 
-            let statsText = `Objects: ${objectCount} | Dependencies: ${depCount} | FPS: ${fps}`;
+            // Update DOM directly for the new structure
+            // <div id="stats">
+            //     <div>Objects: 0</div>
+            //     <div>FPS: 0</div>
+            //     <!-- Optional circular warning -->
+            // </div>
 
-            // Show circular dependency warning
+            let html = `<div>Objects: ${objectCount} | Deps: ${depCount}</div>
+                        <div>FPS: ${fps}</div>`;
+
             if (circularCount > 0) {
-                statsText += ` | ⚠️ Circular: ${circularCount}`;
+                html += `<div style="color:#ff4444; font-weight:bold;">⚠️ Circular: ${circularCount}</div>`;
             }
 
-            this.statsElement.textContent = statsText;
-
-            // Add warning styling for circular dependencies
-            if (circularCount > 0) {
-                this.statsElement.style.color = '#ff6b35';
-            } else {
-                this.statsElement.style.color = '';
-            }
+            this.statsElement.innerHTML = html;
         }
     }
 }

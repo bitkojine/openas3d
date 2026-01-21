@@ -241,19 +241,19 @@ function renderLabel(
 
     if (deps) {
         if (deps.hasCircular) {
-            statusIcon = '🔄'; // Circular
+            statusIcon = '∞'; // Circular (Infinity)
             statusColor = '#ff4444'; // Red
             bgTint = 'rgba(40, 10, 10, 0.95)'; // Slight Red Tint
         } else if (deps.incoming > 5 || deps.outgoing > 5) {
-            statusIcon = '🔥'; // Hot
+            statusIcon = '⚡'; // Hot (High Voltage)
             statusColor = '#00bfff'; // Cyan
             bgTint = 'rgba(10, 20, 30, 0.95)'; // Slight Cyan Tint
         } else if (deps.outgoing === 0 && deps.incoming > 0) {
-            statusIcon = '🌱'; // Leaf
+            statusIcon = '○'; // Leaf (Circle)
             statusColor = '#7cfc00'; // Lawn Green
             bgTint = 'rgba(15, 25, 15, 0.95)'; // Slight Green Tint
         } else if (deps.incoming === 0 && deps.outgoing > 0) {
-            statusIcon = '💎'; // Root
+            statusIcon = '◈'; // Root (Diamond)
             statusColor = '#ffd700'; // Gold
             bgTint = 'rgba(25, 25, 15, 0.95)'; // Slight Gold Tint
         }
