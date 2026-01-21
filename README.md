@@ -28,6 +28,8 @@ The current workspace will be opened as a navigable 3D world.
 
 ## About OpenAs3D
 
+<img width="1152" height="875" alt="image" src="https://github.com/user-attachments/assets/7ab38fee-8a3a-401e-ada9-e48fbd06ef6a" />
+
 This is an experiment in transforming real software systems into explorable 3D spaces.
 
 The core idea: complex systems are often easier to understand as places rather than lists, trees, or diagrams. OpenAs3D investigates what happens when a codebase is treated as a navigable environment instead of a static set of files.
