@@ -1,223 +1,245 @@
 /**
  * Architecture Analyzer
  * 
- * Detects architectural violations in the codebase:
+ * Detects architectural violations in the codebase using dependency-cruiser:
  * - Layer violations (dependencies that break architectural layering)
  * - Circular dependencies
  * - Entry point bloat
+ * - Orphan files
  */
 
-export type WarningSeverity = 'high' | 'medium' | 'low';
-export type WarningType = 'layer-violation' | 'circular-dependency' | 'entry-bloat' | 'orphan';
+// Use strict dynamic import for ESM module
+// Do not import values at top level
+import type { ICruiseResult, IModule } from 'dependency-cruiser';
+import * as path from 'path';
+import { ArchitectureWarning, WarningSeverity, WarningType, FileWithZone, ArchitectureDependency } from './types';
 
-export interface ArchitectureWarning {
-    fileId: string;
-    type: WarningType;
-    message: string;
-    severity: WarningSeverity;
-    relatedFileIds?: string[];
-}
-
-export interface FileWithZone {
-    id: string;
-    filePath: string;
-    zone: string;
-}
-
-export interface ArchitectureDependency {
-    sourceId: string;
-    targetId: string;
-}
+export { ArchitectureWarning, WarningSeverity, WarningType, FileWithZone, ArchitectureDependency };
 
 /**
- * Defines allowed dependency directions between zones.
- * Key = source zone, Value = array of allowed target zones.
- * 
- * Architectural layers (top to bottom):
- *   entry → api → core → data
- *               ↘   ↓   ↙
- *                  lib
- *   ui → core, lib
- *   infra, test → (any)
+ * Analyze architecture using dependency-cruiser and return warnings
  */
-const ALLOWED_DEPENDENCIES: Record<string, string[]> = {
-    entry: ['api', 'core', 'data', 'lib', 'ui'],  // Entry can use anything
-    api: ['core', 'data', 'lib'],               // API layer
-    core: ['data', 'lib'],                       // Core logic
-    data: ['lib'],                               // Data layer - lowest
-    ui: ['core', 'data', 'lib'],               // UI can use core/data
-    lib: [],                                    // Lib should be standalone
-    infra: ['entry', 'api', 'core', 'data', 'lib', 'ui', 'infra', 'test'], // Infra can use anything
-    test: ['entry', 'api', 'core', 'data', 'lib', 'ui', 'infra', 'test'], // Tests can use anything
-};
-
-/**
- * Check if a dependency from sourceZone to targetZone is allowed
- */
-function isDependencyAllowed(sourceZone: string, targetZone: string): boolean {
-    // Same zone is always allowed
-    if (sourceZone === targetZone) return true;
-
-    const allowed = ALLOWED_DEPENDENCIES[sourceZone];
-    if (!allowed) return true; // Unknown zone, allow by default
-
-    return allowed.includes(targetZone);
-}
-
-/**
- * Analyze architecture and return warnings
- */
-export function analyzeArchitecture(
-    files: FileWithZone[],
-    dependencies: ArchitectureDependency[]
-): ArchitectureWarning[] {
+export async function analyzeArchitecture(
+    rootPath: string,
+    fileIdMap: Map<string, string>, // Map absolute path -> file ID,
+    options: { cruiseOptions?: any, tsConfigPath?: string, cruiseFn?: any } = {}
+): Promise<ArchitectureWarning[]> {
     const warnings: ArchitectureWarning[] = [];
 
-    // Build lookup maps
-    const fileById = new Map<string, FileWithZone>();
-    files.forEach(f => fileById.set(f.id, f));
+    try {
+        let cruiseOptions = options.cruiseOptions;
 
-    // Count dependencies per file
-    const outgoingDeps = new Map<string, string[]>();
-    const incomingDeps = new Map<string, string[]>();
+        if (!cruiseOptions) {
+            // Debug: log the rootPath we're searching from
+            console.log('[Architecture] Searching for config, rootPath:', rootPath);
 
-    dependencies.forEach(dep => {
-        if (!outgoingDeps.has(dep.sourceId)) outgoingDeps.set(dep.sourceId, []);
-        if (!incomingDeps.has(dep.targetId)) incomingDeps.set(dep.targetId, []);
-        outgoingDeps.get(dep.sourceId)!.push(dep.targetId);
-        incomingDeps.get(dep.targetId)!.push(dep.sourceId);
-    });
+            // Try to find .dependency-cruiser.cjs by walking up from rootPath
+            let configPath: string | null = null;
+            let searchDir = rootPath;
+            const fs = require('fs');
 
-    // 1. Check for layer violations
-    dependencies.forEach(dep => {
-        const source = fileById.get(dep.sourceId);
-        const target = fileById.get(dep.targetId);
+            for (let i = 0; i < 5; i++) { // Search up to 5 levels
+                const candidate = path.join(searchDir, '.dependency-cruiser.cjs');
+                console.log('[Architecture] Checking:', candidate);
+                if (fs.existsSync(candidate)) {
+                    configPath = candidate;
+                    break;
+                }
+                searchDir = path.dirname(searchDir);
+            }
 
-        if (!source || !target) return;
-
-        if (!isDependencyAllowed(source.zone, target.zone)) {
-            warnings.push({
-                fileId: dep.sourceId,
-                type: 'layer-violation',
-                message: `${source.zone.toUpperCase()} → ${target.zone.toUpperCase()}: "${getBasename(source.filePath)}" imports from "${getBasename(target.filePath)}"`,
-                severity: 'high',
-                relatedFileIds: [dep.targetId]
-            });
+            if (configPath) {
+                try {
+                    // Use native Node.js require to bypass Webpack's bundled require
+                    // eslint-disable-next-line @typescript-eslint/no-var-requires
+                    const Module = require('module');
+                    const nativeRequire = Module.createRequire(__filename);
+                    const config = nativeRequire(configPath);
+                    // Merge options and forbidden rules into cruiseOptions
+                    cruiseOptions = {
+                        ...(config.options || {}),
+                        ruleSet: {
+                            forbidden: config.forbidden || []
+                        }
+                    };
+                    console.log('[Architecture] Loaded config from:', configPath);
+                } catch (e) {
+                    console.warn('[Architecture] Could not load .dependency-cruiser.cjs:', e);
+                    cruiseOptions = {};
+                }
+            } else {
+                console.warn('[Architecture] No .dependency-cruiser.cjs found, using default options');
+                cruiseOptions = {};
+            }
         }
-    });
 
-    // 2. Check for circular dependencies
-    const cycles = findCycles(dependencies);
-    cycles.forEach(cycle => {
-        const cycleFiles = cycle.map(id => fileById.get(id));
-        const cycleNames = cycleFiles.map(f => f ? getBasename(f.filePath) : '?').join(' → ');
+        // Use injected cruise function for testing, or dynamically import for production
+        let cruise = options.cruiseFn;
+        if (!cruise) {
+            // Dynamically import dependency-cruiser to avoid ESM/CJS issues at startup
+            // Use new Function to prevent Webpack from converting to require()
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            const mod = await (new Function('return import("dependency-cruiser")'))();
+            cruise = mod.cruise;
+        }
 
-        warnings.push({
-            fileId: cycle[0],
-            type: 'circular-dependency',
-            message: `Circular: ${cycleNames} → ${cycleFiles[0] ? getBasename(cycleFiles[0].filePath) : '?'}`,
-            severity: 'medium',
-            relatedFileIds: cycle.slice(1)
-        });
-    });
+        // Find tsconfig.json - search in rootPath and subdirectories
+        let tsConfigPath = options.tsConfigPath;
+        let scanPath = rootPath; // Default to rootPath
 
-    // 3. Check for entry point bloat
-    const ENTRY_BLOAT_THRESHOLD = 15;
-    files.forEach(file => {
-        if (file.zone === 'entry') {
-            const deps = outgoingDeps.get(file.id) || [];
-            if (deps.length > ENTRY_BLOAT_THRESHOLD) {
+        if (!tsConfigPath) {
+            const fs = require('fs');
+            // Check in common locations - prefer locations with both tsconfig and src
+            const candidates = [
+                { tsconfig: path.join(rootPath, 'tsconfig.json'), src: path.join(rootPath, 'src') },
+                { tsconfig: path.join(rootPath, 'vscode-extension', 'tsconfig.json'), src: path.join(rootPath, 'vscode-extension', 'src') },
+                { tsconfig: path.join(rootPath, 'src', 'tsconfig.json'), src: path.join(rootPath, 'src') }
+            ];
+            for (const candidate of candidates) {
+                if (fs.existsSync(candidate.tsconfig) && fs.existsSync(candidate.src)) {
+                    tsConfigPath = candidate.tsconfig;
+                    scanPath = candidate.src;
+                    console.log('[Architecture] Found tsconfig at:', tsConfigPath);
+                    console.log('[Architecture] Scanning src at:', scanPath);
+                    break;
+                }
+            }
+        }
+
+        const effectiveBaseDir = tsConfigPath ? path.dirname(tsConfigPath) : rootPath;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result: any = await cruise(
+            [path.relative(effectiveBaseDir, scanPath)], // Pass relative path to baseDir
+            {
+                ...cruiseOptions,
+                baseDir: effectiveBaseDir
+            },
+            undefined,
+            tsConfigPath ? { tsConfig: { fileName: tsConfigPath } } : undefined
+        );
+
+        if (result.outputType === 'err') {
+            console.error('Dependency-cruiser failed:', result);
+            return [];
+        }
+
+        // Process violations from dependency-cruiser
+        // dependency-cruiser reports violations on modules (files)
+
+        // 1. Map Modules to our File IDs
+        const moduleByPath = new Map<string, IModule>();
+
+        if (result.output?.modules) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            for (const mod of result.output.modules as any[]) {
+                const absPath = path.isAbsolute(mod.source)
+                    ? mod.source
+                    : path.resolve(effectiveBaseDir, mod.source);
+
+                moduleByPath.set(absPath, mod);
+            }
+        }
+
+        // 2. Process Forbidden Rules (Cycles, Layer Violations, Orphans)
+        // cruise() API returns { output: { modules, summary } } not { modules, summary }
+        const summary = result.output?.summary || result.summary;
+        const violations = summary?.violations || [];
+        console.log('[Architecture] Summary keys:', summary ? Object.keys(summary) : 'N/A');
+        console.log('[Architecture] RuleSetUsed forbidden count:', summary?.ruleSetUsed?.forbidden?.length || 0);
+        console.log('[Architecture] Total files cruised:', summary?.totalCruised || 0);
+        console.log('[Architecture] Violations from dep-cruiser:', violations.length);
+        if (violations.length > 0) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            for (const violation of violations as any[]) {
+                const sourceAbsPath = path.isAbsolute(violation.from)
+                    ? violation.from
+                    : path.resolve(effectiveBaseDir, violation.from);
+
+                const sourceId = fileIdMap.get(sourceAbsPath);
+
+                if (!sourceId) continue; // Skip if we don't track this file
+
+                const relatedIds: string[] = [];
+                if (violation.to) {
+                    const targetAbsPath = path.isAbsolute(violation.to)
+                        ? violation.to
+                        : path.resolve(effectiveBaseDir, violation.to);
+                    const targetId = fileIdMap.get(targetAbsPath);
+                    if (targetId) relatedIds.push(targetId);
+                }
+
+                if (violation.cycle) {
+                    // For cycles, add all participants as related
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    for (const step of violation.cycle) {
+                        const stepSource = typeof step === 'string' ? step : step.name || step.source;
+
+                        const stepAbsPath = path.isAbsolute(stepSource)
+                            ? stepSource
+                            : path.resolve(effectiveBaseDir, stepSource);
+                        const stepId = fileIdMap.get(stepAbsPath);
+                        if (stepId && stepId !== sourceId && !relatedIds.includes(stepId)) {
+                            relatedIds.push(stepId);
+                        }
+                    }
+                }
+
+                let type: WarningType = 'unknown';
+                let severity: WarningSeverity = 'medium';
+
+                if (violation.rule.name === 'no-circular') {
+                    type = 'circular-dependency';
+                    severity = 'high';
+                } else if (violation.rule.name === 'no-orphans') {
+                    type = 'orphan';
+                    severity = 'low';
+                } else if (violation.rule.name.startsWith('layer-')) {
+                    type = 'layer-violation';
+                    severity = 'high';
+                }
+
                 warnings.push({
-                    fileId: file.id,
-                    type: 'entry-bloat',
-                    message: `Entry point "${getBasename(file.filePath)}" has ${deps.length} dependencies (consider splitting)`,
-                    severity: 'low'
+                    fileId: sourceId,
+                    type,
+                    message: violation.rule.name + ': ' + (violation.comment || 'Violation detected'),
+                    severity,
+                    relatedFileIds: relatedIds
                 });
             }
         }
-    });
 
-    // 4. Check for orphan files (no imports and no exports)
-    files.forEach(file => {
-        const hasOutgoing = (outgoingDeps.get(file.id) || []).length > 0;
-        const hasIncoming = (incomingDeps.get(file.id) || []).length > 0;
+        // 3. Custom Checks (Entry Bloat) - Dependency-cruiser counts dependencies too
+        // We can iterate over modules to check for bloated entry points
+        const ENTRY_BLOAT_THRESHOLD = 15;
+        if (result.modules) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            for (const mod of result.modules as any[]) {
+                const absPath = path.resolve(rootPath, mod.source);
+                const id = fileIdMap.get(absPath);
+                if (!id) continue;
 
-        // Skip test files and entry points for orphan detection
-        if (file.zone === 'test' || file.zone === 'entry') return;
-
-        if (!hasOutgoing && !hasIncoming) {
-            warnings.push({
-                fileId: file.id,
-                type: 'orphan',
-                message: `"${getBasename(file.filePath)}" has no dependencies (might be unused)`,
-                severity: 'low'
-            });
-        }
-    });
-
-    return warnings;
-}
-
-/**
- * Find all cycles in the dependency graph using DFS
- */
-function findCycles(dependencies: ArchitectureDependency[]): string[][] {
-    const graph = new Map<string, string[]>();
-
-    dependencies.forEach(dep => {
-        if (!graph.has(dep.sourceId)) graph.set(dep.sourceId, []);
-        graph.get(dep.sourceId)!.push(dep.targetId);
-    });
-
-    const cycles: string[][] = [];
-    const visited = new Set<string>();
-    const recStack = new Set<string>();
-    const path: string[] = [];
-
-    function dfs(node: string): void {
-        visited.add(node);
-        recStack.add(node);
-        path.push(node);
-
-        const neighbors = graph.get(node) || [];
-        for (const neighbor of neighbors) {
-            if (!visited.has(neighbor)) {
-                dfs(neighbor);
-            } else if (recStack.has(neighbor)) {
-                // Found a cycle - extract it
-                const cycleStart = path.indexOf(neighbor);
-                if (cycleStart !== -1) {
-                    const cycle = path.slice(cycleStart);
-                    // Only add if we haven't seen this cycle before
-                    const cycleKey = [...cycle].sort().join('|');
-                    const existingKeys = cycles.map(c => [...c].sort().join('|'));
-                    if (!existingKeys.includes(cycleKey)) {
-                        cycles.push(cycle);
+                // Check if it's an entry point (simple heuristic or use our zone map if we had it)
+                // For now, let's look at dependencies count
+                if (mod.dependencies.length > ENTRY_BLOAT_THRESHOLD) {
+                    // Check if it looks like an entry point
+                    if (mod.source.includes('index') || mod.source.includes('main') || mod.source.includes('App')) {
+                        warnings.push({
+                            fileId: id,
+                            type: 'entry-bloat',
+                            message: `Entry point has ${mod.dependencies.length} dependencies (consider splitting)`,
+                            severity: 'low'
+                        });
                     }
                 }
             }
         }
 
-        path.pop();
-        recStack.delete(node);
+    } catch (error) {
+        console.error('Architecture analysis error:', error);
     }
 
-    // Run DFS from all nodes
-    for (const node of graph.keys()) {
-        if (!visited.has(node)) {
-            dfs(node);
-        }
-    }
-
-    return cycles;
-}
-
-/**
- * Get basename from file path
- */
-function getBasename(filePath: string): string {
-    const parts = filePath.split(/[/\\]/);
-    return parts[parts.length - 1] || filePath;
+    return warnings;
 }
 
 /**

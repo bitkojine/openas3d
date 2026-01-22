@@ -17,7 +17,7 @@ import { DependencyManager } from './dependency-manager';
 import { ZoneManager } from './zone-manager';
 import { ZoneDTO } from '../core/domain/zone';
 import { WarningOverlay } from './warning-overlay';
-import { ArchitectureWarning } from '../visualizers/architecture-analyzer';
+import { ArchitectureWarning } from '../core/analysis/types';
 
 /**
  * The World class is the root controller for the 3D environment.

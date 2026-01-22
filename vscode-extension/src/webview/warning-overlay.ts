@@ -6,7 +6,7 @@
  * - Severity-based coloring
  */
 
-import { ArchitectureWarning, WarningSeverity, getWarningSummary } from '../visualizers/architecture-analyzer';
+import { ArchitectureWarning, WarningSeverity } from '../core/analysis/types';
 
 const SEVERITY_COLORS: Record<WarningSeverity, string> = {
     high: '#ef4444',    // Red
@@ -124,7 +124,11 @@ export class WarningOverlay {
      * Update toggle button appearance
      */
     private updateButton(): void {
-        const summary = getWarningSummary(this.warnings);
+        const summary = {
+            high: this.warnings.filter(w => w.severity === 'high').length,
+            medium: this.warnings.filter(w => w.severity === 'medium').length,
+            low: this.warnings.filter(w => w.severity === 'low').length
+        };
         const total = summary.high + summary.medium + summary.low;
 
         if (total === 0) {

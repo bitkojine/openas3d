@@ -3,7 +3,8 @@ import * as path from 'path';
 import { CodebaseAnalyzer } from './codebase-analyzer';
 import { CodebaseLayoutEngine } from './codebase-layout';
 import { CodeFile, DependencyEdge } from './types';
-import { analyzeArchitecture, FileWithZone, Dependency } from './architecture-analyzer';
+import { FileWithZone } from '../core/analysis/types';
+import { analyzeArchitecture } from '../core/analysis/architecture-analyzer';
 
 // Re-export types for backward compatibility within the module if needed
 export { CodeFile, DependencyEdge };
@@ -46,16 +47,19 @@ export class CodebaseVisualizer {
 
                 this.panel?.webview.postMessage({ type: 'dependenciesComplete' });
 
-                // Analyze architecture and send warnings
-                const dependencies: Dependency[] = edges.map(e => ({
-                    sourceId: e.source,
-                    targetId: e.target
-                }));
-                const warnings = analyzeArchitecture(this.filesWithZones, dependencies);
+                this.panel?.webview.postMessage({ type: 'dependenciesComplete' });
 
-                this.panel?.webview.postMessage({
-                    type: 'setWarnings',
-                    data: warnings
+                // Analyze architecture and send warnings
+                // Create map of absolute path -> file ID
+                const fileIdMap = new Map<string, string>();
+                this.filesWithZones.forEach(f => fileIdMap.set(f.filePath, f.id));
+
+                analyzeArchitecture(data.targetPath, fileIdMap).then(warnings => {
+                    console.log('[Architecture] Sending', warnings.length, 'warnings to webview');
+                    this.panel?.webview.postMessage({
+                        type: 'setWarnings',
+                        data: warnings
+                    });
                 });
             }
         ).catch(err => {

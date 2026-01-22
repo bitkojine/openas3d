@@ -12,7 +12,8 @@ const extensionConfig = {
     libraryTarget: 'commonjs2'
   },
   externals: {
-    vscode: 'commonjs vscode' // exclude vscode module
+    vscode: 'commonjs vscode', // exclude vscode module
+    'dependency-cruiser': 'commonjs dependency-cruiser'
   },
   resolve: {
     extensions: ['.ts', '.js']
