@@ -113,18 +113,30 @@ export class WorldRenderer {
         for (const obj of this.objects.getObjects()) {
             // If this is the focused object, face the camera
             if (focusedObject && obj.id === focusedObject.id) {
-                // Smoothly rotate to face camera
-                const targetRotation = Math.atan2(
+                // Calculate angle from object to camera
+                const angleToCamera = Math.atan2(
                     this.sceneManager.camera.position.x - obj.mesh.position.x,
                     this.sceneManager.camera.position.z - obj.mesh.position.z
                 );
 
-                // Simple lerp for smoothness
-                let rotDiff = targetRotation - obj.mesh.rotation.y;
-                // Normalize angle to -PI to PI
-                while (rotDiff > Math.PI) { rotDiff -= Math.PI * 2; }
-                while (rotDiff < -Math.PI) { rotDiff += Math.PI * 2; }
+                // The object has two readable sides: front (rotation matching angleToCamera)
+                // and back (rotation + PI). Pick whichever requires less rotation.
+                const currentRotation = obj.mesh.rotation.y;
 
+                // Option 1: Face the camera with front side
+                let diffFront = angleToCamera - currentRotation;
+                while (diffFront > Math.PI) { diffFront -= Math.PI * 2; }
+                while (diffFront < -Math.PI) { diffFront += Math.PI * 2; }
+
+                // Option 2: Face the camera with back side (rotate PI more)
+                let diffBack = (angleToCamera + Math.PI) - currentRotation;
+                while (diffBack > Math.PI) { diffBack -= Math.PI * 2; }
+                while (diffBack < -Math.PI) { diffBack += Math.PI * 2; }
+
+                // Pick the option that requires less rotation
+                const rotDiff = Math.abs(diffFront) <= Math.abs(diffBack) ? diffFront : diffBack;
+
+                // Smooth lerp towards target
                 obj.mesh.rotation.y += rotDiff * 5.0 * deltaTime;
 
             } else {
