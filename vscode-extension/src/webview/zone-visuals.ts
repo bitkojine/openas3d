@@ -3,8 +3,8 @@
  * Creates visual markers for zone boundaries in the 3D code park.
  */
 import * as THREE from 'three';
-import { ZoneBounds } from '../core/domain/zone';
-export { ZoneBounds };
+import { ZoneDTO } from '../core/domain/zone';
+export { ZoneDTO };
 
 /**
  * Configuration for zone signs
@@ -40,7 +40,7 @@ const FENCE_CONFIG = {
 /**
  * Create a zone sign with the zone name
  */
-export function createZoneSign(zone: ZoneBounds, side: 'north' | 'south' | 'east' | 'west'): THREE.Group {
+export function createZoneSign(zone: ZoneDTO, side: 'north' | 'south' | 'east' | 'west'): THREE.Group {
     const group = new THREE.Group();
 
     // Wooden post
@@ -163,7 +163,7 @@ function createSignTexture(text: string, _accentColor: number): THREE.Texture {
 /**
  * Create fence segments around a zone boundary
  */
-export function createZoneFence(zone: ZoneBounds): THREE.Group {
+export function createZoneFence(zone: ZoneDTO): THREE.Group {
     const group = new THREE.Group();
 
     const postMaterial = new THREE.MeshLambertMaterial({ color: FENCE_CONFIG.postColor });
@@ -318,7 +318,7 @@ function fillInterval(positions: Set<number>, start: number, end: number, spacin
 /**
  * Add all zone visual elements to the scene
  */
-export function addZoneVisuals(scene: THREE.Scene, zones: ZoneBounds[]): THREE.Group {
+export function addZoneVisuals(scene: THREE.Scene, zones: ZoneDTO[]): THREE.Group {
     const visualsGroup = new THREE.Group();
     visualsGroup.name = 'zoneVisuals';
 
@@ -361,7 +361,7 @@ export function removeZoneVisuals(scene: THREE.Scene): void {
 /**
  * Determine which zone a position is in
  */
-export function getZoneAtPosition(x: number, z: number, zones: ZoneBounds[]): ZoneBounds | null {
+export function getZoneAtPosition(x: number, z: number, zones: ZoneDTO[]): ZoneDTO | null {
     for (const zone of zones) {
         if (x >= zone.minX && x <= zone.maxX && z >= zone.minZ && z <= zone.maxZ) {
             return zone;

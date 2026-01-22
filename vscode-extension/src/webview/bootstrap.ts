@@ -1,7 +1,7 @@
-import { WorldRenderer } from './world-renderer';
+import { World } from './world';
 
-// Initialize the renderer when the page loads
-let worldRenderer: WorldRenderer;
+// Initialize the world when the page loads
+let world: World;
 
 // Declare global API
 declare const acquireVsCodeApi: () => any;
@@ -23,9 +23,10 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-        worldRenderer = new WorldRenderer(vscode);
+        world = new World(vscode);
         // Expose globally for VSCode extension or debugging
-        (window as any).worldRenderer = worldRenderer;
+        (window as any).world = world;
+        (window as any).worldRenderer = world; // Backwards compatibility for now
 
         // Enhance logging by wrapping console methods
         const originalLog = console.log;
@@ -46,7 +47,7 @@ window.addEventListener('DOMContentLoaded', () => {
         vscode.postMessage({ type: 'ready' });
 
     } catch (error: any) {
-        console.error('Failed to initialize WorldRenderer:', error);
+        console.error('Failed to initialize World:', error);
         vscode.postMessage({
             type: 'error',
             data: { message: `Bootstrap Error: ${error.message || error}` }
@@ -59,59 +60,59 @@ window.addEventListener('message', (event) => {
     const message = event.data;
     // console.log('[Bootstrap] Received message:', message.type);
 
-    if (!worldRenderer) {
-        console.error('[Bootstrap] WorldRenderer not initialized, dropping message:', message.type);
+    if (!world) {
+        console.error('[Bootstrap] World not initialized, dropping message:', message.type);
         return;
     }
 
     try {
         switch (message.type) {
             case 'loadWorld':
-                worldRenderer.clear();
+                world.clear();
                 break;
 
             case 'addObject':
                 try {
-                    worldRenderer.addCodeObject(message.data);
+                    world.addCodeObject(message.data);
                 } catch (e: any) {
                     console.error(`Failed to add object ${message.data.id}:`, e);
                 }
                 break;
 
             case 'removeObject':
-                worldRenderer.removeCodeObject(message.data.id);
+                world.removeCodeObject(message.data.id);
                 break;
 
             case 'addDependency':
-                worldRenderer.addDependency(message.data);
+                world.addDependency(message.data);
                 break;
 
             case 'removeDependency':
-                worldRenderer.removeDependency(message.data.id);
+                world.removeDependency(message.data.id);
                 break;
 
             case 'showDependencies':
-                worldRenderer.showAllDependencies();
+                world.showAllDependencies();
                 break;
 
             case 'hideDependencies':
-                worldRenderer.hideDependencies();
+                world.hideDependencies();
                 break;
 
             case 'dependenciesComplete':
-                worldRenderer.refreshLabels();
+                world.refreshLabels();
                 break;
 
             case 'setZoneBounds':
-                worldRenderer.setZoneBounds(message.data);
+                world.setZoneBounds(message.data);
                 break;
 
             case 'setWarnings':
-                worldRenderer.setWarnings(message.data);
+                world.setWarnings(message.data);
                 break;
 
             case 'clear':
-                worldRenderer.clear();
+                world.clear();
                 break;
 
             case 'perfUpdate':

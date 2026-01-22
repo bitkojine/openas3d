@@ -13,16 +13,20 @@ import { WarningManager } from './warning-manager';
 import { InteractionController } from './interaction-controller';
 import { StatsUI } from './stats-ui';
 import { TestBridge } from './test-utils/test-bridge';
-import { addZoneVisuals, removeZoneVisuals, ZoneBounds } from './zone-visuals';
+import { addZoneVisuals, removeZoneVisuals, ZoneDTO } from './zone-visuals';
 import { WarningOverlay } from './warning-overlay';
 import { ArchitectureWarning } from '../visualizers/architecture-analyzer';
 
-export class WorldRenderer {
+/**
+ * The World class is the root controller for the 3D environment.
+ * It coordinates the Scene, Physical Simulation, User Interaction, and Data Synchronization.
+ */
+export class World {
     private sceneManager: SceneManager;
     private character: CharacterController;
     private objects: CodeObjectManager;
-    private selectionManager: SelectionManager; // New
-    private warningManager: WarningManager; // New
+    private selectionManager: SelectionManager;
+    private warningManager: WarningManager;
     private interaction: InteractionController;
     private ui: StatsUI;
     private warningOverlay: WarningOverlay;
@@ -215,7 +219,7 @@ export class WorldRenderer {
     }
 
     /** Set zone bounds and create visual markers (signs and fences) */
-    public setZoneBounds(zones: ZoneBounds[]): void {
+    public setZoneBounds(zones: ZoneDTO[]): void {
         // Remove previous zone visuals if any
         removeZoneVisuals(this.sceneManager.scene);
 

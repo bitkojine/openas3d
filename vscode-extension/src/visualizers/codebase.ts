@@ -70,16 +70,19 @@ export class CodebaseVisualizer {
         if (!this.panel) { return; }
 
         // Compute position based on zone and file count in that zone
-        const zone = this.layout.getZoneForFile(file);
-        if (!this.fileZoneCounts[zone]) { this.fileZoneCounts[zone] = 0; }
-        const indexInZone = this.fileZoneCounts[zone]++;
+        const zoneName = this.layout.getZoneForFile(file);
+        if (!this.fileZoneCounts[zoneName]) { this.fileZoneCounts[zoneName] = 0; }
+        const indexInZone = this.fileZoneCounts[zoneName]++;
+
+        const zone = this.layout.getZone(zoneName) || this.layout.getZone('core')!;
         const pos2D = this.layout.getPositionForZone(zone, indexInZone);
 
+        // Track file with zone for architecture analysis
         // Track file with zone for architecture analysis
         this.filesWithZones.push({
             id: file.id,
             filePath: file.filePath,
-            zone
+            zone: zoneName
         });
 
         this.panel.webview.postMessage({
