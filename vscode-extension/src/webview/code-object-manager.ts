@@ -8,6 +8,7 @@ import { DependencyManager, DependencyData, DependencyStats } from './dependency
 import { VisualObject } from './objects/visual-object';
 import { FileObject } from './objects/file-object';
 import { SignObject } from './objects/sign-object';
+import { ArchitectureWarning, getWarningsByFile } from '../visualizers/architecture-analyzer';
 
 /** Data for adding a new object */
 export interface AddObjectData {
@@ -304,6 +305,21 @@ export class CodeObjectManager {
                 // Better: rely on FileObject interna 'getDescriptionText()' if we could.
                 // As a quick fix, we call updateLabel with current metadata description.
                 obj.updateLabel(this.scene, text, labelStats);
+            }
+        });
+    }
+
+    /**
+     * Set architecture warnings for objects.
+     * Updates visual badges on file objects.
+     */
+    public setWarnings(warnings: ArchitectureWarning[]): void {
+        const warningsByFile = getWarningsByFile(warnings);
+
+        this.objects.forEach(obj => {
+            if (obj instanceof FileObject) {
+                const fileWarnings = warningsByFile.get(obj.id) || [];
+                obj.setWarningBadge(fileWarnings.length > 0 ? fileWarnings : null);
             }
         });
     }

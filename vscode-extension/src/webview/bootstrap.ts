@@ -106,6 +106,10 @@ window.addEventListener('message', (event) => {
                 worldRenderer.setZoneBounds(message.data);
                 break;
 
+            case 'setWarnings':
+                worldRenderer.setWarnings(message.data);
+                break;
+
             case 'clear':
                 worldRenderer.clear();
                 break;

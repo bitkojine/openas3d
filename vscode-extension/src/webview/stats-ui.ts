@@ -31,21 +31,11 @@ export class StatsUI {
         if (this.frameCount % 60 === 0) { // update once per second-ish
             const fps = Math.round(1 / deltaTime);
 
-            // Update DOM directly for the new structure
-            // <div id="stats">
-            //     <div>Objects: 0</div>
-            //     <div>FPS: 0</div>
-            //     <!-- Optional circular warning -->
-            // </div>
+            // Simple text update for the minimal bar
+            this.statsElement.textContent = `Objects: ${objectCount} | Deps: ${depCount} | FPS: ${fps}`;
 
-            let html = `<div>Objects: ${objectCount} | Deps: ${depCount}</div>
-                        <div>FPS: ${fps}</div>`;
-
-            if (circularCount > 0) {
-                html += `<div style="color:#ff4444; font-weight:bold;">⚠️ Circular: ${circularCount}</div>`;
-            }
-
-            this.statsElement.innerHTML = html;
+            // If circular dependencies exist, we could add a subtle indicator if needed, 
+            // but the WarningOverlay is now the primary place for this.
         }
     }
 }

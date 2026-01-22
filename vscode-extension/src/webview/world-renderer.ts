@@ -12,6 +12,8 @@ import { InteractionController } from './interaction-controller';
 import { StatsUI } from './stats-ui';
 import { TestBridge } from './test-utils/test-bridge';
 import { addZoneVisuals, removeZoneVisuals, ZoneBounds } from './zone-visuals';
+import { WarningOverlay } from './warning-overlay';
+import { ArchitectureWarning } from '../visualizers/architecture-analyzer';
 
 export class WorldRenderer {
     private sceneManager: SceneManager;
@@ -19,6 +21,7 @@ export class WorldRenderer {
     private objects: CodeObjectManager;
     private interaction: InteractionController;
     private ui: StatsUI;
+    private warningOverlay: WarningOverlay;
 
     private vscode: any;
 
@@ -54,7 +57,12 @@ export class WorldRenderer {
             this.character
         );
 
-        this.ui.hideLoading();
+        // Initialize warning overlay
+        this.warningOverlay = new WarningOverlay(container);
+        this.warningOverlay.setOnWarningClick((fileId) => {
+            // Navigate to file when warning is clicked
+            this.vscode.postMessage({ type: 'navigateToFile', data: { fileId } });
+        });
 
         this.ui.hideLoading();
 
@@ -200,5 +208,12 @@ export class WorldRenderer {
 
         // Add new zone signs and fences
         addZoneVisuals(this.sceneManager.scene, zones);
+    }
+
+    /** Set architecture warnings to display in the overlay */
+    public setWarnings(warnings: ArchitectureWarning[]): void {
+        this.warningOverlay.setWarnings(warnings);
+        // Also update object badges
+        this.objects.setWarnings(warnings);
     }
 }

@@ -3,10 +3,12 @@ import { VisualObject } from './visual-object';
 import { CodeEntityDTO } from '../types';
 import { getLanguageColor } from '../../utils/languageRegistry';
 import { createContentTexture, createTextSprite, createTextSpriteWithDeps, LabelDependencyStats } from '../texture-factory';
+import { ArchitectureWarning } from '../../visualizers/architecture-analyzer';
 
 export class FileObject extends VisualObject {
     // Configurable gap between box and label
     private readonly GAP = 0.5;
+    private warningBadge: THREE.Sprite | null = null;
 
     protected createMesh(): THREE.Mesh {
         // Create geometry based on size in metadata or default
@@ -239,5 +241,68 @@ export class FileObject extends VisualObject {
             }
             this.descriptionMesh.material.dispose();
         }
+
+        // Dispose warning badge
+        if (this.warningBadge) {
+            if (this.warningBadge.material.map) {
+                this.warningBadge.material.map.dispose();
+            }
+            this.warningBadge.material.dispose();
+        }
+    }
+
+    /**
+     * Set or clear the warning badge on this file object
+     */
+    public setWarningBadge(warnings: ArchitectureWarning[] | null): void {
+        // Clear existing badge
+        if (this.warningBadge) {
+            this.mesh.remove(this.warningBadge);
+            if (this.warningBadge.material.map) {
+                this.warningBadge.material.map.dispose();
+            }
+            this.warningBadge.material.dispose();
+            this.warningBadge = null;
+        }
+
+        if (!warnings || warnings.length === 0) return;
+
+        // Create warning badge
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d')!;
+
+        // Determine color based on highest severity
+        const hasHigh = warnings.some(w => w.severity === 'high');
+        const hasMedium = warnings.some(w => w.severity === 'medium');
+        const color = hasHigh ? '#ef4444' : hasMedium ? '#f97316' : '#eab308';
+
+        // Draw badge circle
+        ctx.beginPath();
+        ctx.arc(32, 32, 28, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        // Draw count
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 28px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(warnings.length.toString(), 32, 32);
+
+        // Create sprite
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+        const sprite = new THREE.Sprite(material);
+
+        // Position in top-right corner of the file object
+        const width = this.metadata.size?.width ?? 1;
+        const height = this.metadata.size?.height ?? 1;
+        sprite.scale.set(0.5, 0.5, 1);
+        sprite.position.set(width / 2 + 0.1, height / 2 + 0.1, 0.2);
+
+        this.warningBadge = sprite;
+        this.mesh.add(sprite);
     }
 }
