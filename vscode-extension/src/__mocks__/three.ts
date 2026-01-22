@@ -123,6 +123,17 @@ export class BufferGeometry {
     setAttribute(name: string, attribute: any) { this.attributes[name] = attribute; }
 }
 
+export class Box3 {
+    public min = new Vector3();
+    public max = new Vector3();
+    constructor() { }
+    setFromObject(obj: any) { return this; }
+    getSize(target: Vector3) {
+        target.set(1, 1, 1);
+        return target;
+    }
+}
+
 export class BoxGeometry extends BufferGeometry { }
 export class ConeGeometry extends BufferGeometry { }
 
@@ -189,6 +200,7 @@ export class Line extends Object3D {
 export const DoubleSide = 2;
 export const RepeatWrapping = 1000;
 export const AdditiveBlending = 2;
+export const NormalBlending = 1;
 
 export class Color {
     public r: number = 0;

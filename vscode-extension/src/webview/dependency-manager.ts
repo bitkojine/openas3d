@@ -238,15 +238,48 @@ export class DependencyManager {
             return; // Skip if source or target not found
         }
 
-        // Calculate start/end positions from object tops
+        // Calculate connection points (Ports) - Updated for "Center-Top Cluster"
+        // Constraint: Objects rotate to face player. Keep points near center but separated.
+        // Source (Outgoing): Right of center (+X)
+        // Target (Incoming): Left of center (-X)
+
+        // Measure objects to find top surface height
+        const sourceBox = new THREE.Box3().setFromObject(sourceObj.mesh);
+        const sourceSize = new THREE.Vector3();
+        sourceBox.getSize(sourceSize);
+
+        const targetBox = new THREE.Box3().setFromObject(targetObj.mesh);
+        const targetSize = new THREE.Vector3();
+        targetBox.getSize(targetSize);
+
+        // Get indices for distribution
+        const sourceStats = this.getStatsForObject(data.source);
+        const targetStats = this.getStatsForObject(data.target);
+
+        const outIndex = sourceStats.outgoing;
+        const inIndex = targetStats.incoming;
+
+        // Visual Cluster Parameters
+        const portSpacing = 0.05; // Tight spacing for "Header Pin" header look
+        const centerOffset = 0.15; // Distance from true center to start of cluster
+
+        // Calculate Start Position (Source: Center-Top + Right Offset)
         const start = sourceObj.mesh.position.clone();
-        start.y += sourceObj.getHeight() / 2;
+        start.y += sourceSize.y / 2; // Top surface
+        // Offset to Right (+X). Stagger in Z to create a 2-row header if many deps
+        start.x += centerOffset + (outIndex % 4) * portSpacing;
+        start.z += Math.floor(outIndex / 4) * portSpacing;
 
+        // Calculate End Position (Target: Center-Top - Left Offset)
         const end = targetObj.mesh.position.clone();
-        end.y += targetObj.getHeight() / 2;
+        end.y += targetSize.y / 2; // Top surface
+        // Offset to Left (-X)
+        end.x -= centerOffset + (inIndex % 4) * portSpacing;
+        end.z += Math.floor(inIndex / 4) * portSpacing;
 
-        start.y += 0.05;
-        end.y += 0.05;
+        // Lift slightly to sit on top of mesh
+        start.y += 0.02;
+        end.y += 0.02;
 
         const weight = data.weight ?? 1;
         const isCircular = data.isCircular ?? false;
