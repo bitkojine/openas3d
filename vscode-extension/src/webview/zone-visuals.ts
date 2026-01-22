@@ -3,7 +3,7 @@
  * Creates visual markers for zone boundaries in the 3D code park.
  */
 import * as THREE from 'three';
-import { ZoneBounds } from '../shared/zone';
+import { ZoneBounds } from '../core/domain/zone';
 export { ZoneBounds };
 
 /**
