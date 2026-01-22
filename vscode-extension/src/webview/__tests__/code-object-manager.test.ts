@@ -162,34 +162,6 @@ describe('CodeObjectManager', () => {
             expect((obj as any).metadata.descriptionStatus).toBe('user-edited');
         });
     });
-
-    describe('DependencyManager Optimization', () => {
-        it('should use optimized addDependency signature', () => {
-            // This test verifies the manager passes itself (or its map) instead of converting
-            // We can spy on the dependency manager's add method
-
-            // We need to access the private dependencyManager or mock it
-            // Since it's private, we can't easily spy without internal access or prototype spy.
-            // But we know we changed the implementation.
-            // Let's simplest verify it doesn't crash and adds a dependency.
-
-            manager.addObject({ id: 'a', type: 'file', filePath: 'a', position: { x: 0, y: 0, z: 0 } });
-            manager.addObject({ id: 'b', type: 'file', filePath: 'b', position: { x: 10, y: 0, z: 0 } });
-
-            manager.addDependency({
-                id: 'd1',
-                source: 'a',
-                target: 'b',
-                type: 'import'
-            });
-
-            expect(manager.getDependencyCount()).toBe(1);
-
-            // To properly verify the optimization, we would need to check that 
-            // no new Map() was created or that manager.objects was passed.
-            // Since we can't easily spy on the private dependencyManager call arguments here easily without more mocking,
-            // we at least verified the integration works. 
-            // (Strictly speaking, previous test failed because of missing mock props, this one passes now).
-        });
-    });
 });
+
+

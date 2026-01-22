@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import { CodeEntityDTO, DependencyDTO } from './types';
-import { DependencyManager, DependencyData, DependencyStats } from './dependency-manager';
+// DependencyManager removed
 import { VisualObject } from './objects/visual-object';
 import { FileObject } from './objects/file-object';
 import { SignObject } from './objects/sign-object';
@@ -27,7 +27,7 @@ export interface AddObjectData {
 export class CodeObjectManager {
     // Store VisualObjects instead of raw interfaces
     private objects: Map<string, VisualObject> = new Map();
-    private dependencyManager: DependencyManager;
+    // private dependencyManager: DependencyManager; // Removed
 
     /**
      * Get the internal objects map (Internal use for other managers)
@@ -41,7 +41,7 @@ export class CodeObjectManager {
     private readonly GROUND_Y = 0;
 
     constructor(private scene: THREE.Scene) {
-        this.dependencyManager = new DependencyManager(scene);
+        // this.dependencyManager = new DependencyManager(scene); // Removed
     }
 
     public addObject(data: AddObjectData): void {
@@ -137,54 +137,11 @@ export class CodeObjectManager {
             }
         });
         this.objects.clear();
-        this.dependencyManager.clear();
+        // this.dependencyManager.clear(); // Handled externally
     }
 
     // Dependency delegation
-    public addDependency(data: DependencyData): void {
-        this.dependencyManager.add(data, this.objects);
-    }
 
-    public removeDependency(id: string): void {
-        this.dependencyManager.remove(id);
-    }
-
-    public showDependenciesForObject(objectId: string): void {
-        this.dependencyManager.showForObject(objectId);
-    }
-
-    public showAllDependencies(): void {
-        this.dependencyManager.showAll();
-    }
-
-    public hideDependencies(): void {
-        this.dependencyManager.hideAll();
-    }
-
-    /** Get total number of dependency edges */
-    public getDependencyCount(): number {
-        return this.dependencyManager.getDependencyCount();
-    }
-
-    /** Get all dependency edges */
-    public getAllDependencies(): IterableIterator<DependencyDTO> {
-        return this.dependencyManager.getAll();
-    }
-
-    /** Get count of circular dependencies */
-    public getCircularCount(): number {
-        return this.dependencyManager.getCircularCount();
-    }
-
-    /** Get dependency stats for a specific object */
-    public getDependencyStats(objectId: string): DependencyStats {
-        return this.dependencyManager.getStatsForObject(objectId);
-    }
-
-    /** Update dependency animations */
-    public updateDependencies(deltaTime: number): void {
-        this.dependencyManager.update(deltaTime);
-    }
 
 
 
@@ -243,38 +200,7 @@ export class CodeObjectManager {
         });
     }
 
-    /**
-     * Refresh all object labels with dependency statistics.
-     * Call this after all dependencies have been added.
-     */
-    public refreshLabelsWithDependencyStats(): void {
-        this.objects.forEach(obj => {
-            if (obj instanceof FileObject) {
-                const stats = this.dependencyManager.getStatsForObject(obj.id);
-                if (stats.incoming === 0 && stats.outgoing === 0) { return; }
 
-                // Re-creating the label with stats
-                // We need the original description text. FileObject can regenerate it.
-                // But FileObject.updateLabel takes a string. 
-                // Let's trust FileObject to handle this if we pass stats.
-
-                // For now, simple approach:
-                // We need to pass stats to FileObject, let it handle the factory call
-                const labelStats = {
-                    incoming: stats.incoming,
-                    outgoing: stats.outgoing,
-                    hasCircular: stats.circularWith.length > 0
-                };
-
-                // Get current description text (hidden state in FileObject, let's peek metadata)
-                const text = obj.metadata.description || 'No description'; // We might lose auto-generated description here if not saved
-
-                // Better: rely on FileObject interna 'getDescriptionText()' if we could.
-                // As a quick fix, we call updateLabel with current metadata description.
-                obj.updateLabel(this.scene, text, labelStats);
-            }
-        });
-    }
 
 }
 

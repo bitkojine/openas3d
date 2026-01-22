@@ -13,7 +13,9 @@ import { WarningManager } from './warning-manager';
 import { InteractionController } from './interaction-controller';
 import { StatsUI } from './stats-ui';
 import { TestBridge } from './test-utils/test-bridge';
-import { addZoneVisuals, removeZoneVisuals, ZoneDTO } from './zone-visuals';
+import { DependencyManager } from './dependency-manager';
+import { ZoneManager } from './zone-manager';
+import { ZoneDTO } from '../core/domain/zone';
 import { WarningOverlay } from './warning-overlay';
 import { ArchitectureWarning } from '../visualizers/architecture-analyzer';
 
@@ -25,6 +27,8 @@ export class World {
     private sceneManager: SceneManager;
     private character: CharacterController;
     private objects: CodeObjectManager;
+    private dependencyManager: DependencyManager;
+    private zoneManager: ZoneManager;
     private selectionManager: SelectionManager;
     private warningManager: WarningManager;
     private interaction: InteractionController;
@@ -55,6 +59,8 @@ export class World {
         (this.character as any).placingSign = false;
 
         this.objects = new CodeObjectManager(this.sceneManager.scene);
+        this.dependencyManager = new DependencyManager(this.sceneManager.scene);
+        this.zoneManager = new ZoneManager(this.sceneManager.scene);
         this.selectionManager = new SelectionManager(this.sceneManager.scene);
         this.warningManager = new WarningManager();
 
@@ -65,6 +71,7 @@ export class World {
             this.sceneManager.renderer.domElement,
             this.objects,
             this.selectionManager,
+            this.dependencyManager,
             this.vscode,
             this.character
         );
@@ -94,9 +101,8 @@ export class World {
         // Delay initialization to avoid blocking the main thread during startup
         setTimeout(() => {
             try {
-                // We We might need to update TestBridge to use selection manager too if it relies on it?
-                // TestBridge constructor signature: (scene, objects, selection, character, vscode)
-                new TestBridge(this.sceneManager, this.objects, this.selectionManager, this.character, this.vscode);
+                // TestBridge constructor signature: (scene, objects, selection, depManager, character, vscode)
+                new TestBridge(this.sceneManager, this.objects, this.selectionManager, this.dependencyManager, this.character, this.vscode);
             } catch (e) {
                 console.error('Failed to initialize TestBridge:', e);
             }
@@ -119,12 +125,12 @@ export class World {
         this.sceneManager.environment.update(deltaTime);
 
         // Pass actual dependency and circular counts to UI
-        const depCount = this.objects.getDependencyCount();
-        const circularCount = this.objects.getCircularCount();
+        const depCount = this.dependencyManager.getDependencyCount();
+        const circularCount = this.dependencyManager.getCircularCount();
         this.ui.update(deltaTime, this.objects.getObjectCount(), depCount, circularCount);
 
         // Update dependency animations (pulsing for circular deps)
-        this.objects.updateDependencies(deltaTime);
+        this.dependencyManager.update(deltaTime);
 
         this.interaction.update();
 
@@ -195,36 +201,75 @@ export class World {
     }
 
     public addDependency(data: any): void {
-        this.objects.addDependency(data);
+        // We need to pass the map of objects to the dependency manager
+        this.dependencyManager.add(data, this.objects.getInternalObjectsMap());
     }
 
     public removeDependency(id: string): void {
-        this.objects.removeDependency(id);
+        this.dependencyManager.remove(id);
     }
 
     public clear(): void {
         this.objects.clear();
+        this.dependencyManager.clear();
+        this.zoneManager.clear();
     }
 
     public showAllDependencies(): void {
-        this.objects.showAllDependencies();
+        this.dependencyManager.showAll();
     }
 
     public hideDependencies(): void {
-        this.objects.hideDependencies();
+        this.dependencyManager.hideAll();
     }
 
     public refreshLabels(): void {
-        this.objects.refreshLabelsWithDependencyStats();
+        // Refresh labels logic relies on dependency stats?
+        // CodeObjectManager logic was: get stats from DepManager, then update labels.
+        // We can reimplement that coordination here.
+
+        for (const obj of this.objects.getObjects()) {
+            // Access internal VisualObject via map to get stats?
+            // Actually wait, CodeObjectManager.refreshLabelsWithDependencyStats was removed.
+            // We need to re-implement that logic if we want labels to show stats.
+            // Or we just skip it for now if labels are static.
+            // The implementation plan said "Decouple".
+            // If we really want stats on labels, World should coordinate it.
+
+            // For now, let's leave it empty or implement basic logic if needed.
+            // The previous logic was:
+            /*
+            const stats = this.dependencyManager.getStatsForObject(obj.id);
+            if (stats.incoming === 0 && stats.outgoing === 0) continue;
+            obj.updateLabel(this.scene, obj.description, stats);
+            */
+
+            // This requires access to `updateLabel` on the object.
+            // `getObjects()` returns DTOs (CodeEntityDTO) which mocks being VisualObject but typescript knows it as DTO.
+            // But at runtime they are VisualObjects.
+
+            const stats = this.dependencyManager.getStatsForObject(obj.id);
+            if (stats) {
+                // Cast to any to access updateLabel if it exists (VisualObject)
+                if (typeof (obj as any).updateLabel === 'function') {
+                    // We need description text.
+                    const desc = (obj as any).metadata?.description || '';
+
+                    const labelStats = {
+                        incoming: stats.incoming,
+                        outgoing: stats.outgoing,
+                        hasCircular: stats.circularWith.length > 0
+                    };
+
+                    (obj as any).updateLabel(this.sceneManager.scene, desc, labelStats);
+                }
+            }
+        }
     }
 
     /** Set zone bounds and create visual markers (signs and fences) */
     public setZoneBounds(zones: ZoneDTO[]): void {
-        // Remove previous zone visuals if any
-        removeZoneVisuals(this.sceneManager.scene);
-
-        // Add new zone signs and fences
-        addZoneVisuals(this.sceneManager.scene, zones);
+        this.zoneManager.updateZones(zones);
     }
 
     /** Set architecture warnings to display in the overlay */

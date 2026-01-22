@@ -3,6 +3,7 @@ import { SceneManager } from '../scene-manager';
 import { CodeObjectManager } from '../code-object-manager';
 import { CharacterController } from '../character-controller';
 import { SelectionManager } from '../selection-manager';
+import { DependencyManager } from '../dependency-manager';
 
 export interface SceneSnapshot {
     objectCount: number;
@@ -20,6 +21,7 @@ export class TestBridge {
     private sceneManager: SceneManager;
     private objects: CodeObjectManager;
     private selectionManager: SelectionManager;
+    private dependencyManager: DependencyManager;
     private character: CharacterController;
     private vscode: any;
 
@@ -27,12 +29,14 @@ export class TestBridge {
         sceneManager: SceneManager,
         objects: CodeObjectManager,
         selectionManager: SelectionManager,
+        dependencyManager: DependencyManager,
         character: CharacterController,
         vscodeApi?: any
     ) {
         this.sceneManager = sceneManager;
         this.objects = objects;
         this.selectionManager = selectionManager;
+        this.dependencyManager = dependencyManager;
         this.character = character;
         this.vscode = vscodeApi;
         this.exposeToWindow();
@@ -77,10 +81,10 @@ export class TestBridge {
             }
         });
 
-        const depCount = this.objects.getDependencyCount();
+        const depCount = this.dependencyManager.getDependencyCount();
         const edges: Array<{ source: string, target: string }> = [];
 
-        for (const dep of this.objects.getAllDependencies()) {
+        for (const dep of this.dependencyManager.getAll()) {
             edges.push({ source: dep.source, target: dep.target });
         }
 

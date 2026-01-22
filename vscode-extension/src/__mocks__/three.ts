@@ -103,6 +103,13 @@ export class Object3D {
     }
 
     lookAt(v: Vector3) { }
+
+    traverse(callback: (object: Object3D) => any) {
+        callback(this);
+        for (const child of this.children) {
+            child.traverse(callback);
+        }
+    }
 }
 
 export class Mesh extends Object3D {
@@ -149,27 +156,27 @@ export class PlaneGeometry extends BufferGeometry {
     constructor(width?: number, height?: number) { super(); }
 }
 
-export class MeshLambertMaterial {
+export class Material {
+    dispose() { }
+}
+
+export class MeshLambertMaterial extends Material {
     public emissive = { setHex: () => { } };
     public map: any = undefined;
     constructor(parameters?: any) {
+        super();
         if (parameters && parameters.map) {
             this.map = parameters.map;
         }
     }
-    dispose() { }
 }
-export class MeshBasicMaterial {
-    dispose() { }
+export class MeshBasicMaterial extends Material {
 }
-export class LineBasicMaterial {
-    dispose() { }
+export class LineBasicMaterial extends Material {
 }
-export class LineDashedMaterial {
-    dispose() { }
+export class LineDashedMaterial extends Material {
 }
-export class SpriteMaterial {
-    dispose() { }
+export class SpriteMaterial extends Material {
 }
 
 export class Texture {

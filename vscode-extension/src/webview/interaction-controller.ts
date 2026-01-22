@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CodeObjectManager } from './code-object-manager';
 import { SelectionManager } from './selection-manager';
+import { DependencyManager } from './dependency-manager';
 import { CodeEntityDTO } from './types'; // If needed, but code seems to not import it?
 // Checking file content from Step 140:
 // It imports THREE and CodeObjectManager.
@@ -52,6 +53,7 @@ export class InteractionController {
         private domElement: HTMLElement,
         private objects: CodeObjectManager,
         private selectionManager: SelectionManager,
+        private dependencyManager: DependencyManager,
         private vscode: any,
         private character: any // reference to CharacterController
     ) {
@@ -218,11 +220,11 @@ export class InteractionController {
     // ────────────────────────────────────────────────
 
     private showDependencies(objectId: string): void {
-        this.objects.showDependenciesForObject(objectId);
+        this.dependencyManager.showForObject(objectId);
     }
 
     private resetDependencies(): void {
-        this.objects.showAllDependencies();
+        this.dependencyManager.showAll();
     }
 
     // ────────────────────────────────────────────────
