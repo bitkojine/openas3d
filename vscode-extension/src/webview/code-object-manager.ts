@@ -89,10 +89,18 @@ export class CodeObjectManager {
         }
 
         // Adjust Y position based on height
+        // Adjust Y position based on height
         const meshHeight = visualObject.getHeight();
-        visualObject.mesh.position.setY(
-            this.GROUND_Y + this.GAP + meshHeight / 2
-        );
+
+        // All objects float at eye level (center of object at camera height)
+        // Camera Y = groundHeight(0.5) + characterHeight(1.8) + characterHeight*0.9(1.62) ≈ 3.92
+        const EYE_LEVEL_Y = 3.9;
+
+        // Prevent tall objects from clipping into ground
+        // Bottom of object = centerY - height/2, must be >= GROUND_Y
+        const minY = this.GROUND_Y + meshHeight / 2;
+        visualObject.mesh.position.setY(Math.max(EYE_LEVEL_Y, minY));
+
         // Sync position back to object state
         visualObject.position.copy(visualObject.mesh.position);
 

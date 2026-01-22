@@ -14,6 +14,11 @@ import { SignObject } from '../objects/sign-object';
             createLinearGradient: jest.fn().mockReturnValue({
                 addColorStop: jest.fn()
             }),
+            create: jest.fn(),
+            beginPath: jest.fn(),
+            moveTo: jest.fn(),
+            lineTo: jest.fn(),
+            stroke: jest.fn(),
             fillRect: jest.fn()
         }),
         width: 0,
@@ -100,6 +105,19 @@ describe('CodeObjectManager', () => {
             // Since our mock Scene tracks children
             const hasSprite = scene.children.some(child => child instanceof THREE.Sprite);
             expect(hasSprite).toBe(true);
+        });
+
+        it('should float all objects at eye level', () => {
+            manager.addObject({
+                id: 'obj1',
+                type: 'file',
+                filePath: '/file.ts',
+                position: { x: 0, y: 0, z: 0 },
+                size: { width: 1, height: 1, depth: 1 }
+            });
+
+            const obj = manager.findByMesh(manager.getObjectMeshes()[0] as THREE.Mesh);
+            expect(obj?.mesh.position.y).toBe(3.9); // EYE_LEVEL_Y
         });
     });
 

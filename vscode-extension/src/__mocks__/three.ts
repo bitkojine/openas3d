@@ -121,6 +121,7 @@ export class BufferGeometry {
     setFromPoints() { return this; }
     computeBoundingBox() { return this.boundingBox; }
     setAttribute(name: string, attribute: any) { this.attributes[name] = attribute; }
+    dispose() { }
 }
 
 export class Box3 {
@@ -134,14 +135,42 @@ export class Box3 {
     }
 }
 
-export class BoxGeometry extends BufferGeometry { }
+export class BoxGeometry extends BufferGeometry {
+    constructor(width: number = 1, height: number = 1, depth: number = 1) {
+        super();
+        this.boundingBox = {
+            min: { x: -width / 2, y: -height / 2, z: -depth / 2 },
+            max: { x: width / 2, y: height / 2, z: depth / 2 }
+        };
+    }
+}
 export class ConeGeometry extends BufferGeometry { }
+export class PlaneGeometry extends BufferGeometry {
+    constructor(width?: number, height?: number) { super(); }
+}
 
-export class MeshLambertMaterial { }
-export class MeshBasicMaterial { }
-export class LineBasicMaterial { }
-export class LineDashedMaterial { }
-export class SpriteMaterial { }
+export class MeshLambertMaterial {
+    public emissive = { setHex: () => { } };
+    public map: any = undefined;
+    constructor(parameters?: any) {
+        if (parameters && parameters.map) {
+            this.map = parameters.map;
+        }
+    }
+    dispose() { }
+}
+export class MeshBasicMaterial {
+    dispose() { }
+}
+export class LineBasicMaterial {
+    dispose() { }
+}
+export class LineDashedMaterial {
+    dispose() { }
+}
+export class SpriteMaterial {
+    dispose() { }
+}
 
 export class Texture {
     public offset = new Vector3();
