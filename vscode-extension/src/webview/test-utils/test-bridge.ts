@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SceneManager } from '../scene-manager';
 import { CodeObjectManager } from '../code-object-manager';
 import { CharacterController } from '../character-controller';
+import { SelectionManager } from '../selection-manager';
 
 export interface SceneSnapshot {
     objectCount: number;
@@ -18,21 +19,27 @@ export interface SceneSnapshot {
 export class TestBridge {
     private sceneManager: SceneManager;
     private objects: CodeObjectManager;
+    private selectionManager: SelectionManager;
     private character: CharacterController;
     private vscode: any;
 
     constructor(
         sceneManager: SceneManager,
         objects: CodeObjectManager,
+        selectionManager: SelectionManager,
         character: CharacterController,
         vscodeApi?: any
     ) {
         this.sceneManager = sceneManager;
         this.objects = objects;
+        this.selectionManager = selectionManager;
         this.character = character;
         this.vscode = vscodeApi;
         this.exposeToWindow();
     }
+
+    // ... methods
+
 
     public getSceneState(): SceneSnapshot {
         const scene = this.sceneManager.scene;
@@ -176,11 +183,6 @@ export class TestBridge {
 
     public selectObject(id: string) {
         // Find visual object in CodeObjectManager
-        // We can iterate or assume we can access map?
-        // CodeObjectManager doesn't expose `get` easily unless we iterate.
-        // But `getObjects()` returns iterator.
-        // Let's add `getObject(id)` to CodeObjectManager? 
-        // Or just iterate:
         let visualObject: any = null;
         for (const obj of (this.objects as any).objects.values()) {
             if (obj.id === id) {
@@ -195,7 +197,7 @@ export class TestBridge {
         }
 
         // 2. Visual Selection
-        this.objects.selectObject(visualObject);
+        this.selectionManager.selectObject(visualObject);
 
         // 3. Message Passing (Simulate interaction)
         if (this.vscode) {

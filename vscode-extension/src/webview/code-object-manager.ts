@@ -28,32 +28,17 @@ export class CodeObjectManager {
     // Store VisualObjects instead of raw interfaces
     private objects: Map<string, VisualObject> = new Map();
     private dependencyManager: DependencyManager;
-    private selectedObject: VisualObject | null = null;
-    private focusedObject: VisualObject | null = null; // Track hover focus
 
-    private readonly GROUND_Y = 0;
-
-    public setFocusedObject(obj: VisualObject | null): void {
-        if (this.focusedObject === obj) { return; }
-
-        // Reset previous focus
-        if (this.focusedObject && this.focusedObject !== this.selectedObject) {
-            this.focusedObject.setInteractionState(false);
-        }
-
-        this.focusedObject = obj;
-
-        // Set new focus
-        if (this.focusedObject && this.focusedObject !== this.selectedObject) {
-            this.focusedObject.setInteractionState(true);
-        }
-    }
-
-    public getFocusedObject(): CodeEntityDTO | null {
-        return this.focusedObject ? this.focusedObject.toCodeObject() : null;
+    /**
+     * Get the internal objects map (Internal use for other managers)
+     */
+    public getInternalObjectsMap(): Map<string, VisualObject> {
+        return this.objects;
     }
 
     private readonly GAP = 0.5;
+
+    private readonly GROUND_Y = 0;
 
     constructor(private scene: THREE.Scene) {
         this.dependencyManager = new DependencyManager(scene);
@@ -140,7 +125,6 @@ export class CodeObjectManager {
             }
 
             this.objects.delete(id);
-            if (this.selectedObject?.id === id) { this.selectedObject = null; }
         }
     }
 
@@ -154,7 +138,6 @@ export class CodeObjectManager {
         });
         this.objects.clear();
         this.dependencyManager.clear();
-        this.selectedObject = null;
     }
 
     // Dependency delegation
@@ -203,19 +186,6 @@ export class CodeObjectManager {
         this.dependencyManager.update(deltaTime);
     }
 
-    // Selection management
-    public selectObject(obj: VisualObject): void { // Changed signature to VisualObject
-        this.deselectObject();
-        this.selectedObject = obj;
-        obj.select();
-    }
-
-    public deselectObject(): void {
-        if (this.selectedObject) {
-            this.selectedObject.deselect();
-            this.selectedObject = null;
-        }
-    }
 
 
 
@@ -232,9 +202,6 @@ export class CodeObjectManager {
         return [...this.objects.values()].map(o => o.mesh);
     }
 
-    public getSelectedObject(): CodeEntityDTO | null {
-        return this.selectedObject ? this.selectedObject.toCodeObject() : null;
-    }
 
     /** Get the number of objects */
     public getObjectCount(): number {
@@ -309,19 +276,5 @@ export class CodeObjectManager {
         });
     }
 
-    /**
-     * Set architecture warnings for objects.
-     * Updates visual badges on file objects.
-     */
-    public setWarnings(warnings: ArchitectureWarning[]): void {
-        const warningsByFile = getWarningsByFile(warnings);
-
-        this.objects.forEach(obj => {
-            if (obj instanceof FileObject) {
-                const fileWarnings = warningsByFile.get(obj.id) || [];
-                obj.setWarningBadge(fileWarnings.length > 0 ? fileWarnings : null);
-            }
-        });
-    }
 }
 

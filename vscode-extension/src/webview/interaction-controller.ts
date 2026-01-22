@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CodeObjectManager } from './code-object-manager';
+import { SelectionManager } from './selection-manager';
 import { CodeEntityDTO } from './types'; // If needed, but code seems to not import it?
 // Checking file content from Step 140:
 // It imports THREE and CodeObjectManager.
@@ -50,6 +51,7 @@ export class InteractionController {
         private camera: THREE.Camera,
         private domElement: HTMLElement,
         private objects: CodeObjectManager,
+        private selectionManager: SelectionManager,
         private vscode: any,
         private character: any // reference to CharacterController
     ) {
@@ -116,7 +118,7 @@ export class InteractionController {
         );
 
         if (intersects.length === 0) {
-            this.objects.deselectObject();
+            this.selectionManager.deselectObject();
             this.resetDependencies();
             return;
         }
@@ -127,7 +129,7 @@ export class InteractionController {
         if (!obj) { return; }
 
         // ───────── SELECT AND HIGHLIGHT ─────────
-        this.objects.selectObject(obj);
+        this.selectionManager.selectObject(obj);
         this.showDependencies(obj.id);
 
         this.vscode.postMessage({
@@ -246,10 +248,10 @@ export class InteractionController {
             targetObj = this.objects.findByMesh(mesh);
         }
 
-        const currentSelected = this.objects.getSelectedObject();
+        const currentSelected = this.selectionManager.getSelectedVisualObject();
 
         if (targetObj !== currentSelected) {
-            this.objects.setFocusedObject(targetObj);
+            this.selectionManager.setFocusedObject(targetObj);
 
             // Debounce message sending
             const now = Date.now();

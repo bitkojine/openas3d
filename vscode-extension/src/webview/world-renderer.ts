@@ -8,6 +8,8 @@ declare const acquireVsCodeApi: () => {
 import { SceneManager } from './scene-manager';
 import { CharacterController } from './character-controller';
 import { CodeObjectManager } from './code-object-manager';
+import { SelectionManager } from './selection-manager';
+import { WarningManager } from './warning-manager';
 import { InteractionController } from './interaction-controller';
 import { StatsUI } from './stats-ui';
 import { TestBridge } from './test-utils/test-bridge';
@@ -19,6 +21,8 @@ export class WorldRenderer {
     private sceneManager: SceneManager;
     private character: CharacterController;
     private objects: CodeObjectManager;
+    private selectionManager: SelectionManager; // New
+    private warningManager: WarningManager; // New
     private interaction: InteractionController;
     private ui: StatsUI;
     private warningOverlay: WarningOverlay;
@@ -47,12 +51,16 @@ export class WorldRenderer {
         (this.character as any).placingSign = false;
 
         this.objects = new CodeObjectManager(this.sceneManager.scene);
+        this.selectionManager = new SelectionManager(this.sceneManager.scene);
+        this.warningManager = new WarningManager();
+
         this.ui = new StatsUI(statsEl, loadingEl);
 
         this.interaction = new InteractionController(
             this.sceneManager.camera,
             this.sceneManager.renderer.domElement,
             this.objects,
+            this.selectionManager,
             this.vscode,
             this.character
         );
@@ -82,7 +90,9 @@ export class WorldRenderer {
         // Delay initialization to avoid blocking the main thread during startup
         setTimeout(() => {
             try {
-                new TestBridge(this.sceneManager, this.objects, this.character, this.vscode);
+                // We We might need to update TestBridge to use selection manager too if it relies on it?
+                // TestBridge constructor signature: (scene, objects, selection, character, vscode)
+                new TestBridge(this.sceneManager, this.objects, this.selectionManager, this.character, this.vscode);
             } catch (e) {
                 console.error('Failed to initialize TestBridge:', e);
             }
@@ -116,19 +126,22 @@ export class WorldRenderer {
 
         // Rotate all code objects slowly
         const rotationSpeed = 0.5; // radians per second
-        const focusedObject = this.objects.getFocusedObject(); // Use hover focus for rotation
+        const focusedObject = this.selectionManager.getFocusedObject(); // Use hover focus for rotation
 
         for (const obj of this.objects.getObjects()) {
             // If this is the focused object, face the camera
             if (focusedObject && obj.id === focusedObject.id) {
                 // Calculate angle from object to camera
                 const angleToCamera = Math.atan2(
-                    this.sceneManager.camera.position.x - obj.mesh.position.x,
-                    this.sceneManager.camera.position.z - obj.mesh.position.z
+                    this.sceneManager.camera.position.x - obj.position.x, // Use obj.position from DTO
+                    this.sceneManager.camera.position.z - obj.position.z
                 );
 
-                // The object has two readable sides: front (rotation matching angleToCamera)
-                // and back (rotation + PI). Pick whichever requires less rotation.
+                // We need access to the MESH to rotate it.
+                // The DTO iterator returns DTOs which have `mesh` property in `CodeEntityDTO`?
+                // `CodeEntityDTO` has `mesh: THREE.Mesh`.
+                // Let's check `toCodeObject`... yes it returns `this` which IS a VisualObject which has `mesh`.
+
                 const currentRotation = obj.mesh.rotation.y;
 
                 // Option 1: Face the camera with front side
@@ -214,6 +227,6 @@ export class WorldRenderer {
     public setWarnings(warnings: ArchitectureWarning[]): void {
         this.warningOverlay.setWarnings(warnings);
         // Also update object badges
-        this.objects.setWarnings(warnings);
+        this.warningManager.setWarnings(warnings, this.objects.getInternalObjectsMap());
     }
 }

@@ -109,10 +109,21 @@ export abstract class VisualObject implements CodeEntityDTO {
     }
 
     /**
+     * Set highlight state (alias for setInteractionState for now, or specific)
+     */
+    public setHighlight(active: boolean): void {
+        this.setEmissive(active ? 0xaaaaaa : 0x000000);
+    }
+
+    /**
      * Convert to the CodeObject interface expected by legacy systems/DependencyManager
      * TODO: Eventually migrate DependencyManager to use VisualObject directly
      */
     public toCodeObject(): CodeEntityDTO {
+        return this;
+    }
+
+    public toCodeEntityDTO(): CodeEntityDTO {
         return this;
     }
 }
