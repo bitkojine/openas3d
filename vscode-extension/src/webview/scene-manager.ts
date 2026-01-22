@@ -1,10 +1,11 @@
 import * as THREE from 'three';
-
+import { Environment, createEnhancedGrassTexture } from './environment';
 
 export class SceneManager {
     public readonly scene: THREE.Scene;
     public readonly camera: THREE.PerspectiveCamera;
     public readonly renderer: THREE.WebGLRenderer;
+    public readonly environment: Environment;
 
     constructor(container: HTMLElement, vscodeApi?: any) {
         this.scene = this.createScene();
@@ -13,6 +14,11 @@ export class SceneManager {
 
         this.addLighting();
         this.addGround();
+
+        // Add immersive environment (sky, clouds, distant terrain)
+        this.environment = new Environment(this.scene);
+
+        // Keep floating particles for ambient feel
         this.addAtmosphere();
 
         window.addEventListener('resize', () => this.onResize());
@@ -20,8 +26,8 @@ export class SceneManager {
 
     private createScene(): THREE.Scene {
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb); // Sky blue
-        scene.fog = new THREE.Fog(0x87ceeb, 200, 600); // Extended fog for larger park
+        // Background handled by procedural sky now
+        scene.fog = new THREE.FogExp2(0x9bc5e8, 0.0015); // Exponential fog for depth
         return scene;
     }
 
@@ -30,7 +36,7 @@ export class SceneManager {
             75,
             window.innerWidth / window.innerHeight,
             0.1,
-            1000
+            1200  // Extended far plane for distant terrain
         );
         return camera;
     }
@@ -41,136 +47,78 @@ export class SceneManager {
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.2; // brighter
+        renderer.toneMappingExposure = 1.3; // Slightly brighter for outdoor scene
         container.appendChild(renderer.domElement);
         return renderer;
     }
 
     private addLighting(): void {
-        // Ambient light
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-        this.scene.add(ambientLight);
+        // Hemisphere light for natural sky/ground lighting
+        const hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x4a7c23, 0.6);
+        hemiLight.position.set(0, 200, 0);
+        this.scene.add(hemiLight);
 
-        // Sun-like directional light
-        const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
-        sunLight.position.set(100, 100, 50);
+        // Sun-like directional light (matches sky sun position)
+        const sunLight = new THREE.DirectionalLight(0xfffaf0, 1.4);
+        sunLight.position.set(200, 150, 100);
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 2048;
         sunLight.shadow.mapSize.height = 2048;
         sunLight.shadow.camera.near = 0.5;
-        sunLight.shadow.camera.far = 500;
-        sunLight.shadow.camera.left = -250;
-        sunLight.shadow.camera.right = 250;
-        sunLight.shadow.camera.top = 250;
-        sunLight.shadow.camera.bottom = -250;
+        sunLight.shadow.camera.far = 600;
+        sunLight.shadow.camera.left = -300;
+        sunLight.shadow.camera.right = 300;
+        sunLight.shadow.camera.top = 300;
+        sunLight.shadow.camera.bottom = -300;
+        sunLight.shadow.bias = -0.0005;
         this.scene.add(sunLight);
 
-        // Warm fill light
-        const fillLight = new THREE.DirectionalLight(0xfff4e6, 0.4);
-        fillLight.position.set(-50, 30, -50);
+        // Warm ambient to soften shadows
+        const ambientLight = new THREE.AmbientLight(0xfff8e7, 0.5);
+        this.scene.add(ambientLight);
+
+        // Fill light from opposite side
+        const fillLight = new THREE.DirectionalLight(0xadd8e6, 0.3);
+        fillLight.position.set(-100, 50, -100);
         this.scene.add(fillLight);
     }
 
     private addGround(): void {
-        // Create procedural grass texture
-        const grassTexture = this.createGrassTexture();
+        // Use enhanced grass texture
+        const grassTexture = createEnhancedGrassTexture();
 
-        // Larger ground for expanded park (1000x1000)
-        const groundGeometry = new THREE.PlaneGeometry(1000, 1000);
+        // Larger ground for expanded park (1200x1200 to extend beyond visible area)
+        const groundGeometry = new THREE.PlaneGeometry(1200, 1200);
         const groundMaterial = new THREE.MeshLambertMaterial({
             map: grassTexture,
             transparent: false
         });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.01; // Slightly below 0 to avoid z-fighting
         ground.receiveShadow = true;
         this.scene.add(ground);
     }
 
-    /**
-     * Create a procedural grass texture using canvas
-     */
-    private createGrassTexture(): THREE.Texture {
-        const canvas = document.createElement('canvas');
-        const size = 512;
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d')!;
-
-        // Base grass color
-        ctx.fillStyle = '#4a7c23';
-        ctx.fillRect(0, 0, size, size);
-
-        // Add grass color variations
-        const grassColors = [
-            '#3d6b1e', // dark green
-            '#5a8f2a', // medium green
-            '#6ba832', // light green
-            '#4a7c23', // base green
-            '#3e6920', // darker green
-        ];
-
-        // Draw random grass blades/patches
-        for (let i = 0; i < 8000; i++) {
-            const x = Math.random() * size;
-            const y = Math.random() * size;
-            const bladeWidth = 1 + Math.random() * 2;
-            const bladeHeight = 3 + Math.random() * 8;
-
-            ctx.fillStyle = grassColors[Math.floor(Math.random() * grassColors.length)];
-            ctx.fillRect(x, y, bladeWidth, bladeHeight);
-        }
-
-        // Add some lighter spots for depth
-        for (let i = 0; i < 500; i++) {
-            const x = Math.random() * size;
-            const y = Math.random() * size;
-            const radius = 2 + Math.random() * 6;
-
-            ctx.beginPath();
-            ctx.arc(x, y, radius, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(120, 180, 60, ${0.1 + Math.random() * 0.2})`;
-            ctx.fill();
-        }
-
-        // Add some darker patches for shadows/depth
-        for (let i = 0; i < 300; i++) {
-            const x = Math.random() * size;
-            const y = Math.random() * size;
-            const radius = 3 + Math.random() * 8;
-
-            ctx.beginPath();
-            ctx.arc(x, y, radius, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(40, 70, 20, ${0.1 + Math.random() * 0.15})`;
-            ctx.fill();
-        }
-
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(50, 50); // Repeat across the large ground
-
-        return texture;
-    }
-
     private addAtmosphere(): void {
-        const particleCount = 100;
+        // Floating dust/pollen particles for atmosphere
+        const particleCount = 150;
         const particles = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
 
         for (let i = 0; i < particleCount * 3; i += 3) {
-            positions[i] = (Math.random() - 0.5) * 200;      // x
-            positions[i + 1] = Math.random() * 50 + 10;      // y
-            positions[i + 2] = (Math.random() - 0.5) * 200;  // z
+            positions[i] = (Math.random() - 0.5) * 300;      // x
+            positions[i + 1] = Math.random() * 60 + 5;       // y
+            positions[i + 2] = (Math.random() - 0.5) * 300;  // z
         }
 
         particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
         const material = new THREE.PointsMaterial({
-            color: 0xffffff,
-            size: 2,
+            color: 0xffffee,
+            size: 1.5,
             transparent: true,
-            opacity: 0.3,
+            opacity: 0.4,
             sizeAttenuation: true
         });
 

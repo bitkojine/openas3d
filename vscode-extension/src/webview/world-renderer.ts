@@ -93,6 +93,9 @@ export class WorldRenderer {
 
         this.character.update(deltaTime);
 
+        // Update environment animations (clouds drifting, etc.)
+        this.sceneManager.environment.update(deltaTime);
+
         // Pass actual dependency and circular counts to UI
         const depCount = this.objects.getDependencyCount();
         const circularCount = this.objects.getCircularCount();
