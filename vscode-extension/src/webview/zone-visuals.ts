@@ -17,7 +17,8 @@ const SIGN_CONFIG = {
     boardHeight: 0.8,
     boardDepth: 0.1,
     boardColor: 0x8d6e63,     // Light wood
-    textColor: '#ffffff',
+    signBackground: '#2d1f14', // Dark brown - uniform for all signs
+    textColor: '#ffffff',      // White - high contrast
     fontSize: 48,
     fontFamily: 'Arial, sans-serif'
 } as const;
@@ -124,7 +125,7 @@ export function createZoneSign(zone: ZoneBounds, side: 'north' | 'south' | 'east
 /**
  * Create texture with zone name text
  */
-function createSignTexture(text: string, accentColor: number): THREE.Texture {
+function createSignTexture(text: string, _accentColor: number): THREE.Texture {
     const canvas = document.createElement('canvas');
     const width = 512;
     const height = 128;
@@ -132,15 +133,14 @@ function createSignTexture(text: string, accentColor: number): THREE.Texture {
     canvas.height = height;
     const ctx = canvas.getContext('2d')!;
 
-    // Background with zone color accent
-    const colorHex = '#' + accentColor.toString(16).padStart(6, '0');
-    ctx.fillStyle = colorHex;
+    // Uniform dark background for high contrast readability
+    ctx.fillStyle = SIGN_CONFIG.signBackground;
     ctx.fillRect(0, 0, width, height);
 
-    // Darker border
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-    ctx.lineWidth = 8;
-    ctx.strokeRect(4, 4, width - 8, height - 8);
+    // Light border for visibility
+    ctx.strokeStyle = '#8b7355';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(3, 3, width - 6, height - 6);
 
     // Text
     ctx.fillStyle = SIGN_CONFIG.textColor;

@@ -429,7 +429,8 @@ export class DistantTerrain {
 // ============================================================================
 
 /**
- * Creates an improved procedural grass texture with more detail
+ * Creates a seamlessly tiling grass texture
+ * Uses modular wrapping to ensure elements near edges appear on both sides
  */
 export function createEnhancedGrassTexture(): THREE.Texture {
     const canvas = document.createElement('canvas');
@@ -438,12 +439,8 @@ export function createEnhancedGrassTexture(): THREE.Texture {
     canvas.height = size;
     const ctx = canvas.getContext('2d')!;
 
-    // Base gradient for depth
-    const gradient = ctx.createLinearGradient(0, 0, size, size);
-    gradient.addColorStop(0, '#4a7c23');
-    gradient.addColorStop(0.5, '#3d6b1e');
-    gradient.addColorStop(1, '#4a7c23');
-    ctx.fillStyle = gradient;
+    // Solid base color (gradients don't tile well)
+    ctx.fillStyle = '#4a7c23';
     ctx.fillRect(0, 0, size, size);
 
     // Rich grass color palette
@@ -457,6 +454,30 @@ export function createEnhancedGrassTexture(): THREE.Texture {
         '#558b2f', // olive green
     ];
 
+    // Helper to draw at position with seamless wrapping
+    const drawWrapped = (x: number, y: number, drawFn: (wx: number, wy: number) => void) => {
+        // Draw at original position
+        drawFn(x, y);
+        // Wrap horizontally
+        if (x < 20) drawFn(x + size, y);
+        if (x > size - 20) drawFn(x - size, y);
+        // Wrap vertically
+        if (y < 20) drawFn(x, y + size);
+        if (y > size - 20) drawFn(x, y - size);
+        // Wrap corners
+        if (x < 20 && y < 20) drawFn(x + size, y + size);
+        if (x > size - 20 && y < 20) drawFn(x - size, y + size);
+        if (x < 20 && y > size - 20) drawFn(x + size, y - size);
+        if (x > size - 20 && y > size - 20) drawFn(x - size, y - size);
+    };
+
+    // Use seeded random for consistent results
+    let seed = 12345;
+    const seededRandom = () => {
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        return seed / 0x7fffffff;
+    };
+
     // Draw layered grass blades for depth
     const layers = 3;
     for (let layer = 0; layer < layers; layer++) {
@@ -464,67 +485,81 @@ export function createEnhancedGrassTexture(): THREE.Texture {
         const bladeOpacity = 0.3 + layer * 0.25;
 
         for (let i = 0; i < bladeCount; i++) {
-            const x = Math.random() * size;
-            const y = Math.random() * size;
-            const bladeWidth = 0.5 + Math.random() * 1.5;
-            const bladeHeight = 4 + Math.random() * (8 + layer * 3);
-            const angle = (Math.random() - 0.5) * 0.3; // Slight angle variation
+            const x = seededRandom() * size;
+            const y = seededRandom() * size;
+            const bladeWidth = 0.5 + seededRandom() * 1.5;
+            const bladeHeight = 4 + seededRandom() * (8 + layer * 3);
+            const angle = (seededRandom() - 0.5) * 0.3;
+            const color = grassColors[Math.floor(seededRandom() * grassColors.length)];
+            const alpha = bladeOpacity + seededRandom() * 0.3;
 
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(angle);
-
-            const color = grassColors[Math.floor(Math.random() * grassColors.length)];
-            ctx.fillStyle = color;
-            ctx.globalAlpha = bladeOpacity + Math.random() * 0.3;
-            ctx.fillRect(-bladeWidth / 2, 0, bladeWidth, bladeHeight);
-
-            ctx.restore();
+            drawWrapped(x, y, (wx, wy) => {
+                ctx.save();
+                ctx.translate(wx, wy);
+                ctx.rotate(angle);
+                ctx.fillStyle = color;
+                ctx.globalAlpha = alpha;
+                ctx.fillRect(-bladeWidth / 2, 0, bladeWidth, bladeHeight);
+                ctx.restore();
+            });
         }
     }
 
     // Add bright highlights (sunlit grass tips)
     ctx.globalAlpha = 1;
     for (let i = 0; i < 800; i++) {
-        const x = Math.random() * size;
-        const y = Math.random() * size;
-        const radius = 0.5 + Math.random() * 1.5;
+        const x = seededRandom() * size;
+        const y = seededRandom() * size;
+        const radius = 0.5 + seededRandom() * 1.5;
+        const alpha = 0.3 + seededRandom() * 0.3;
 
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(150, 200, 80, ${0.3 + Math.random() * 0.3})`;
-        ctx.fill();
+        drawWrapped(x, y, (wx, wy) => {
+            ctx.beginPath();
+            ctx.arc(wx, wy, radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(150, 200, 80, ${alpha})`;
+            ctx.fill();
+        });
     }
 
     // Add subtle shadow patches
     for (let i = 0; i < 200; i++) {
-        const x = Math.random() * size;
-        const y = Math.random() * size;
-        const radius = 4 + Math.random() * 10;
+        const x = seededRandom() * size;
+        const y = seededRandom() * size;
+        const radius = 4 + seededRandom() * 10;
+        const alpha = 0.08 + seededRandom() * 0.08;
 
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(30, 60, 15, ${0.08 + Math.random() * 0.08})`;
-        ctx.fill();
+        drawWrapped(x, y, (wx, wy) => {
+            ctx.beginPath();
+            ctx.arc(wx, wy, radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(30, 60, 15, ${alpha})`;
+            ctx.fill();
+        });
     }
 
     // Add small flower/clover dots occasionally
     for (let i = 0; i < 100; i++) {
-        const x = Math.random() * size;
-        const y = Math.random() * size;
+        const x = seededRandom() * size;
+        const y = seededRandom() * size;
+        const isYellow = seededRandom() > 0.5;
 
-        // Yellow flowers
-        if (Math.random() > 0.5) {
-            ctx.beginPath();
-            ctx.arc(x, y, 1 + Math.random(), 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(255, 235, 100, ${0.5 + Math.random() * 0.3})`;
-            ctx.fill();
+        if (isYellow) {
+            const radius = 1 + seededRandom();
+            const alpha = 0.5 + seededRandom() * 0.3;
+            drawWrapped(x, y, (wx, wy) => {
+                ctx.beginPath();
+                ctx.arc(wx, wy, radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 235, 100, ${alpha})`;
+                ctx.fill();
+            });
         } else {
-            // White clovers
-            ctx.beginPath();
-            ctx.arc(x, y, 1.5 + Math.random(), 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + Math.random() * 0.2})`;
-            ctx.fill();
+            const radius = 1.5 + seededRandom();
+            const alpha = 0.3 + seededRandom() * 0.2;
+            drawWrapped(x, y, (wx, wy) => {
+                ctx.beginPath();
+                ctx.arc(wx, wy, radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.fill();
+            });
         }
     }
 
