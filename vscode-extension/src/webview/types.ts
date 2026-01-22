@@ -1,18 +1,16 @@
 import * as THREE from 'three';
+import { CodeEntity, Dependency, ImportKind, Position3D, CodeEntityType } from '../core/domain';
+
+// Re-export pure types for convenience
+export { ImportKind, Position3D, CodeEntityType };
 
 /**
- * A visualized code entity in the 3D world
+ * A renderable code entity in the 3D world.
+ * Extends the pure CodeEntity with Three.js rendering concerns.
  */
-/**
- * A visualized code entity in the 3D world
- */
-export interface CodeEntityDTO {
-    id: string;
-    type: 'file' | 'module' | 'class' | 'function' | 'sign'; // ✅ added 'sign'
-    filePath: string;
-
+export interface CodeEntityDTO extends Omit<CodeEntity, 'position'> {
     /**
-     * World-space position (kept separately from mesh for logic)
+     * World-space position (THREE.Vector3 for rendering)
      */
     position: THREE.Vector3;
 
@@ -22,52 +20,19 @@ export interface CodeEntityDTO {
     mesh: THREE.Mesh;
 
     /**
-     * Arbitrary metadata provided by the extension
-     * (symbol info, language data, etc.)
-     */
-    metadata: any;
-
-    /**
-     * Short summary used in floating labels
-     */
-    description: string;
-
-    /**
      * Three.js sprite for the floating description label
      */
     descriptionMesh?: THREE.Sprite;
-
-    /**
-     * Status of the description: 'missing' | 'generated' | 'reconciled'
-     */
-    descriptionStatus?: string;
-
-    /**
-     * ISO string of last update time for the description
-     */
-    descriptionLastUpdated?: string;
 }
 
-/** Import kind for visual distinction */
-export type ImportKind = 'value' | 'type' | 'reexport';
-
 /**
- * A visual dependency edge between two CodeObjects
+ * A renderable dependency edge between two CodeObjects.
+ * Extends the pure Dependency with Three.js rendering concerns.
  */
-export interface DependencyDTO {
-    id: string;
-    source: string; // CodeObject.id
-    target: string; // CodeObject.id
-    type: 'import' | 'extends' | 'calls';
-    /** Number of imports from source to target (for line thickness) */
-    weight: number;
-    /** True if this is part of a circular dependency */
-    isCircular: boolean;
-    /** Kind of import for visual styling */
-    importKind: ImportKind;
-
+export interface DependencyDTO extends Dependency {
     /**
      * Three.js group containing the curve line and arrow
      */
     line: THREE.Group;
 }
+

@@ -16,7 +16,7 @@ export abstract class VisualObject implements CodeEntityDTO {
     // CodeObject compatibility
     public filePath: string;
     public description: string = 'No description';
-    public descriptionStatus?: string;
+    public descriptionStatus?: 'missing' | 'generated' | 'reconciled';
     public descriptionLastUpdated?: string;
     public descriptionMesh?: THREE.Sprite;
 
