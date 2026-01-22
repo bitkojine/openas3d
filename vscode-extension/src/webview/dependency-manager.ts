@@ -1,7 +1,6 @@
 /**
  * Manages dependency lines between code objects in the 3D scene.
- * Provides curved bezier lines, arrows, circular dependency detection,
- * and animated flow effects.
+ * Provides curved tubes with animated flow textures, arrows, and circular dependency detection.
  */
 import * as THREE from 'three';
 import { CodeEntityDTO, DependencyDTO, ImportKind } from './types';
@@ -58,10 +57,41 @@ export function getDependencyColor(type: DependencyType, importKind?: ImportKind
     }
 }
 
+/** Shared flow texture for all dependencies */
+let _flowTexture: THREE.Texture | null = null;
+function getFlowTexture(): THREE.Texture {
+    if (_flowTexture) { return _flowTexture; }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 1;
+    const ctx = canvas.getContext('2d')!;
+
+    const gradient = ctx.createLinearGradient(0, 0, 64, 0);
+    // Flow pattern: Use Alpha for transparency, keep color white
+    // When modulated with Vertex Color (Red/Green), white preserves the color, 
+    // while alpha handles the "pulse" visibility.
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');   // Faint
+    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.4)'); // Moderate
+    gradient.addColorStop(0.8, 'rgba(255, 255, 255, 0.9)'); // Solid (Brightest point of pulse)
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0.1)');   // Faint
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 64, 1);
+
+    _flowTexture = new THREE.CanvasTexture(canvas);
+    _flowTexture.wrapS = THREE.RepeatWrapping;
+    _flowTexture.wrapT = THREE.RepeatWrapping;
+    // Anisotropy helps when looking at the tube from shallow angles
+    _flowTexture.anisotropy = 4;
+
+    return _flowTexture;
+}
+
 /**
- * Create a curved line with arrow between two points
+ * Create a curved tube with flow animation and arrow
  */
-function createCurvedLineWithArrow(
+function createCurvedTubeWithArrow(
     start: THREE.Vector3,
     end: THREE.Vector3,
     color: number,
@@ -72,63 +102,95 @@ function createCurvedLineWithArrow(
 ): THREE.Group {
     const group = new THREE.Group();
 
-    // Calculate control point for quadratic bezier (arc upward)
-    const midPoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+    // Calculate control points for Cubic Bezier (Steep Rocket Arch)
+    // Start -> Up -> ... -> Down -> End
+    const up = new THREE.Vector3(0, 1, 0);
     const direction = new THREE.Vector3().subVectors(end, start);
     const distance = direction.length();
 
-    // Control point rises above midpoint for nice arc
-    const perpendicular = new THREE.Vector3(-direction.z, 0, direction.x).normalize();
-    const arcHeight = Math.min(distance * 0.3, 2);
-    const controlPoint = midPoint.clone().add(new THREE.Vector3(0, arcHeight, 0));
+    // Scale height based on distance but clamp it preventing it from being too huge
+    // But user wants "extreme", "rocket take off", "steap angle".
+    // So we use a significant vertical scalar.
+    const heightScale = Math.max(distance * 0.5, 4);
 
-    // Offset for circular dependencies (side by side)
+    const controlPoint1 = start.clone().add(up.clone().multiplyScalar(heightScale));
+    const controlPoint2 = end.clone().add(up.clone().multiplyScalar(heightScale));
+
+    // Offset for circular dependencies
     if (isCircular) {
-        controlPoint.add(perpendicular.clone().multiplyScalar(0.5));
+        const perpendicular = new THREE.Vector3(-direction.z, 0, direction.x).normalize();
+        const offset = perpendicular.multiplyScalar(0.8);
+        controlPoint1.add(offset);
+        controlPoint2.add(offset);
     }
 
-    // Create bezier curve
-    const curve = new THREE.QuadraticBezierCurve3(start, controlPoint, end);
-    const points = curve.getPoints(32);
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    // Create Cubic Bezier curve
+    const curve = new THREE.CubicBezierCurve3(start, controlPoint1, controlPoint2, end);
 
-    // Line thickness based on weight (1-5 scale)
-    const lineWidth = Math.min(1 + (weight - 1) * 0.5, 3);
+    // Create Tube Geometry
+    // Radius based on weight but clamped
+    const radius = Math.max(0.02, Math.min(0.08, 0.02 * weight));
+    const segments = 24; // Smooth curve
+    const radialSegments = 6; // Hexagonal cross-section is enough for thin tubes
+    const geometry = new THREE.TubeGeometry(curve, segments, radius, radialSegments, false);
 
-    // Dash pattern for type-only imports
-    let lineMaterial: THREE.Material;
-    if (importKind === 'type') {
-        lineMaterial = new THREE.LineDashedMaterial({
-            color,
-            opacity,
-            transparent: true,
-            dashSize: 0.2,
-            gapSize: 0.1,
-            linewidth: lineWidth
-        });
-    } else {
-        lineMaterial = new THREE.LineBasicMaterial({
-            color,
-            opacity,
-            transparent: true,
-            linewidth: lineWidth
-        });
+    // --- Vertex colors for gradient ---
+    const count = (geometry.attributes.position as any).count || (segments + 1) * (radialSegments + 1);
+    const colors = new Float32Array(count * 3);
+
+    // Red (Source) -> Green (Target)
+    const startColor = new THREE.Color(0xff0000); // Red
+    const endColor = new THREE.Color(0x00ff00);   // Green
+
+    const numRings = segments + 1;
+    const vertsPerRing = radialSegments + 1;
+
+    for (let i = 0; i < numRings; i++) {
+        const alpha = i / segments;
+        const r = startColor.r + (endColor.r - startColor.r) * alpha;
+        const g = startColor.g + (endColor.g - startColor.g) * alpha;
+        const b = startColor.b + (endColor.b - startColor.b) * alpha;
+
+        for (let j = 0; j < vertsPerRing; j++) {
+            const index = (i * vertsPerRing + j) * 3;
+            colors[index] = r;
+            colors[index + 1] = g;
+            colors[index + 2] = b;
+        }
     }
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
 
-    const line = new THREE.Line(geometry, lineMaterial);
-    if (importKind === 'type') {
-        line.computeLineDistances(); // Required for dashed lines
-    }
-    group.add(line);
+    // Creates dashed effect via texture repetition
+    // Higher repeat = more pulses
+    const texture = getFlowTexture().clone(); // Clone to allow independent offset animation
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(4, 1); // 4 pulses along the line
+
+    // Material
+    const material = new THREE.MeshBasicMaterial({
+        vertexColors: true, // Enable vertex gradients
+        map: texture,       // Texture modulates alpha/opacity
+        transparent: true,
+        opacity: opacity,
+        blending: THREE.NormalBlending, // Normal blending prevents white washout
+        depthWrite: false, // Don't occlude other objects
+        side: THREE.DoubleSide
+    });
+
+    const tube = new THREE.Mesh(geometry, material);
+    tube.name = 'tube';
+    group.add(tube);
 
     // Create arrow at the end
-    const arrowLength = 0.3;
-    const arrowWidth = 0.15;
+    const arrowLength = radius * 8;
+    const arrowWidth = radius * 4;
     const arrowGeometry = new THREE.ConeGeometry(arrowWidth, arrowLength, 8);
     const arrowMaterial = new THREE.MeshBasicMaterial({
-        color,
-        opacity,
-        transparent: true
+        color: 0x00ff00, // Green to match target end of gradient
+        transparent: true,
+        opacity: Math.min(1, opacity + 0.2), // Arrow slightly more opaque
+        depthWrite: false
     });
     const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
 
@@ -136,26 +198,17 @@ function createCurvedLineWithArrow(
     const tangent = curve.getTangent(1);
     arrow.position.copy(end);
     arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
-    // Move arrow slightly back along tangent so it ends at the target
-    arrow.position.sub(tangent.clone().multiplyScalar(arrowLength / 2));
+    // Move arrow back so tip touches target
+    arrow.position.sub(tangent.clone().multiplyScalar(arrowLength * 0.5));
     group.add(arrow);
 
-    // Add glow for circular dependencies
-    if (isCircular) {
-        const glowGeometry = new THREE.BufferGeometry().setFromPoints(points);
-        const glowMaterial = new THREE.LineBasicMaterial({
-            color: DEPENDENCY_COLORS.circular,
-            opacity: 0.3,
-            transparent: true,
-            linewidth: lineWidth + 2
-        });
-        const glowLine = new THREE.Line(glowGeometry, glowMaterial);
-        glowLine.name = 'glow';
-        group.add(glowLine);
-    }
-
     // Store animation data
-    group.userData.animationPhase = Math.random() * Math.PI * 2;
+    // Randomize initial phase so they don't all pulse in sync
+    group.userData.flowSpeed = isCircular ? 0.5 : 1.0;
+    texture.offset.x = Math.random() * 10;
+
+    // Store texture reference for animation
+    group.userData.texture = texture;
     group.userData.isCircular = isCircular;
 
     return group;
@@ -185,7 +238,6 @@ export class DependencyManager {
             return; // Skip if source or target not found
         }
 
-        // Calculate start/end positions with slight offset from object centers
         // Calculate start/end positions from object tops
         const start = sourceObj.mesh.position.clone();
         start.y += sourceObj.getHeight() / 2;
@@ -193,8 +245,6 @@ export class DependencyManager {
         const end = targetObj.mesh.position.clone();
         end.y += targetObj.getHeight() / 2;
 
-        // No need to offset by direction anymore as we arc from top
-        // But maybe a tiny vertical offset to not clip exactly with the surface
         start.y += 0.05;
         end.y += 0.05;
 
@@ -202,9 +252,9 @@ export class DependencyManager {
         const isCircular = data.isCircular ?? false;
         const importKind = data.importKind ?? 'value';
         const color = data.color ?? getDependencyColor(data.type, importKind, isCircular);
-        const opacity = data.opacity ?? (isCircular ? 0.9 : 0.7);
+        const opacity = data.opacity ?? (isCircular ? 0.8 : 0.6);
 
-        const lineGroup = createCurvedLineWithArrow(
+        const lineGroup = createCurvedTubeWithArrow(
             start, end, color, opacity, weight, isCircular, importKind
         );
 
@@ -284,6 +334,19 @@ export class DependencyManager {
     public remove(id: string): void {
         const dep = this.dependencies.get(id);
         if (dep) {
+            // Clean up meshes and materials
+            dep.line.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry.dispose();
+                    if (child.material instanceof THREE.Material) {
+                        child.material.dispose();
+                        // If we cloned the texture for this instance, dispose it
+                        if (child.material instanceof THREE.MeshBasicMaterial && child.material.map && child.material.map !== _flowTexture) {
+                            child.material.map.dispose();
+                        }
+                    }
+                }
+            });
             this.scene.remove(dep.line);
             this.dependencies.delete(id);
         }
@@ -297,13 +360,11 @@ export class DependencyManager {
             const isConnected = dep.source === objectId || dep.target === objectId;
             dep.line.visible = isConnected;
             if (isConnected) {
-                // Brighten connected dependencies
+                // Brighten/Opaquen connected dependencies
                 dep.line.children.forEach(child => {
-                    if ((child as THREE.Line).material) {
-                        const mat = (child as THREE.Line).material as THREE.LineBasicMaterial;
-                        if (child.name !== 'glow') {
-                            mat.opacity = 0.95;
-                        }
+                    if ((child as THREE.Mesh).material) {
+                        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+                        mat.opacity = 0.9;
                     }
                 });
             }
@@ -317,11 +378,10 @@ export class DependencyManager {
         this.dependencies.forEach(dep => {
             dep.line.visible = true;
             dep.line.children.forEach(child => {
-                if ((child as THREE.Line).material) {
-                    const mat = (child as THREE.Line).material as THREE.LineBasicMaterial;
-                    if (child.name !== 'glow') {
-                        mat.opacity = dep.isCircular ? 0.9 : 0.7;
-                    }
+                if ((child as THREE.Mesh).material) {
+                    const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+                    // Reset opacity logic
+                    mat.opacity = dep.isCircular ? 0.8 : 0.6;
                 }
             });
         });
@@ -340,18 +400,16 @@ export class DependencyManager {
     public update(deltaTime: number): void {
         this.animationTime += deltaTime;
 
-        // Pulse animation for circular dependencies
+        // Animate flow textures
         this.dependencies.forEach(dep => {
-            if (dep.isCircular && dep.line.visible) {
-                const phase = dep.line.userData.animationPhase || 0;
-                const pulse = 0.5 + 0.5 * Math.sin(this.animationTime * 3 + phase);
+            if (dep.line.visible) {
+                const texture = dep.line.userData.texture as THREE.Texture;
+                const speed = dep.line.userData.flowSpeed || 1.0;
 
-                dep.line.children.forEach(child => {
-                    if (child.name === 'glow') {
-                        const mat = (child as THREE.Line).material as THREE.LineBasicMaterial;
-                        mat.opacity = 0.2 + pulse * 0.4;
-                    }
-                });
+                // Move texture offset to create flow effect
+                if (texture) {
+                    texture.offset.x -= speed * deltaTime * 0.5; // Adjustable speed
+                }
             }
         });
     }
@@ -360,7 +418,7 @@ export class DependencyManager {
      * Clear all dependencies
      */
     public clear(): void {
-        this.dependencies.forEach(dep => this.scene.remove(dep.line));
+        this.dependencies.forEach(dep => this.remove(dep.id));
         this.dependencies.clear();
         this.objectStats.clear();
     }

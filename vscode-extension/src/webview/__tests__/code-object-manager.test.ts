@@ -4,7 +4,23 @@ import * as THREE from 'three';
 import { FileObject } from '../objects/file-object';
 import { SignObject } from '../objects/sign-object';
 
+
 // We rely on the __mocks__/three.ts automatically used by jest
+
+// Mock document for canvas actions
+(global as any).document = {
+    createElement: jest.fn().mockReturnValue({
+        getContext: jest.fn().mockReturnValue({
+            createLinearGradient: jest.fn().mockReturnValue({
+                addColorStop: jest.fn()
+            }),
+            fillRect: jest.fn()
+        }),
+        width: 0,
+        height: 0
+    })
+};
+
 
 jest.mock('../texture-factory', () => ({
     renderLabel: jest.fn(() => {

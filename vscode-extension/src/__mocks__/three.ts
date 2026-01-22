@@ -117,8 +117,10 @@ export class Scene extends Object3D { }
 
 export class BufferGeometry {
     public boundingBox: any = { max: { y: 1 }, min: { y: 0 } };
+    public attributes: any = {};
     setFromPoints() { return this; }
     computeBoundingBox() { return this.boundingBox; }
+    setAttribute(name: string, attribute: any) { this.attributes[name] = attribute; }
 }
 
 export class BoxGeometry extends BufferGeometry { }
@@ -130,12 +132,34 @@ export class LineBasicMaterial { }
 export class LineDashedMaterial { }
 export class SpriteMaterial { }
 
-export class CanvasTexture {
-    public needsUpdate = false;
+export class Texture {
+    public offset = new Vector3();
+    public repeat = new Vector3();
+    public wrapS = 1000;
+    public wrapT = 1000;
+    public anisotropy = 0;
     public minFilter = 0;
     public magFilter = 0;
-    public anisotropy = 0;
-    constructor(canvas: any) { }
+    public needsUpdate = false;
+
+    clone() {
+        const t = new Texture();
+        t.offset.copy(this.offset);
+        t.repeat.copy(this.repeat);
+        return t;
+    }
+    dispose() { }
+}
+
+export class CanvasTexture extends Texture {
+    constructor(canvas: any) { super(); }
+    clone() {
+        // Return a Texture instance that mimics CanvasTexture for testing
+        const t = new CanvasTexture(null);
+        t.offset.copy(this.offset);
+        t.repeat.copy(this.repeat);
+        return t;
+    }
 }
 
 export class Sprite extends Object3D {
@@ -151,9 +175,42 @@ export class QuadraticBezierCurve3 {
     getPoints() { return []; }
     getTangent() { return new Vector3(); }
 }
+export class CubicBezierCurve3 {
+    constructor(v0: any, v1: any, v2: any, v3: any) { }
+    getPoints() { return []; }
+    getTangent() { return new Vector3(); }
+}
 export class Line extends Object3D {
     constructor(geo?: any, mat?: any) { super(); }
     computeLineDistances() { }
 }
 
+
 export const DoubleSide = 2;
+export const RepeatWrapping = 1000;
+export const AdditiveBlending = 2;
+
+export class Color {
+    public r: number = 0;
+    public g: number = 0;
+    public b: number = 0;
+    constructor(r?: any, g?: any, b?: any) { }
+    set() { }
+    clone() { return new Color(this.r, this.g, this.b); }
+    offsetHSL() { return this; }
+}
+
+export class Float32BufferAttribute {
+    public count: number;
+    constructor(array: any, itemSize: any) {
+        this.count = array.length / itemSize;
+    }
+}
+
+export class TubeGeometry extends BufferGeometry {
+    constructor(path: any, tubularSegments: any, radius: any, radialSegments: any, closed: any) {
+        super();
+        // Mock default position attribute for count check
+        this.attributes.position = { count: (tubularSegments + 1) * (radialSegments + 1) };
+    }
+}
