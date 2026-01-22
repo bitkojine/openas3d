@@ -28,7 +28,10 @@ The current workspace will be opened as a navigable 3D world.
 
 ## About OpenAs3D
 
-<img width="1152" height="875" alt="image" src="https://github.com/user-attachments/assets/7ab38fee-8a3a-401e-ada9-e48fbd06ef6a" />
+<div align="left">
+  <img src="https://github.com/user-attachments/assets/1cde7f1d-a6f6-4a44-949e-b0d00d403b63" width="45%" />
+  <img src="https://github.com/user-attachments/assets/ef2e7200-a637-4dc1-a518-799d9a6e03c9" width="45%" />
+</div>
 
 This is an experiment in transforming real software systems into explorable 3D spaces.
 
