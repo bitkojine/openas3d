@@ -1,7 +1,5 @@
-/**
- * Syntax highlighting for code rendered on 3D objects.
- * VS Code dark theme inspired color palette.
- */
+import * as THREE from 'three';
+import { ThemeColors } from '../shared/types';
 
 /** Token with text and color */
 export interface SyntaxToken {
@@ -9,8 +7,8 @@ export interface SyntaxToken {
     color: string;
 }
 
-/** VS Code dark theme inspired color palette */
-export const SYNTAX_COLORS = {
+/** Standard VS Code Dark+ palette */
+export const DARK_SYNTAX = {
     background: '#1e1e1e',
     text: '#d4d4d4',
     keyword: '#569cd6',
@@ -21,9 +19,53 @@ export const SYNTAX_COLORS = {
     type: '#4ec9b0',
     lineNumber: '#858585',
     lineNumberBg: '#252526'
-} as const;
+};
 
-/** Keywords for various programming languages */
+/** Standard VS Code Light+ palette */
+export const LIGHT_SYNTAX = {
+    background: '#ffffff',
+    text: '#000000',
+    keyword: '#0000ff',
+    string: '#a31515',
+    comment: '#008000',
+    number: '#098658',
+    function: '#795e26',
+    type: '#2b91af',
+    lineNumber: '#2b91af',
+    lineNumberBg: '#f0f0f0'
+};
+
+/**
+ * Get syntax colors based on the current theme.
+ * Tries to infer "light" vs "dark" from editorBackground if checking fails.
+ */
+export function getSyntaxColors(theme?: ThemeColors) {
+    if (theme) {
+        // use theme.editorForeground for base text if available
+
+        try {
+            const bg = theme.editorBackground;
+            const col = new THREE.Color(bg);
+            const isLight = col.getHSL({ h: 0, s: 0, l: 0 }).l > 0.5;
+
+            const syntax = isLight ? LIGHT_SYNTAX : DARK_SYNTAX;
+
+            // Allow overriding base text color with theme's foreground
+            return {
+                ...syntax,
+                text: theme.editorForeground || syntax.text,
+                background: theme.editorBackground || syntax.background,
+                lineNumberBg: theme.editorBackground || syntax.lineNumberBg // blend it later
+            };
+        } catch (e) {
+            // fallback
+        }
+    }
+    return DARK_SYNTAX;
+}
+
+export const SYNTAX_COLORS = DARK_SYNTAX;
+
 const KEYWORDS = new Set([
     // JavaScript/TypeScript
     'const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', 'do',
@@ -35,32 +77,32 @@ const KEYWORDS = new Set([
     'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
     // Python
     'def', 'elif', 'except', 'with', 'raise', 'pass',
-    'and', 'or', 'not', 'in', 'is', 'lambda', 'global', 'nonlocal', 'True', 'False', 'None',
-    // Common types
-    'int', 'float', 'double', 'string', 'boolean', 'bool', 'char', 'byte', 'long'
+    'and', 'or', 'not', 'in', 'is', 'lambda', 'global', 'nonlocal', 'True', 'False', 'None'
 ]);
 
-/**
- * Tokenize a line of code for syntax highlighting
- */
-export function tokenizeLine(line: string): SyntaxToken[] {
+export function tokenizeLine(line: string, theme?: ThemeColors): SyntaxToken[] {
+    const colors = getSyntaxColors(theme);
     const tokens: SyntaxToken[] = [];
     let remaining = line;
     let inString: string | null = null;
 
-    while (remaining.length > 0) {
-        // Check for line comment
+    // Safety break to prevent infinite loops on weird inputs
+    let iterations = 0;
+    const MAX_ITER = 1000;
+
+    while (remaining.length > 0 && iterations < MAX_ITER) {
+        iterations++;
+
+        // 1. Comments
         if (!inString && (remaining.startsWith('//') || remaining.startsWith('#'))) {
-            tokens.push({ text: remaining, color: SYNTAX_COLORS.comment });
+            tokens.push({ text: remaining, color: colors.comment });
             break;
         }
 
-        // Check for string start/end
-        const stringMatch = remaining.match(/^(['"`])/);
-        if (stringMatch && !inString) {
-            inString = stringMatch[1];
-            // Find end of string
-            let endIdx = 1;
+        // 2. Strings
+        if (inString) {
+            let endIdx = 0;
+            // find close quote
             while (endIdx < remaining.length) {
                 if (remaining[endIdx] === inString && remaining[endIdx - 1] !== '\\') {
                     endIdx++;
@@ -68,42 +110,59 @@ export function tokenizeLine(line: string): SyntaxToken[] {
                 }
                 endIdx++;
             }
-            tokens.push({ text: remaining.slice(0, endIdx), color: SYNTAX_COLORS.string });
+            if (endIdx === 0 && remaining.length > 0) endIdx = remaining.length; // run to end if no close
+
+            tokens.push({ text: remaining.slice(0, endIdx), color: colors.string });
             remaining = remaining.slice(endIdx);
-            inString = null;
+            if (endIdx > 0 && remaining.length === 0) inString = null; // cleared
+            else inString = null; // closed
             continue;
         }
 
-        // Check for numbers
+        const stringMatch = remaining.match(/^(['"`])/);
+        if (stringMatch) {
+            inString = stringMatch[1];
+            tokens.push({ text: stringMatch[0], color: colors.string });
+            remaining = remaining.slice(1);
+            continue;
+        }
+
+        // 3. Numbers
         const numberMatch = remaining.match(/^(\d+\.?\d*)/);
-        if (numberMatch && (tokens.length === 0 || /\W$/.test(tokens[tokens.length - 1]?.text || ''))) {
-            tokens.push({ text: numberMatch[1], color: SYNTAX_COLORS.number });
+        if (numberMatch && (tokens.length === 0 || /[\W]$/.test(tokens[tokens.length - 1]?.text || ' '))) {
+            tokens.push({ text: numberMatch[1], color: colors.number });
             remaining = remaining.slice(numberMatch[1].length);
             continue;
         }
 
-        // Check for keywords and identifiers
+        // 4. Words (Keywords, Functions, Types, Text)
         const wordMatch = remaining.match(/^([a-zA-Z_$][a-zA-Z0-9_$]*)/);
         if (wordMatch) {
             const word = wordMatch[1];
+            let color = colors.text;
+
             if (KEYWORDS.has(word)) {
-                tokens.push({ text: word, color: SYNTAX_COLORS.keyword });
-            } else if (remaining.slice(word.length).match(/^\s*\(/)) {
-                // Followed by ( - likely a function call
-                tokens.push({ text: word, color: SYNTAX_COLORS.function });
-            } else if (word[0] === word[0].toUpperCase() && word.length > 1) {
-                // PascalCase - likely a type
-                tokens.push({ text: word, color: SYNTAX_COLORS.type });
-            } else {
-                tokens.push({ text: word, color: SYNTAX_COLORS.text });
+                color = colors.keyword;
+            } else if (/^[A-Z]/.test(word)) {
+                color = colors.type;
+            } else if (remaining.length > word.length && remaining[word.length] === '(') {
+                color = colors.function;
             }
+
+            tokens.push({ text: word, color });
             remaining = remaining.slice(word.length);
             continue;
         }
 
-        // Default: single character
-        tokens.push({ text: remaining[0], color: SYNTAX_COLORS.text });
+        // 5. Punctuation / Operators / Whitespace
+        // Consume one char
+        tokens.push({ text: remaining[0], color: colors.text });
         remaining = remaining.slice(1);
+    }
+
+    // clean up fallback
+    if (remaining.length > 0) {
+        tokens.push({ text: remaining, color: colors.text });
     }
 
     return tokens;

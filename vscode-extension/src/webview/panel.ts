@@ -58,9 +58,40 @@ export class WebviewPanelManager {
         );
 
         this.setupDescriptionWatcher();
+        this.setupConfigWatcher();
 
         this.isReady = false; // Reset readiness
         return this.panel;
+    }
+
+    private setupConfigWatcher() {
+        // Initial send
+        this.sendEditorConfig();
+
+        // Watch for changes
+        vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('editor.fontSize') ||
+                e.affectsConfiguration('editor.fontFamily') ||
+                e.affectsConfiguration('editor.lineHeight')) {
+                this.sendEditorConfig();
+            }
+        }, null, this.context.subscriptions);
+    }
+
+    private sendEditorConfig() {
+        const config = vscode.workspace.getConfiguration('editor');
+        const fontSize = config.get<number>('fontSize', 14);
+        const fontFamily = config.get<string>('fontFamily', 'Consolas, "Courier New", monospace');
+        const lineHeight = config.get<number>('lineHeight', 0); // 0 means automatic
+
+        this.panel?.webview.postMessage({
+            type: 'updateConfig',
+            data: {
+                fontSize,
+                fontFamily,
+                lineHeight: lineHeight || (fontSize * 1.5) // Fallback if 0
+            }
+        });
     }
 
     private setupDescriptionWatcher() {
@@ -75,15 +106,18 @@ export class WebviewPanelManager {
                 let summaryText = '';
                 let status: 'missing' | 'generated' | 'reconciled' = 'missing';
 
-                try {
-                    const doc = await vscode.workspace.openTextDocument(uri);
-                    content = doc.getText();
-                    const summaryMatch = content.match(/## Summary\s+([\s\S]*?)(\n##|$)/i);
-                    summaryText = summaryMatch ? summaryMatch[1].trim() : '';
-                    const statusMatch = content.match(/status:\s*(\w+)/i);
-                    status = statusMatch ? (statusMatch[1] as any) : 'missing';
-                } catch (e) {
-                    // File might not exist or be readable, handled below
+                const isDescriptionFile = uri.fsPath.endsWith('.md');
+                if (isDescriptionFile) {
+                    try {
+                        const doc = await vscode.workspace.openTextDocument(uri);
+                        content = doc.getText();
+                        const summaryMatch = content.match(/## Summary\s+([\s\S]*?)(\n##|$)/i);
+                        summaryText = summaryMatch ? summaryMatch[1].trim() : '';
+                        const statusMatch = content.match(/status:\s*(\w+)/i);
+                        status = statusMatch ? (statusMatch[1] as any) : 'missing';
+                    } catch (e) {
+                        // File might not exist or be readable
+                    }
                 }
 
                 if (!summaryText && this.panel) {

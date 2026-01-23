@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import { CodeEntityDTO } from '../types';
+import { ThemeColors } from '../../shared/types';
 
 export abstract class VisualObject implements CodeEntityDTO {
     public mesh: THREE.Mesh;
@@ -56,6 +57,35 @@ export abstract class VisualObject implements CodeEntityDTO {
      */
     public abstract update(data: any): void;
 
+    /**
+     * Update the object appearance based on the theme
+     */
+    public abstract updateTheme(theme: ThemeColors): void;
+
+    /**
+     * Animate the object (called per frame)
+     */
+    public animate(time: number, deltaTime: number): void {
+        // Optional override
+    }
+
+
+    /**
+     * Update label position (called every frame if needed, e.g. for billboarding)
+     */
+    public updateLabelPosition(camera: THREE.Camera): void {
+        const meshHeight = this.getHeight();
+        if (this.descriptionMesh) {
+            this.descriptionMesh.lookAt(camera.position);
+            const labelHeight = this.descriptionMesh.userData.height || 1;
+            const GAP = 0.5; // Default gap
+            this.descriptionMesh.position.set(
+                this.mesh.position.x,
+                this.mesh.position.y + meshHeight / 2 + GAP + labelHeight / 2,
+                this.mesh.position.z
+            );
+        }
+    }
     /**
      * Called when this object is selected
      */

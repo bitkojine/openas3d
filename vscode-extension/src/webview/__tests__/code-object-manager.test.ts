@@ -19,7 +19,11 @@ import { SignObject } from '../objects/sign-object';
             moveTo: jest.fn(),
             lineTo: jest.fn(),
             stroke: jest.fn(),
-            fillRect: jest.fn()
+            fillRect: jest.fn(),
+            strokeRect: jest.fn(),
+            strokeText: jest.fn(),
+            fillText: jest.fn(),
+            measureText: jest.fn().mockReturnValue({ width: 0 })
         }),
         width: 0,
         height: 0
@@ -31,11 +35,19 @@ jest.mock('../texture-factory', () => ({
     renderLabel: jest.fn(() => {
         const sprite = new THREE.Sprite();
         sprite.userData = { width: 1, height: 1 };
+        sprite.material = {
+            dispose: jest.fn(),
+            map: { dispose: jest.fn() }
+        } as any;
         return sprite;
     }),
     createTextSprite: jest.fn(() => {
         const sprite = new THREE.Sprite();
         sprite.userData = { width: 1, height: 1 };
+        sprite.material = {
+            dispose: jest.fn(),
+            map: { dispose: jest.fn() }
+        } as any;
         return sprite;
     }),
     generateTexture: jest.fn(() => new THREE.CanvasTexture({} as any)),
@@ -86,7 +98,7 @@ describe('CodeObjectManager', () => {
 
             // Verify the texture factory was actually called (catches the "shim" bug where we might return empty sprite without calling factory)
             const { createTextSprite } = require('../texture-factory');
-            expect(createTextSprite).toHaveBeenCalledWith('Hello Sign');
+            expect(createTextSprite).toHaveBeenCalledWith('Hello Sign', undefined);
         });
 
         it('should initialize labels for created objects', () => {

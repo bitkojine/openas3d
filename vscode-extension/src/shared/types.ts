@@ -55,3 +55,52 @@ export interface Position3D {
     y: number;
     z: number;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Theme Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ThemeColors {
+    background: string;
+    foreground: string;
+    editorBackground: string;
+    editorForeground: string;
+    activityBarBackground: string;
+    statusBarBackground: string;
+    selectionBackground: string;
+    skyTop: string;
+    skyHorizon: string;
+    skyGround: string;
+
+    // Environment
+    grassColor: string;
+    grassShadow: string;
+    grassHighlight: string;
+    mountainColor: string;
+    mountainSnow: string;
+    treeTrunk: string;
+    treeFoliage: string;
+
+    // Zone Visuals
+    fencePost: string;
+    fenceRail: string;
+    signPost: string;
+    signBoard: string;
+    signText: string;
+    pathway: string;
+
+    // Labels
+    labelColor: string;
+    labelBackground: string;
+    labelBorder: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Configuration Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface EditorConfig {
+    fontSize: number;
+    fontFamily: string;
+    lineHeight: number;
+}

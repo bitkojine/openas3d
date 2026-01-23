@@ -4,6 +4,7 @@
  */
 import * as THREE from 'three';
 import { CodeEntityDTO, DependencyDTO } from './types';
+import { ThemeColors } from '../shared/types';
 // DependencyManager removed
 import { VisualObject } from './objects/visual-object';
 import { FileObject } from './objects/file-object';
@@ -98,6 +99,11 @@ export class CodeObjectManager {
         if (typeof (visualObject as any).initializeLabel === 'function') {
             (visualObject as any).initializeLabel(this.scene);
         }
+
+        // Apply current theme if one exists
+        if (this.currentTheme) {
+            visualObject.updateTheme(this.currentTheme);
+        }
     }
 
     public applyDescription(filePath: string, description: { summary: string; status: string; lastUpdated?: string }): void {
@@ -111,6 +117,58 @@ export class CodeObjectManager {
             obj.metadata.descriptionStatus = description.status;
             obj.metadata.descriptionLastUpdated = description.lastUpdated;
         }
+    }
+
+    private updateQueue: VisualObject[] = [];
+    private isProcessingQueue = false;
+    private currentTheme?: ThemeColors;
+
+    public updateTheme(theme: ThemeColors): void {
+        this.currentTheme = theme;
+        // Clear existing queue to avoid double work
+        this.updateQueue = [];
+        this.objects.forEach(obj => {
+            // IMMEDIATE update for lightweight things (frames, labels)
+            // But texture generation (heavy) should be deferred?
+            // Current FileObject.updateTheme does both.
+            // Let's call updateTheme immediately for structural color changes,
+            // BUT FileObject needs to know to DEFER texture generation.
+            // Actually, let's just stagger the whole call. Frame color changes are cheap but 
+            // having them ripple is fine visually.
+            this.updateQueue.push(obj);
+        });
+
+        if (!this.isProcessingQueue) {
+            this.processUpdateQueue();
+        }
+    }
+
+    private processUpdateQueue(): void {
+        if (this.updateQueue.length === 0) {
+            this.isProcessingQueue = false;
+            return;
+        }
+
+        this.isProcessingQueue = true;
+        const startTime = performance.now();
+        const FRAME_BUDGET_MS = 10; // Target ~10ms per frame to leave room for rendering
+
+        while (this.updateQueue.length > 0) {
+            // Check budget
+            if (performance.now() - startTime > FRAME_BUDGET_MS) {
+                // Yield to next frame if budget exceeded
+                requestAnimationFrame(() => this.processUpdateQueue());
+                return;
+            }
+
+            const obj = this.updateQueue.shift();
+            if (obj && obj.mesh.parent && this.currentTheme) {
+                obj.updateTheme(this.currentTheme);
+            }
+        }
+
+        // Queue finished
+        this.isProcessingQueue = false;
     }
 
     public removeObject(id: string): void {
@@ -198,24 +256,16 @@ export class CodeObjectManager {
     public updateDescriptions(camera: THREE.Camera): void {
         this.objects.forEach(obj => {
             if (obj.descriptionMesh) {
-                obj.descriptionMesh.lookAt(camera.position);
-
-                // Recalculate position in case size changed or just to be safe
-                const meshHeight = obj.getHeight();
-                const labelHeight = obj.descriptionMesh.userData.height || 1;
-                // Check if it's sign or file for gap?? 
-                // VisualObject could have getGap()? 
-                // For now, assume consistent GAP logic or reuse obj specific logic?
-                // Actually, objects should probably handle their own billboarding if placement is complex.
-                // But CodeObjectManager traditionally did this.
-                // Let's stick to simple centering:
-
-                obj.descriptionMesh.position.set(
-                    obj.position.x,
-                    obj.mesh.position.y + meshHeight / 2 + this.GAP + labelHeight / 2,
-                    obj.position.z
-                );
+                if (obj.descriptionMesh) {
+                    obj.updateLabelPosition(camera);
+                }
             }
+
+            // Animate objects
+            // Use a fixed delta or calculate it if possible, but updateDescriptions is called in render loop
+            // We can approximate or just pass a time
+            const now = performance.now() / 1000;
+            obj.animate(now, 0.016); // Approx 60fps delta, or pass real delta if available
         });
     }
 
