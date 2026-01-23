@@ -7,6 +7,7 @@
  * - Distant terrain with biomes and hills
  */
 import * as THREE from 'three';
+import { ThemeColors } from '../shared/types';
 
 // ============================================================================
 // PROCEDURAL SKY
@@ -37,6 +38,7 @@ export class ProceduralSky {
                 groundColor: { value: new THREE.Color(0x7ab87a) },  // Green-ish below horizon
                 sunColor: { value: new THREE.Color(0xfffff0) },     // Warm white sun
                 sunGlowColor: { value: new THREE.Color(0xffcc66) }, // Golden glow
+                starIntensity: { value: 0.0 }                       // Stars visibility (0 to 1)
             },
             vertexShader: `
                 varying vec3 vWorldPosition;
@@ -54,6 +56,18 @@ export class ProceduralSky {
                 uniform vec3 groundColor;
                 uniform vec3 sunColor;
                 uniform vec3 sunGlowColor;
+                uniform float starIntensity;
+                
+                // Improved pseudo-random for stars (3D Based)
+                float random(vec3 scale, float seed) {
+                    return fract(sin(dot(gl_FragCoord.xyz + seed, scale)) * 43758.5453 + seed);
+                }
+                // Hash based on direction for static stars
+                float hash(vec3 p) {
+                    p = fract(p * 0.3183099 + .1);
+                    p *= 17.0;
+                    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+                }
                 
                 varying vec3 vWorldPosition;
                 
@@ -76,6 +90,22 @@ export class ProceduralSky {
                         skyColor = mix(horizonColor, groundColor, factor);
                     }
                     
+                    // Stars (only visible when starIntensity > 0)
+                    if (starIntensity > 0.0 && height > 0.1) {
+                         // Map direction to a grid to create stable stars
+                         vec3 dir = direction * 100.0; // Scale determines density
+                         float h = hash(floor(dir));
+                         
+                         // Threshold for stars
+                         if (h > 0.99) { // 1% chance per grid cell
+                             float brightness = (h - 0.99) * 100.0 * starIntensity;
+                             // Twinkle
+                             float twinkle = sin(length(dir) + starIntensity * 10.0);
+                             brightness *= (0.5 + 0.5 * twinkle);
+                             skyColor += vec3(brightness);
+                         }
+                    }
+                    
                     // Sun disc - simple like Minecraft
                     float sunAngle = dot(direction, sunDirection);
                     
@@ -94,12 +124,42 @@ export class ProceduralSky {
             `,
             side: THREE.BackSide,
             depthWrite: false,
+            fog: false // Important! Ensure sky is not obscured by scene fog
         });
 
         const skyDome = new THREE.Mesh(geometry, material);
         skyDome.frustumCulled = false; // Always render, even when camera is inside
 
         return skyDome;
+    }
+
+    public updateTheme(colors: any): void {
+        const mat = this.mesh.material as THREE.ShaderMaterial;
+        mat.uniforms.topColor.value.set(colors.skyTop);
+        mat.uniforms.horizonColor.value.set(colors.skyHorizon);
+        mat.uniforms.groundColor.value.set(colors.skyGround);
+        // Update sun colors based on theme too?
+        if (colors.skyTop === '#1e90ff') { // Dark/Night (Heuristic from previous implementation, logic will change in ThemeManager)
+            // Actually, we should check luminance of skyTop to panic-switch to night?
+            // For now, rely on ThemeManager sending a very dark skyTop.
+
+            // If skyTop is dark, show stars
+            const topCol = new THREE.Color(colors.skyTop);
+            if (topCol.getHSL({ h: 0, s: 0, l: 0 }).l < 0.5) {
+                mat.uniforms.sunColor.value.set(0xffffee);
+                mat.uniforms.sunGlowColor.value.set(0xffaa33);
+                mat.uniforms.starIntensity.value = 1.0;
+            } else {
+                mat.uniforms.sunColor.value.set(0xfffff0);
+                mat.uniforms.sunGlowColor.value.set(0xffcc66);
+                mat.uniforms.starIntensity.value = 0.0;
+            }
+        } else {
+            // Default check based on string value (legacy check until ThemeManager is fixed)
+            mat.uniforms.sunColor.value.set(0xfffff0);
+            mat.uniforms.sunGlowColor.value.set(0xffcc66);
+            mat.uniforms.starIntensity.value = 0.0;
+        }
     }
 }
 
@@ -216,6 +276,9 @@ export class CloudSystem {
  */
 export class DistantTerrain {
     public readonly group: THREE.Group;
+    private hillMaterial!: THREE.MeshLambertMaterial;
+    private mountainMaterial!: THREE.MeshLambertMaterial;
+    private treeMaterial!: THREE.MeshLambertMaterial;
 
     constructor() {
         this.group = new THREE.Group();
@@ -233,10 +296,12 @@ export class DistantTerrain {
      * Create gentle rolling hills around the park perimeter
      */
     private createHillRing(): void {
-        const hillMaterial = new THREE.MeshLambertMaterial({
+        this.hillMaterial = new THREE.MeshLambertMaterial({
             color: 0x4a7c23,
             flatShading: true,
         });
+
+        const hillMaterial = this.hillMaterial;
 
         // Create hills at various angles around the park
         const hillCount = 16;
@@ -281,10 +346,12 @@ export class DistantTerrain {
      * Create distant mountain range
      */
     private createMountains(): void {
-        const mountainMaterial = new THREE.MeshLambertMaterial({
+        this.mountainMaterial = new THREE.MeshLambertMaterial({
             color: 0x6b7d7d,
             flatShading: true,
         });
+
+        const mountainMaterial = this.mountainMaterial;
 
         const snowCapMaterial = new THREE.MeshLambertMaterial({
             color: 0xffffff,
@@ -352,10 +419,12 @@ export class DistantTerrain {
      * Create scattered forest patches
      */
     private createForestPatches(): void {
-        const treeMaterial = new THREE.MeshLambertMaterial({
+        this.treeMaterial = new THREE.MeshLambertMaterial({
             color: 0x2d5a1e,
             flatShading: true,
         });
+
+        const treeMaterial = this.treeMaterial;
 
         const trunkMaterial = new THREE.MeshLambertMaterial({
             color: 0x5d4037,
@@ -422,6 +491,22 @@ export class DistantTerrain {
 
         return treeGroup;
     }
+
+    public updateTheme(colors: ThemeColors): void {
+        if (this.hillMaterial) {
+            this.hillMaterial.color.set(colors.mountainColor); // Hills match mountains or separate? Maybe separate.
+            // Actually hills should be grassy.
+            this.hillMaterial.color.set(colors.grassColor);
+        }
+        if (this.mountainMaterial) {
+            this.mountainMaterial.color.set(colors.mountainColor);
+        }
+        if (this.treeMaterial) {
+            this.treeMaterial.color.set(colors.treeFoliage);
+        }
+        // Iterate children to find trunks?
+        // Or store trunk material reference
+    }
 }
 
 // ============================================================================
@@ -432,7 +517,7 @@ export class DistantTerrain {
  * Creates a seamlessly tiling grass texture
  * Uses modular wrapping to ensure elements near edges appear on both sides
  */
-export function createEnhancedGrassTexture(): THREE.Texture {
+export function createEnhancedGrassTexture(theme?: ThemeColors): THREE.Texture {
     const canvas = document.createElement('canvas');
     const size = 512;
     canvas.width = size;
@@ -440,18 +525,19 @@ export function createEnhancedGrassTexture(): THREE.Texture {
     const ctx = canvas.getContext('2d')!;
 
     // Solid base color (gradients don't tile well)
-    ctx.fillStyle = '#4a7c23';
+    // Use theme colors if provided, else default
+    const baseColor = theme ? theme.grassColor : '#4a7c23';
+    const shadowColor = theme ? theme.grassShadow : '#2d5a1e';
+    const highlightColor = theme ? theme.grassHighlight : '#7bc03e';
+
+    ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, size, size);
 
-    // Rich grass color palette
+    // Generate palette from base colors
     const grassColors = [
-        '#2d5a1e', // very dark green
-        '#3d6b1e', // dark green
-        '#4a7c23', // base green
-        '#5a8f2a', // medium green
-        '#6ba832', // light green
-        '#7bc03e', // bright green
-        '#558b2f', // olive green
+        shadowColor,
+        baseColor,
+        highlightColor,
     ];
 
     // Helper to draw at position with seamless wrapping
@@ -604,20 +690,26 @@ export class Environment {
     public update(deltaTime: number): void {
         this.clouds.update(deltaTime);
     }
+
+    public updateTheme(theme: ThemeColors): void {
+        this.sky.updateTheme(theme);
+        this.terrain.updateTheme(theme);
+    }
 }
 
 /**
  * Creates a seamless pathway texture (pavement/stone)
  */
-export function createPathwayTexture(): THREE.Texture {
+export function createPathwayTexture(theme?: ThemeColors): THREE.Texture {
     const canvas = document.createElement('canvas');
     const size = 512;
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d')!;
 
-    // Base color - neutral grey
-    ctx.fillStyle = '#666666';
+    // Base color - neutral grey or theme derived
+    const baseColor = theme ? theme.pathway : '#666666';
+    ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, size, size);
 
     // Add noise/texture
@@ -627,14 +719,22 @@ export function createPathwayTexture(): THREE.Texture {
         const radius = Math.random() * 2;
         const shade = Math.floor(Math.random() * 40 + 90); // 90-130
 
-        ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+        // If we have a theme, we want noise to be a variation of the base color, not just grey
+        if (theme) {
+            const baseHigh = new THREE.Color(theme.pathway).offsetHSL(0, 0, 0.1).getStyle();
+            ctx.fillStyle = baseHigh;
+            ctx.globalAlpha = 0.1;
+        } else {
+            ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+            ctx.globalAlpha = 1.0;
+        }
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fill();
     }
 
     // Add some larger flagstone-like patterns
-    ctx.strokeStyle = '#555555';
+    ctx.strokeStyle = theme ? new THREE.Color(theme.pathway).offsetHSL(0, 0, -0.1).getStyle() : '#555555';
     ctx.lineWidth = 2;
     // ... simple geometric pattern or just noise is fine for now
     // Let's stick to a nice asphalt/gravel noise

@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { ZoneDTO } from '../core/domain/zone';
 import { createEnhancedGrassTexture, createPathwayTexture } from './environment';
+import { ThemeColors } from '../shared/types';
 export { ZoneDTO };
 
 /**
@@ -369,7 +370,7 @@ export function addZoneVisuals(scene: THREE.Scene, zones: ZoneDTO[]): THREE.Grou
 /**
  * Create a simple paved foundation for the park area
  */
-export function createParkFoundation(zones: ZoneDTO[]): THREE.Mesh | null {
+export function createParkFoundation(zones: ZoneDTO[], theme?: ThemeColors): THREE.Mesh | null {
     if (zones.length === 0) return null;
 
     // Calculate bounds of entire park
@@ -389,7 +390,7 @@ export function createParkFoundation(zones: ZoneDTO[]): THREE.Mesh | null {
     const centerZ = (minZ + maxZ) / 2;
 
     const geometry = new THREE.PlaneGeometry(width, height);
-    const texture = createPathwayTexture();
+    const texture = createPathwayTexture(theme);
 
     // Adjust texture repeat based on size
     texture.repeat.set(width / 10, height / 10);

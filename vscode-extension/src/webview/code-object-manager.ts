@@ -4,6 +4,7 @@
  */
 import * as THREE from 'three';
 import { CodeEntityDTO, DependencyDTO } from './types';
+import { ThemeColors } from '../shared/types';
 // DependencyManager removed
 import { VisualObject } from './objects/visual-object';
 import { FileObject } from './objects/file-object';
@@ -111,6 +112,55 @@ export class CodeObjectManager {
             obj.metadata.descriptionStatus = description.status;
             obj.metadata.descriptionLastUpdated = description.lastUpdated;
         }
+    }
+
+    private updateQueue: VisualObject[] = [];
+    private isProcessingQueue = false;
+    private currentTheme?: ThemeColors;
+
+    public updateTheme(theme: ThemeColors): void {
+        this.currentTheme = theme;
+        // Clear existing queue to avoid double work
+        this.updateQueue = [];
+        this.objects.forEach(obj => {
+            // IMMEDIATE update for lightweight things (frames, labels)
+            // But texture generation (heavy) should be deferred?
+            // Current FileObject.updateTheme does both.
+            // Let's call updateTheme immediately for structural color changes,
+            // BUT FileObject needs to know to DEFER texture generation.
+            // Actually, let's just stagger the whole call. Frame color changes are cheap but 
+            // having them ripple is fine visually.
+            this.updateQueue.push(obj);
+        });
+
+        if (!this.isProcessingQueue) {
+            this.processUpdateQueue();
+        }
+    }
+
+    private processUpdateQueue(): void {
+        if (this.updateQueue.length === 0) {
+            this.isProcessingQueue = false;
+            return;
+        }
+
+        this.isProcessingQueue = true;
+
+        // Process a batch
+        const BATCH_SIZE = 2;
+        const batch = this.updateQueue.splice(0, BATCH_SIZE);
+
+        batch.forEach(obj => {
+            if (obj.mesh.parent && this.currentTheme) { // Only update if still in scene
+                obj.updateTheme(this.currentTheme);
+            }
+        });
+
+        // Schedule next batch
+        // Use requestAnimationFrame if available or setTimeout
+        setTimeout(() => {
+            this.processUpdateQueue();
+        }, 16); // ~60fps target
     }
 
     public removeObject(id: string): void {

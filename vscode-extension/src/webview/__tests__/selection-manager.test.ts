@@ -1,5 +1,6 @@
 
 import { SelectionManager } from '../selection-manager';
+import { ThemeColors } from '../../shared/types';
 import * as THREE from 'three';
 import { VisualObject } from '../objects/visual-object';
 
@@ -12,6 +13,7 @@ class MockVisualObject extends VisualObject {
         );
     }
     public update(data: any): void { }
+    public updateTheme(theme: ThemeColors): void { }
 }
 
 describe('SelectionManager', () => {

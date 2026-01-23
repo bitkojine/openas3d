@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import { CodeEntityDTO } from '../types';
+import { ThemeColors } from '../../shared/types';
 
 export abstract class VisualObject implements CodeEntityDTO {
     public mesh: THREE.Mesh;
@@ -55,6 +56,12 @@ export abstract class VisualObject implements CodeEntityDTO {
      * Update the object with new data (e.g. from file change)
      */
     public abstract update(data: any): void;
+
+    /**
+     * Update the object appearance based on the theme
+     */
+    public abstract updateTheme(theme: ThemeColors): void;
+
 
     /**
      * Called when this object is selected
