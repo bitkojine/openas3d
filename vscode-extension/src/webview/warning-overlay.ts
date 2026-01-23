@@ -42,6 +42,9 @@ export class WarningOverlay {
             z-index: 1000;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 13px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
         `;
 
         // Toggle button (always visible)
@@ -76,9 +79,11 @@ export class WarningOverlay {
             border-radius: 8px;
             margin-bottom: 8px;
             max-height: 300px;
+            max-width: 600px;
             overflow-y: auto;
             display: none;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            word-break: break-word;
         `;
 
         // Warnings list inside panel
@@ -215,6 +220,7 @@ export class WarningOverlay {
                     cursor: pointer;
                     transition: background 0.15s ease;
                     border-left: 3px solid transparent;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
                 `;
                 item.onmouseenter = () => {
                     item.style.background = 'rgba(255, 255, 255, 0.05)';
@@ -230,8 +236,45 @@ export class WarningOverlay {
                     }
                 };
 
+                // Rich content details
+                let details = '';
+
+                // Add cycle information if available
+                if (warning.cyclePath && warning.cyclePath.length > 0) {
+                    const cycleSteps = warning.cyclePath.map(id => {
+                        // Extract filename from IDs (assuming ID is path for now, or simplify)
+                        return id.split('/').pop() || id;
+                    }).join(' <span style="color: rgba(255,255,255,0.4)">→</span> ');
+                    details += `
+                        <div style="margin-top: 4px; padding: 4px; background: rgba(0,0,0,0.3); border-radius: 4px; font-family: monospace; font-size: 11px; overflow-x: auto;">
+                            🔄 Cycle: ${cycleSteps}
+                        </div>
+                    `;
+                }
+
+                // Add rule name badge
+                const ruleBadge = warning.ruleName ?
+                    `<span style="
+                        display: inline-block;
+                        background: rgba(255,255,255,0.1); 
+                        padding: 1px 4px; 
+                        border-radius: 3px; 
+                        font-size: 10px; 
+                        margin-right: 6px; 
+                        opacity: 0.8;
+                    ">${formatMessage(warning.ruleName)}</span>` : '';
+
+                // Clean message (remove rule name prefix if it was added in analyzer)
+                let message = warning.message;
+                if (warning.ruleName && message.startsWith(warning.ruleName + ':')) {
+                    message = message.substring(warning.ruleName.length + 1).trim();
+                }
+
                 item.innerHTML = `
-                    <div style="font-size: 12px; line-height: 1.4;">${escapeHtml(warning.message)}</div>
+                    <div style="font-size: 12px; line-height: 1.4;">
+                        <div style="margin-bottom: 2px;">${ruleBadge}${formatMessage(message)}</div>
+                        ${details}
+                    </div>
                 `;
 
                 this.warningsList.appendChild(item);
@@ -257,10 +300,22 @@ export class WarningOverlay {
 /**
  * Escape HTML special characters
  */
-function escapeHtml(text: string): string {
-    return text
+function formatMessage(text: string): string {
+    const escaped = text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+
+    // Replace backticks with code tags
+    return escaped.replace(/`([^`]+)`/g, (_match, code) => {
+        return `<span style="
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 0.9em;
+            color: #E2E8F0;
+        ">${code}</span>`;
+    });
 }

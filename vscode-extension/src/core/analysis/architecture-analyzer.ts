@@ -226,16 +226,22 @@ export async function analyzeArchitecture(
             if (!sourceId) continue; // Skip if we don't track this file
 
             const relatedIds: string[] = [];
+            let type: WarningType = 'unknown';
+            let severity: WarningSeverity = 'medium';
+            let cyclePath: string[] | undefined;
+            let targetId: string | undefined;
+
             if (violation.to) {
                 const targetAbsPath = path.isAbsolute(violation.to)
                     ? violation.to
                     : path.resolve(effectiveBaseDir, violation.to);
-                const targetId = fileIdMap.get(targetAbsPath);
+                targetId = fileIdMap.get(targetAbsPath);
                 if (targetId) relatedIds.push(targetId);
             }
 
             if (violation.cycle) {
                 // For cycles, add all participants as related
+                cyclePath = [];
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 for (const step of violation.cycle) {
                     const stepSource = typeof step === 'string' ? step : step.name || step.source;
@@ -244,14 +250,14 @@ export async function analyzeArchitecture(
                         ? stepSource
                         : path.resolve(effectiveBaseDir, stepSource);
                     const stepId = fileIdMap.get(stepAbsPath);
-                    if (stepId && stepId !== sourceId && !relatedIds.includes(stepId)) {
-                        relatedIds.push(stepId);
+                    if (stepId) {
+                        cyclePath.push(stepId);
+                        if (stepId !== sourceId && !relatedIds.includes(stepId)) {
+                            relatedIds.push(stepId);
+                        }
                     }
                 }
             }
-
-            let type: WarningType = 'unknown';
-            let severity: WarningSeverity = 'medium';
 
             if (violation.rule.name === 'no-circular') {
                 type = 'circular-dependency';
@@ -264,11 +270,33 @@ export async function analyzeArchitecture(
                 severity = 'high';
             }
 
+            // Construct a useful message
+            let message = violation.comment || '';
+
+            if (!message) {
+                if (type === 'layer-violation' && violation.to) {
+                    const toName = path.basename(violation.to);
+                    message = `Dependency on \`${toName}\` violates layer rules`;
+                } else if (type === 'circular-dependency') {
+                    message = `Circular dependency detected`;
+                } else if (type === 'orphan') {
+                    message = `Module has no incoming or outgoing dependencies`;
+                } else if (violation.to) {
+                    const toName = path.basename(violation.to);
+                    message = `Forbidden dependency on \`${toName}\``;
+                } else {
+                    message = violation.rule.name;
+                }
+            }
+
             warnings.push({
                 fileId: sourceId,
                 type,
-                message: violation.rule.name + ': ' + (violation.comment || 'Violation detected'),
+                message,
                 severity,
+                ruleName: violation.rule.name,
+                targetId,
+                cyclePath,
                 relatedFileIds: relatedIds
             });
         }

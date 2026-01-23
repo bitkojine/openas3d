@@ -11,6 +11,9 @@ export interface ArchitectureWarning {
     type: WarningType;
     message: string;
     severity: WarningSeverity;
+    ruleName?: string;
+    cyclePath?: string[]; // List of file IDs in the cycle
+    targetId?: string;    // Target file ID for edge violations
     relatedFileIds?: string[];
 }
 

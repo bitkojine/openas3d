@@ -37,8 +37,13 @@ describe('analyzeArchitecture', () => {
         expect(warnings[0]).toMatchObject({
             fileId: 'entry-id',
             type: 'circular-dependency',
-            severity: 'high'
+            severity: 'high',
+            ruleName: 'no-circular',
+            message: 'Circular dependency detected'
         });
+        expect(warnings[0].cyclePath).toBeDefined();
+        expect(warnings[0].cyclePath).toContain('entry-id');
+        expect(warnings[0].cyclePath).toContain('utils-id');
         expect(warnings[0].relatedFileIds).toContain('utils-id');
     });
 
@@ -51,8 +56,7 @@ describe('analyzeArchitecture', () => {
                     {
                         from: 'src/utils.ts',
                         to: 'src/api.ts',
-                        rule: { name: 'layer-no-utils-to-api' },
-                        comment: 'Utils cannot import API'
+                        rule: { name: 'layer-no-utils-to-api' }
                     }
                 ]
             }
@@ -65,7 +69,9 @@ describe('analyzeArchitecture', () => {
             fileId: 'utils-id',
             type: 'layer-violation',
             severity: 'high',
-            message: expect.stringContaining('Utils cannot import API')
+            ruleName: 'layer-no-utils-to-api',
+            targetId: 'api-id',
+            message: 'Dependency on `api.ts` violates layer rules'
         });
     });
 
