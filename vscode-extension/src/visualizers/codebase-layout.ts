@@ -95,7 +95,7 @@ export class CodebaseLayoutEngine {
      * Uses a weighted grid approach to pack zones tightly but safely.
      */
     private calculateZoneLayout(counts: { [zone: string]: number }) {
-        const PATH_GAP = 25.0; // Space between zones for pathways
+        const PATH_GAP = 24.0; // Wide pathways (approx 6m)
         const SPACING = 5.0;
 
         // Helper to get radius of a zone based on count

@@ -84,18 +84,18 @@ export class SceneManager {
     }
 
     private addGround(): void {
-        // Use pathway texture for the global ground
-        const pathTexture = createPathwayTexture();
+        // Global ground is grass (wilderness)
+        const grassTexture = createEnhancedGrassTexture();
 
         // Larger ground for expanded park (1200x1200 to extend beyond visible area)
         const groundGeometry = new THREE.PlaneGeometry(1200, 1200);
         const groundMaterial = new THREE.MeshLambertMaterial({
-            map: pathTexture,
+            map: grassTexture,
             transparent: false
         });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -0.01; // Slightly below 0 to avoid z-fighting
+        ground.position.y = -0.2; // Significantly below foundation to avoid z-fighting
         ground.receiveShadow = true;
         this.scene.add(ground);
     }

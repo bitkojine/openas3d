@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import { ZoneDTO } from '../core/domain/zone';
-import { createEnhancedGrassTexture } from './environment';
+import { createEnhancedGrassTexture, createPathwayTexture } from './environment';
 export { ZoneDTO };
 
 /**
@@ -364,6 +364,48 @@ export function addZoneVisuals(scene: THREE.Scene, zones: ZoneDTO[]): THREE.Grou
 
     scene.add(visualsGroup);
     return visualsGroup;
+}
+
+/**
+ * Create a simple paved foundation for the park area
+ */
+export function createParkFoundation(zones: ZoneDTO[]): THREE.Mesh | null {
+    if (zones.length === 0) return null;
+
+    // Calculate bounds of entire park
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    zones.forEach(z => {
+        minX = Math.min(minX, z.minX);
+        maxX = Math.max(maxX, z.maxX);
+        minZ = Math.min(minZ, z.minZ);
+        maxZ = Math.max(maxZ, z.maxZ);
+    });
+
+    // Add padding for outer pathway loop
+    const padding = 10;
+    const width = (maxX - minX) + padding * 2;
+    const height = (maxZ - minZ) + padding * 2;
+    const centerX = (minX + maxX) / 2;
+    const centerZ = (minZ + maxZ) / 2;
+
+    const geometry = new THREE.PlaneGeometry(width, height);
+    const texture = createPathwayTexture();
+
+    // Adjust texture repeat based on size
+    texture.repeat.set(width / 10, height / 10);
+
+    const material = new THREE.MeshLambertMaterial({
+        map: texture,
+        transparent: false
+    });
+
+    const foundation = new THREE.Mesh(geometry, material);
+    foundation.rotation.x = -Math.PI / 2;
+    foundation.position.set(centerX, -0.05, centerZ); // Between global grass (-0.2) and zones (0.02)
+    foundation.receiveShadow = true;
+    foundation.name = 'parkFoundation';
+
+    return foundation;
 }
 
 /**
