@@ -28,6 +28,7 @@ export class WarningOverlay {
     private panel: HTMLDivElement;
     private toggleButton: HTMLButtonElement;
     private warningsList: HTMLDivElement;
+    private copyButton: HTMLButtonElement;
     private isExpanded: boolean = false;
     private warnings: ArchitectureWarning[] = [];
     private onWarningClick?: (fileId: string) => void;
@@ -90,7 +91,58 @@ export class WarningOverlay {
         this.warningsList = document.createElement('div');
         this.warningsList.style.cssText = `
             padding: 8px 0;
+            max-height: 250px;
+            overflow-y: auto;
         `;
+
+        // Panel header with Copy button
+        const header = document.createElement('div');
+        header.style.cssText = `
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(40, 40, 40, 0.95);
+            border-radius: 8px 8px 0 0;
+        `;
+
+        const title = document.createElement('span');
+        title.style.cssText = `
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+        `;
+        title.textContent = 'Architecture Issues';
+
+        this.copyButton = document.createElement('button');
+        this.copyButton.innerHTML = '📋 Copy';
+        this.copyButton.title = 'Copy warnings to clipboard';
+        this.copyButton.style.cssText = `
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            padding: 4px 8px;
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        `;
+        this.copyButton.onmouseenter = () => {
+            this.copyButton.style.background = 'rgba(255, 255, 255, 0.2)';
+            this.copyButton.style.color = 'white';
+        };
+        this.copyButton.onmouseleave = () => {
+            this.copyButton.style.background = 'rgba(255, 255, 255, 0.1)';
+            this.copyButton.style.color = 'rgba(255, 255, 255, 0.8)';
+        };
+        this.copyButton.onclick = () => this.copyWarnings();
+
+        header.appendChild(title);
+        header.appendChild(this.copyButton);
+        this.panel.appendChild(header);
         this.panel.appendChild(this.warningsList);
 
         this.container.appendChild(this.panel);
@@ -280,6 +332,70 @@ export class WarningOverlay {
                 this.warningsList.appendChild(item);
             });
         });
+    }
+
+    /**
+     * Copy warnings to clipboard
+     */
+    private async copyWarnings(): Promise<void> {
+        if (this.warnings.length === 0) return;
+
+        const lines: string[] = [];
+        lines.push('# Architecture Warnings\n');
+
+        const bySeverity = {
+            high: this.warnings.filter(w => w.severity === 'high'),
+            medium: this.warnings.filter(w => w.severity === 'medium'),
+            low: this.warnings.filter(w => w.severity === 'low')
+        };
+
+        // Format each group
+        (['high', 'medium', 'low'] as WarningSeverity[]).forEach(severity => {
+            const items = bySeverity[severity];
+            if (items.length === 0) return;
+
+            lines.push(`## ${SEVERITY_ICONS[severity]} ${severity.toUpperCase()} (${items.length})`);
+
+            items.forEach(w => {
+                let msg = w.message;
+                if (w.ruleName && msg.startsWith(w.ruleName + ':')) {
+                    msg = msg.substring(w.ruleName.length + 1).trim();
+                }
+
+                lines.push(`- **${w.ruleName || 'Warning'}**: ${msg}`);
+
+                if (w.cyclePath && w.cyclePath.length > 0) {
+                    const path = w.cyclePath.map(p => p.split('/').pop() || p).join(' -> ');
+                    lines.push(`  - Cycle: ${path}`);
+                }
+            });
+            lines.push('');
+        });
+
+        const text = lines.join('\n');
+
+        try {
+            await navigator.clipboard.writeText(text);
+
+            // Temporary feedback
+            const originalText = this.copyButton.innerHTML;
+            this.copyButton.innerHTML = '✅ Copied!';
+            this.copyButton.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+            this.copyButton.style.color = '#4ade80';
+
+            setTimeout(() => {
+                this.copyButton.innerHTML = originalText;
+                this.copyButton.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                this.copyButton.style.color = 'rgba(255, 255, 255, 0.8)';
+            }, 2000);
+
+        } catch (err) {
+            console.error('Failed to copy warnings:', err);
+            this.copyButton.innerHTML = '❌ Error';
+            setTimeout(() => {
+                this.copyButton.innerHTML = '📋 Copy';
+            }, 2000);
+        }
     }
 
     /**
