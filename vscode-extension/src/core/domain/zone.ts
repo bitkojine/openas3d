@@ -3,6 +3,8 @@
  * Used by both Extension (Layout) and Webview (Rendering).
  */
 
+export { ZoneDTO } from '../../shared/types';
+
 /**
  * Configuration for a Zone (static definition)
  */
@@ -106,16 +108,4 @@ export class Zone {
     }
 }
 
-/**
- * specialized DTO for serialization if needed, similar to old ZoneBounds
- */
-export interface ZoneDTO {
-    name: string;
-    displayName: string;
-    minX: number;
-    maxX: number;
-    minZ: number;
-    maxZ: number;
-    fileCount: number;
-    color: number;
-}
+

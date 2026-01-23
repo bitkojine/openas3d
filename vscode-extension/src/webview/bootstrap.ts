@@ -1,4 +1,5 @@
 import { World } from './world';
+import { ExtensionMessage } from '../shared/messages';
 
 // Initialize the world when the page loads
 let world: World;
@@ -55,9 +56,8 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // Handle messages from VSCode extension
-window.addEventListener('message', (event) => {
+window.addEventListener('message', (event: MessageEvent<ExtensionMessage>) => {
     const message = event.data;
-    // console.log('[Bootstrap] Received message:', message.type);
 
     if (!world) {
         console.error('[Bootstrap] World not initialized, dropping message:', message.type);

@@ -4,6 +4,7 @@ import { CodeObjectManager } from '../code-object-manager';
 import { CharacterController } from '../character-controller';
 import { SelectionManager } from '../selection-manager';
 import { DependencyManager } from '../dependency-manager';
+import { WebviewMessage, ExtensionMessage } from '../../shared/messages';
 
 export interface SceneSnapshot {
     objectCount: number;
@@ -205,13 +206,17 @@ export class TestBridge {
 
         // 3. Message Passing (Simulate interaction)
         if (this.vscode) {
-            this.vscode.postMessage({
+            this.postMessage({
                 type: 'openFiles',
                 data: {
                     codeFile: visualObject.filePath
                 }
             });
         }
+    }
+
+    private postMessage(message: WebviewMessage): void {
+        this.vscode?.postMessage(message);
     }
 
     private exposeToWindow() {
@@ -230,14 +235,14 @@ export class TestBridge {
         };
 
         // Listen for messages from the extension
-        window.addEventListener('message', async event => {
+        window.addEventListener('message', async (event: MessageEvent<ExtensionMessage>) => {
             const message = event.data;
 
             if (message.type === 'TEST_GET_SCENE_STATE') {
                 try {
                     const state = this.getSceneState();
                     if (this.vscode) {
-                        this.vscode.postMessage({
+                        this.postMessage({
                             type: 'TEST_SCENE_STATE',
                             data: state
                         });
@@ -247,25 +252,25 @@ export class TestBridge {
                 }
             } else if (message.type === 'TEST_SIMULATE_SELECTION') {
                 this.selectObject(message.data.id);
-                if (this.vscode) { this.vscode.postMessage({ type: 'TEST_SELECTION_DONE' }); }
+                if (this.vscode) { this.postMessage({ type: 'TEST_SELECTION_DONE' }); }
             } else if (message.type === 'TEST_SIMULATE_MOVE') {
                 this.simulateMove(message.data.x, message.data.z);
-                if (this.vscode) { this.vscode.postMessage({ type: 'TEST_MOVE_DONE' }); }
+                if (this.vscode) { this.postMessage({ type: 'TEST_MOVE_DONE' }); }
             } else if (message.type === 'TEST_SIMULATE_INPUT') {
-                if (message.data.kind === 'keydown') { this.simulateKeyDown(message.data.code); }
-                if (message.data.kind === 'keyup') { this.simulateKeyUp(message.data.code); }
+                if (message.data.kind === 'keydown' && message.data.code) { this.simulateKeyDown(message.data.code); }
+                if (message.data.kind === 'keyup' && message.data.code) { this.simulateKeyUp(message.data.code); }
                 if (message.data.kind === 'pointerdown') { this.simulatePointerDown(); }
 
-                if (this.vscode) { this.vscode.postMessage({ type: 'TEST_INPUT_DONE' }); }
+                if (this.vscode) { this.postMessage({ type: 'TEST_INPUT_DONE' }); }
             } else if (message.type === 'TEST_TELEPORT') {
                 this.teleport(message.data.x, message.data.y, message.data.z);
-                if (this.vscode) { this.vscode.postMessage({ type: 'TEST_TELEPORT_DONE' }); }
+                if (this.vscode) { this.postMessage({ type: 'TEST_TELEPORT_DONE' }); }
             } else if (message.type === 'TEST_LOOK_AT') {
                 await this.lookAt(message.data.x, message.data.y, message.data.z, message.data.duration);
-                if (this.vscode) { this.vscode.postMessage({ type: 'TEST_LOOK_AT_DONE' }); }
+                if (this.vscode) { this.postMessage({ type: 'TEST_LOOK_AT_DONE' }); }
             } else if (message.type === 'TEST_GET_POSITION') {
                 const pos = { x: this.character.position.x, y: this.character.position.y, z: this.character.position.z };
-                if (this.vscode) { this.vscode.postMessage({ type: 'TEST_POSITION', data: pos }); }
+                if (this.vscode) { this.postMessage({ type: 'TEST_POSITION', data: pos }); }
             }
         });
     }

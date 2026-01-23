@@ -5,6 +5,7 @@ import { CodebaseLayoutEngine } from './codebase-layout';
 import { CodeFile, DependencyEdge } from '../core/domain/code-file';
 import { FileWithZone } from '../core/analysis/types';
 import { analyzeArchitecture } from '../core/analysis/architecture-analyzer';
+import { ExtensionMessage } from '../shared/messages';
 
 // Re-export types for backward compatibility within the module if needed
 export { CodeFile, DependencyEdge };
@@ -25,6 +26,10 @@ export class CodebaseVisualizer {
         this.extensionPath = extensionPath;
     }
 
+    private postMessage(message: ExtensionMessage): void {
+        this.panel?.webview.postMessage(message);
+    }
+
     public async initialize(panel: vscode.WebviewPanel, data: { targetPath: string }): Promise<() => void> {
         this.panel = panel;
         this.fileIndex = 0;
@@ -32,7 +37,7 @@ export class CodebaseVisualizer {
         this.filesWithZones = [];
 
         // Clear immediately - UI shows instantly
-        this.panel.webview.postMessage({ type: 'clear' });
+        this.postMessage({ type: 'clear' });
 
         const analyzer = new CodebaseAnalyzer(data.targetPath);
 
@@ -47,7 +52,7 @@ export class CodebaseVisualizer {
                 this.layout.computeZoneBoundsFromCounts(this.fileZoneCounts);
                 const zoneBounds = this.layout.computeZoneBoundsFromCounts(this.fileZoneCounts);
 
-                this.panel?.webview.postMessage({
+                this.postMessage({
                     type: 'setZoneBounds',
                     data: zoneBounds
                 });
@@ -66,7 +71,7 @@ export class CodebaseVisualizer {
 
                     const pos = this.layout.getPositionForZone(zone, index);
 
-                    this.panel?.webview.postMessage({
+                    this.postMessage({
                         type: 'updateObjectPosition',
                         data: {
                             id: f.id,
@@ -75,7 +80,7 @@ export class CodebaseVisualizer {
                     });
                 });
 
-                this.panel?.webview.postMessage({ type: 'dependenciesComplete' });
+                this.postMessage({ type: 'dependenciesComplete' });
 
                 // Analyze architecture and send warnings
                 // Create map of absolute path -> file ID
@@ -83,13 +88,13 @@ export class CodebaseVisualizer {
                 this.filesWithZones.forEach(f => fileIdMap.set(f.filePath, f.id));
 
                 analyzeArchitecture(data.targetPath, fileIdMap, { extensionPath: this.extensionPath }).then(warnings => {
-                    this.panel?.webview.postMessage({
+                    this.postMessage({
                         type: 'setWarnings',
                         data: warnings
                     });
                 }).catch(err => {
                     console.error('[Architecture] Analysis failed:', err);
-                    this.panel?.webview.postMessage({
+                    this.postMessage({
                         type: 'architectureError',
                         data: { message: `Architecture analysis failed: ${err.message || err}` }
                     });
@@ -121,7 +126,7 @@ export class CodebaseVisualizer {
             zone: zoneName
         });
 
-        this.panel.webview.postMessage({
+        this.postMessage({
             type: 'addObject',
             data: {
                 id: file.id,
@@ -142,7 +147,7 @@ export class CodebaseVisualizer {
         if (!this.panel) { return; }
 
         edges.forEach(edge => {
-            this.panel!.webview.postMessage({
+            this.postMessage({
                 type: 'addDependency',
                 data: {
                     id: `${edge.source}-${edge.target}`,
