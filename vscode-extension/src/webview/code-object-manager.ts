@@ -8,7 +8,7 @@ import { CodeEntityDTO, DependencyDTO } from './types';
 import { VisualObject } from './objects/visual-object';
 import { FileObject } from './objects/file-object';
 import { SignObject } from './objects/sign-object';
-import { ArchitectureWarning, getWarningsByFile } from '../visualizers/architecture-analyzer';
+import { ArchitectureWarning, getWarningsByFile } from '../core/analysis';
 
 /** Data for adding a new object */
 export interface AddObjectData {
