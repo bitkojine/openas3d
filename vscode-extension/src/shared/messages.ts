@@ -9,20 +9,14 @@
  * - WebviewMessage: Messages sent FROM the Webview TO the Extension Host
  */
 
-import { ZoneDTO } from '../core/domain/zone';
-import { ArchitectureWarning } from '../core/analysis/types';
-import { ImportKind } from '../core/domain/code-entity';
+import { ZoneDTO, ArchitectureWarning, ImportKind, Position3D } from './types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Payload Types (shared data structures)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** 3D position for placement in the world */
-export interface Position3DPayload {
-    x: number;
-    y: number;
-    z: number;
-}
+export type Position3DPayload = Position3D;
 
 /** Size dimensions for objects */
 export interface SizePayload {

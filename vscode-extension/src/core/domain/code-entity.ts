@@ -8,14 +8,8 @@
  */
 export type CodeEntityType = 'file' | 'module' | 'class' | 'function' | 'sign';
 
-/**
- * Position in 3D space (pure data, no THREE dependency)
- */
-export interface Position3D {
-    x: number;
-    y: number;
-    z: number;
-}
+import { Position3D, ImportKind } from '../../shared/types';
+export { Position3D, ImportKind };
 
 /**
  * A code entity in the domain model (pure, serializable).
@@ -32,10 +26,7 @@ export interface CodeEntity {
     descriptionLastUpdated?: string;
 }
 
-/**
- * Import kind for visual distinction (shared between domain and rendering)
- */
-export type ImportKind = 'value' | 'type' | 'reexport';
+
 
 /**
  * A dependency relationship (pure, serializable)
