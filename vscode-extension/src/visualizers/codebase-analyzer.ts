@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
+// fs removed
 import { CodeFile, DependencyEdge } from '../core/domain/code-file';
 import { getLanguageFromExtension, isCodeLanguage } from '../utils/languageRegistry';
 
@@ -35,16 +35,18 @@ export class CodebaseAnalyzer {
         const processDirectory = async (dirPath: string): Promise<void> => {
             // console.log('[Analyzer] Processing dir:', dirPath);
             try {
-                const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+                const dirUri = vscode.Uri.file(dirPath);
+                // vscode.workspace.fs.readDirectory returns [name, type][]
+                const entries = await vscode.workspace.fs.readDirectory(dirUri);
 
-                for (const entry of entries) {
-                    const fullPath = path.join(dirPath, entry.name);
+                for (const [name, type] of entries) {
+                    const fullPath = path.join(dirPath, name);
 
-                    if (entry.isDirectory()) {
-                        if (!['node_modules', '.git', 'dist', 'build', 'out', '.vscode', '.3d-descriptions', '.vscode-test', 'bin', 'obj'].includes(entry.name)) {
+                    if (type === vscode.FileType.Directory) {
+                        if (!['node_modules', '.git', 'dist', 'build', 'out', '.vscode', '.3d-descriptions', '.vscode-test', 'bin', 'obj'].includes(name)) {
                             await processDirectory(fullPath);
                         }
-                    } else if (entry.isFile()) {
+                    } else if (type === vscode.FileType.File) {
                         const fileInfo = await this.analyzeFile(fullPath);
                         if (fileInfo) {
                             files.set(fileInfo.id, fileInfo);
@@ -159,13 +161,15 @@ export class CodebaseAnalyzer {
      */
     public async analyzeFile(filePath: string): Promise<CodeFile | null> {
         try {
-            const content = await fs.promises.readFile(filePath, 'utf8');
+            const fileUri = vscode.Uri.file(filePath);
+            const uint8Array = await vscode.workspace.fs.readFile(fileUri);
+            const content = new TextDecoder().decode(uint8Array);
 
             // Cache the line split to avoid duplicate operations
             const allLines = content.split('\n');
             const truncatedContent = allLines.slice(0, MAX_CONTENT_LINES).join('\n');
 
-            const stats = await fs.promises.stat(filePath);
+            const stats = await vscode.workspace.fs.stat(fileUri);
             const relativePath = path.relative(this.workspaceRoot, filePath);
             const ext = path.extname(filePath);
             const language = getLanguageFromExtension(ext);
@@ -189,7 +193,7 @@ export class CodebaseAnalyzer {
                 lines,
                 dependencies,
                 complexity,
-                lastModified: stats.mtime,
+                lastModified: new Date(stats.mtime), // stats.mtime is number (ms) in VSCode API
                 content: truncatedContent
             };
         } catch (error) {

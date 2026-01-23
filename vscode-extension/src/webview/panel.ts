@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
+// fs removed
 import { getLanguageDisplayName, getLanguageFromExtension } from '../utils/languageRegistry';
 import { generateWebviewHtml } from './webview-template';
 import { ExtensionMessage, WebviewMessage, isWebviewMessage } from '../shared/messages';
@@ -69,28 +69,36 @@ export class WebviewPanelManager {
         const pattern = new vscode.RelativePattern(vscode.workspace.workspaceFolders[0], '**/*');
         this.watcher = vscode.workspace.createFileSystemWatcher(pattern);
 
-        const updateDescription = (uri: vscode.Uri) => {
+        const updateDescription = async (uri: vscode.Uri) => {
             try {
                 let content = '';
                 let summaryText = '';
                 let status: 'missing' | 'generated' | 'reconciled' = 'missing';
 
-                if (fs.existsSync(uri.fsPath)) {
-                    content = fs.readFileSync(uri.fsPath, 'utf-8');
+                try {
+                    const doc = await vscode.workspace.openTextDocument(uri);
+                    content = doc.getText();
                     const summaryMatch = content.match(/## Summary\s+([\s\S]*?)(\n##|$)/i);
                     summaryText = summaryMatch ? summaryMatch[1].trim() : '';
                     const statusMatch = content.match(/status:\s*(\w+)/i);
                     status = statusMatch ? (statusMatch[1] as any) : 'missing';
+                } catch (e) {
+                    // File might not exist or be readable, handled below
                 }
 
                 if (!summaryText && this.panel) {
-                    const workspaceRoot = vscode.workspace.workspaceFolders![0].uri.fsPath;
+                    if (!vscode.workspace.workspaceFolders) return; // Guard
+                    // We need to resolve the code file that corresponds to this potential description file
+                    // The logic below originally assumed 'uri' was the description file.
+                    // Let's preserve logic: uri is the file trigger.
                     const filePath = uri.fsPath.replace(/\.md$/, '');
+                    const codeUri = vscode.Uri.file(filePath); // Construct URI from path
 
-                    if (fs.existsSync(filePath)) {
-                        const stats = fs.statSync(filePath);
+                    try {
+                        const stats = await vscode.workspace.fs.stat(codeUri);
                         const size = stats.size;
-                        const lastModified = stats.mtime.toLocaleDateString('lt-LT', { timeZone: 'Europe/Vilnius' });
+                        // mtime is number (ms since epoch)
+                        const lastModified = new Date(stats.mtime).toLocaleDateString('lt-LT', { timeZone: 'Europe/Vilnius' });
                         const ext = path.extname(filePath);
                         const language = getLanguageDisplayName(getLanguageFromExtension(ext)) || 'Unknown';
                         const complexity = size / 50;
@@ -104,7 +112,7 @@ export class WebviewPanelManager {
                         ].join('\n');
 
                         status = 'generated';
-                    } else {
+                    } catch (e) {
                         summaryText = 'No description available';
                     }
                 }
@@ -244,7 +252,10 @@ export class WebviewPanelManager {
         try {
             const codeUri = vscode.Uri.file(data.codeFile);
 
-            if (!fs.existsSync(codeUri.fsPath)) {
+            // Check existence using stat
+            try {
+                await vscode.workspace.fs.stat(codeUri);
+            } catch {
                 vscode.window.showWarningMessage(`File does not exist: ${data.codeFile}`);
                 return;
             }
@@ -253,10 +264,16 @@ export class WebviewPanelManager {
             await vscode.window.showTextDocument(codeDoc, { preview: false });
 
             const descUri = vscode.Uri.file(data.codeFile.endsWith('.md') ? data.codeFile : data.codeFile + '.md');
-            if (fs.existsSync(descUri.fsPath)) {
+
+            try {
+                await vscode.workspace.fs.stat(descUri);
+                // If stat succeeds, it exists
                 const descDoc = await vscode.workspace.openTextDocument(descUri);
                 await vscode.window.showTextDocument(descDoc, { preview: false });
+            } catch {
+                // Description file doesn't exist, ignore
             }
+
         } catch (err) {
             vscode.window.showErrorMessage(`Failed to open files: ${err}`);
         }
@@ -269,12 +286,16 @@ export class WebviewPanelManager {
         const text = await vscode.window.showInputBox({ prompt: 'Enter sign text (short message)' });
         if (!text) { return; }
 
-        const signsDir = path.join(workspaceFolder.uri.fsPath, 'signs');
-        fs.mkdirSync(signsDir, { recursive: true });
+        const signsDir = vscode.Uri.joinPath(workspaceFolder.uri, 'signs');
+        try {
+            await vscode.workspace.fs.createDirectory(signsDir);
+        } catch (e) {
+            // Include error handling if needed, but createDirectory succeeds if dir exists
+        }
 
         const timestamp = Date.now();
         const fileName = `sign-${timestamp}.md`;
-        const filePath = path.join(signsDir, fileName);
+        const fileUri = vscode.Uri.joinPath(signsDir, fileName);
 
         const content = `---
 status: missing
@@ -285,14 +306,15 @@ lastUpdated: ${new Date().toISOString()}
 ## Summary
 ${text}
 `;
-        fs.writeFileSync(filePath, content, { encoding: 'utf-8' });
+        const encoder = new TextEncoder();
+        await vscode.workspace.fs.writeFile(fileUri, encoder.encode(content));
 
         this.panel?.webview.postMessage({
             type: 'addObject',
             data: {
                 id: `sign-${timestamp}`,
                 type: 'sign',
-                filePath,
+                filePath: fileUri.fsPath, // Webview still needs path for internal logic, or does it need URI? visualizer uses fsPath usually.
                 position: data.position,
                 description: text,
                 color: 0xFFDD00
