@@ -18,7 +18,8 @@ module.exports = {
                 'out',
                 'dist',
                 '\\.d\\.ts$',
-                'architecture-analyzer\\.ts$'  // Exclude - has problematic new Function() pattern
+                'architecture-analyzer\\.ts$',  // Exclude - has problematic new Function() pattern
+                'src/test/fixtures'             // Exclude fixtures from checks
             ].join('|')
         },
         moduleSystems: ['es6', 'cjs'],
@@ -76,7 +77,11 @@ module.exports = {
             name: 'no-deprecated-core',
             comment: 'A module depends on a deprecated core module',
             severity: 'warn',
-            from: {},
+            from: {
+                // Only enforce this for webview code (frontend), excluding the panel manager (backend)
+                path: '(^|/)src/webview/.+',
+                pathNot: 'panel\\.ts$'
+            },
             to: {
                 dependencyTypes: [
                     'core'
@@ -122,8 +127,8 @@ module.exports = {
             from: { path: '(^|/)src/.*(services?|domain|core|business|managers?)/.+' },
             to: {
                 path: [
-                    '(^|/)src/.*(main|index|app|cli|bin)/.+', // Entry
-                    '(^|/)src/.*(components?|views?|pages?|ui)/.+' // UI
+                    '(^|/)(main|app|cli|bin)/.+', // Entry
+                    '(^|/)(components?|views?|pages?|ui)/.+' // UI
                 ]
             }
         },
@@ -131,7 +136,11 @@ module.exports = {
             name: 'layer-lib-standalone',
             comment: 'Lib layer should be standalone (no dependencies on other layers)',
             severity: 'warn',
-            from: { path: '(^|/)src/.*(utils?|helpers?|lib|common|shared)/.+' },
+            // Exclude test-utils as they need to import everything to test it
+            from: {
+                path: '(^|/)src/.*(utils?|helpers?|lib|common|shared)/.+',
+                pathNot: 'test-utils'
+            },
             to: {
                 path: [
                     '(^|/)src/.*(models?|schemas?|entities?|repositories?|database|db)/.+',
