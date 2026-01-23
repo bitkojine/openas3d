@@ -1,4 +1,4 @@
-import { ArchitectureWarning } from '../visualizers/architecture-analyzer';
+import { ArchitectureWarning } from '../core/analysis/types';
 import { VisualObject } from './objects/visual-object';
 import { FileObject } from './objects/file-object';
 
