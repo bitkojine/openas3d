@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { CodeFile } from './types';
+import { CodeFile } from '../core/domain/code-file';
 
 /**
  * Responsibility: Classifying files into architectural zones.

@@ -116,12 +116,4 @@ export class FileSystemHelper {
             throw new Error(`Failed to open file ${fileUri.fsPath}: ${error}`);
         }
     }
-
-    /**
-     * Get language ID for a file.
-     * @deprecated Use getLanguageFromExtension from languageRegistry.ts instead
-     */
-    public static getLanguageId(fileUri: vscode.Uri): string {
-        return getLanguageFromExtension(path.extname(fileUri.fsPath));
-    }
 }

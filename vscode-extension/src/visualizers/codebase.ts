@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { CodebaseAnalyzer } from './codebase-analyzer';
 import { CodebaseLayoutEngine } from './codebase-layout';
-import { CodeFile, DependencyEdge } from './types';
+import { CodeFile, DependencyEdge } from '../core/domain/code-file';
 import { FileWithZone } from '../core/analysis/types';
 import { analyzeArchitecture } from '../core/analysis/architecture-analyzer';
 

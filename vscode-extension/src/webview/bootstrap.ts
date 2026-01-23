@@ -26,7 +26,6 @@ window.addEventListener('DOMContentLoaded', () => {
         world = new World(vscode);
         // Expose globally for VSCode extension or debugging
         (window as any).world = world;
-        (window as any).worldRenderer = world; // Backwards compatibility for now
 
         // Enhance logging by wrapping console methods
         const originalLog = console.log;

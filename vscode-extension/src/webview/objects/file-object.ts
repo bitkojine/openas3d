@@ -3,7 +3,7 @@ import { VisualObject } from './visual-object';
 import { CodeEntityDTO } from '../types';
 import { getLanguageColor } from '../../utils/languageRegistry';
 import { createContentTexture, createTextSprite, createTextSpriteWithDeps, LabelDependencyStats } from '../texture-factory';
-import { ArchitectureWarning } from '../../visualizers/architecture-analyzer';
+import { ArchitectureWarning } from '../../core/analysis';
 
 export class FileObject extends VisualObject {
     // Configurable gap between box and label

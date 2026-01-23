@@ -1,4 +1,4 @@
-import { CodeFile } from './types';
+import { CodeFile } from '../core/domain/code-file';
 import { ZoneConfig, Zone, ZoneDTO } from '../core/domain/zone';
 import { ZoneClassifier } from './zone-classifier';
 
