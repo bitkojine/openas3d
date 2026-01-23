@@ -9,9 +9,9 @@
 import { ArchitectureWarning, WarningSeverity } from '../core/analysis/types';
 
 const SEVERITY_COLORS: Record<WarningSeverity, string> = {
-    high: '#ef4444',    // Red
-    medium: '#f97316',  // Orange
-    low: '#eab308'      // Yellow
+    high: 'var(--vscode-editorError-foreground)',
+    medium: 'var(--vscode-editorWarning-foreground)',
+    low: 'var(--vscode-editorInfo-foreground)'
 };
 
 const SEVERITY_ICONS: Record<WarningSeverity, string> = {
@@ -41,8 +41,9 @@ export class WarningOverlay {
             bottom: 20px;
             right: 20px;
             z-index: 1000;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 13px;
+            font-family: var(--vscode-font-family);
+            font-size: var(--vscode-font-size);
+            color: var(--vscode-editor-foreground);
             display: flex;
             flex-direction: column;
             align-items: flex-end;
@@ -51,39 +52,41 @@ export class WarningOverlay {
         // Toggle button (always visible)
         this.toggleButton = document.createElement('button');
         this.toggleButton.style.cssText = `
-            background: rgba(30, 30, 30, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 8px 14px;
-            color: white;
+            background: var(--vscode-notifications-background);
+            border: 1px solid var(--vscode-widget-border);
+            border-radius: 4px;
+            padding: 6px 10px;
+            color: var(--vscode-notifications-foreground);
             cursor: pointer;
             display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 13px;
+            font-family: inherit;
+            font-size: inherit;
             transition: all 0.2s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         `;
         this.toggleButton.onmouseenter = () => {
-            this.toggleButton.style.background = 'rgba(50, 50, 50, 0.95)';
+            this.toggleButton.style.boxShadow = '0 0 8px rgba(0,0,0,0.2)';
         };
         this.toggleButton.onmouseleave = () => {
-            this.toggleButton.style.background = 'rgba(30, 30, 30, 0.95)';
+            this.toggleButton.style.background = 'var(--vscode-notifications-background)';
         };
         this.toggleButton.onclick = () => this.toggle();
 
         // Expandable panel
         this.panel = document.createElement('div');
         this.panel.style.cssText = `
-            background: rgba(30, 30, 30, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
+            background: var(--vscode-notifications-background);
+            border: 1px solid var(--vscode-widget-border);
+            color: var(--vscode-notifications-foreground);
+            border-radius: 4px;
             margin-bottom: 8px;
             max-height: 300px;
             max-width: 600px;
             overflow-y: auto;
             display: none;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
             word-break: break-word;
         `;
 
@@ -101,16 +104,17 @@ export class WarningOverlay {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 16px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(40, 40, 40, 0.95);
-            border-radius: 8px 8px 0 0;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--vscode-widget-border);
+            background: var(--vscode-editor-background);
+            border-radius: 4px 4px 0 0;
+            opacity: 0.9;
         `;
 
         const title = document.createElement('span');
         title.style.cssText = `
             font-weight: 600;
-            color: rgba(255, 255, 255, 0.9);
+            color: var(--vscode-editor-foreground);
         `;
         title.textContent = 'Architecture Issues';
 
@@ -118,11 +122,11 @@ export class WarningOverlay {
         this.copyButton.innerHTML = '📋 Copy';
         this.copyButton.title = 'Copy warnings to clipboard';
         this.copyButton.style.cssText = `
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-            padding: 4px 8px;
-            color: rgba(255, 255, 255, 0.8);
+            background: var(--vscode-button-secondaryBackground);
+            border: 1px solid transparent;
+            border-radius: 2px;
+            padding: 2px 8px;
+            color: var(--vscode-button-secondaryForeground);
             cursor: pointer;
             font-size: 11px;
             transition: all 0.2s ease;
@@ -131,12 +135,12 @@ export class WarningOverlay {
             gap: 4px;
         `;
         this.copyButton.onmouseenter = () => {
-            this.copyButton.style.background = 'rgba(255, 255, 255, 0.2)';
-            this.copyButton.style.color = 'white';
+            this.copyButton.style.background = 'var(--vscode-button-secondaryHoverBackground)';
+            this.copyButton.style.color = 'var(--vscode-button-secondaryForeground)';
         };
         this.copyButton.onmouseleave = () => {
-            this.copyButton.style.background = 'rgba(255, 255, 255, 0.1)';
-            this.copyButton.style.color = 'rgba(255, 255, 255, 0.8)';
+            this.copyButton.style.background = 'var(--vscode-button-secondaryBackground)';
+            this.copyButton.style.color = 'var(--vscode-button-secondaryForeground)';
         };
         this.copyButton.onclick = () => this.copyWarnings();
 
@@ -190,7 +194,7 @@ export class WarningOverlay {
 
         if (total === 0) {
             this.toggleButton.innerHTML = `✅ <span>No Issues</span>`;
-            this.toggleButton.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+            this.toggleButton.style.borderColor = 'var(--vscode-debugIcon-startForeground)';
             return;
         }
 
@@ -203,7 +207,7 @@ export class WarningOverlay {
             badges += `<span style="background: ${SEVERITY_COLORS.medium}; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${summary.medium}</span>`;
         }
         if (summary.low > 0) {
-            badges += `<span style="background: ${SEVERITY_COLORS.low}; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${summary.low}</span>`;
+            badges += `<span style="background: ${SEVERITY_COLORS.low}; color: var(--vscode-editor-background); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${summary.low}</span>`;
         }
 
         const arrow = this.isExpanded ? '▼' : '▲';
@@ -231,7 +235,7 @@ export class WarningOverlay {
 
         if (this.warnings.length === 0) {
             this.warningsList.innerHTML = `
-                <div style="padding: 12px 16px; color: rgba(255, 255, 255, 0.7);">
+                <div style="padding: 12px 16px; color: var(--vscode-descriptionForeground);">
                     No architecture issues detected.
                 </div>
             `;
@@ -267,15 +271,15 @@ export class WarningOverlay {
             items.forEach(warning => {
                 const item = document.createElement('div');
                 item.style.cssText = `
-                    padding: 8px 16px;
-                    color: rgba(255, 255, 255, 0.9);
+                    padding: 8px 12px;
+                    color: var(--vscode-notifications-foreground);
                     cursor: pointer;
                     transition: background 0.15s ease;
                     border-left: 3px solid transparent;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                    border-bottom: 1px solid var(--vscode-tree-indentGuidesStroke);
                 `;
                 item.onmouseenter = () => {
-                    item.style.background = 'rgba(255, 255, 255, 0.05)';
+                    item.style.background = 'var(--vscode-list-hoverBackground)';
                     item.style.borderLeftColor = SEVERITY_COLORS[severity];
                 };
                 item.onmouseleave = () => {
@@ -298,7 +302,7 @@ export class WarningOverlay {
                         return id.split('/').pop() || id;
                     }).join(' <span style="color: rgba(255,255,255,0.4)">→</span> ');
                     details += `
-                        <div style="margin-top: 4px; padding: 4px; background: rgba(0,0,0,0.3); border-radius: 4px; font-family: monospace; font-size: 11px; overflow-x: auto;">
+                        <div style="margin-top: 4px; padding: 4px; background: var(--vscode-textBlockQuote-background); border-radius: 3px; font-family: var(--vscode-editor-font-family); font-size: 90%; overflow-x: auto;">
                             🔄 Cycle: ${cycleSteps}
                         </div>
                     `;
@@ -308,12 +312,13 @@ export class WarningOverlay {
                 const ruleBadge = warning.ruleName ?
                     `<span style="
                         display: inline-block;
-                        background: rgba(255,255,255,0.1); 
+                        background: var(--vscode-badge-background);
+                        color: var(--vscode-badge-foreground); 
                         padding: 1px 4px; 
                         border-radius: 3px; 
-                        font-size: 10px; 
+                        font-size: 90%; 
                         margin-right: 6px; 
-                        opacity: 0.8;
+                        opacity: 0.9;
                     ">${formatMessage(warning.ruleName)}</span>` : '';
 
                 // Clean message (remove rule name prefix if it was added in analyzer)
@@ -380,13 +385,13 @@ export class WarningOverlay {
             // Temporary feedback
             const originalText = this.copyButton.innerHTML;
             this.copyButton.innerHTML = '✅ Copied!';
-            this.copyButton.style.borderColor = 'rgba(34, 197, 94, 0.5)';
-            this.copyButton.style.color = '#4ade80';
+            this.copyButton.style.borderColor = 'var(--vscode-debugIcon-startForeground)';
+            this.copyButton.style.color = 'var(--vscode-debugIcon-startForeground)';
 
             setTimeout(() => {
                 this.copyButton.innerHTML = originalText;
-                this.copyButton.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                this.copyButton.style.color = 'rgba(255, 255, 255, 0.8)';
+                this.copyButton.style.borderColor = 'transparent';
+                this.copyButton.style.color = 'var(--vscode-button-secondaryForeground)';
             }, 2000);
 
         } catch (err) {
@@ -426,12 +431,12 @@ function formatMessage(text: string): string {
     // Replace backticks with code tags
     return escaped.replace(/`([^`]+)`/g, (_match, code) => {
         return `<span style="
-            font-family: 'SF Mono', Monaco, Consolas, monospace;
-            background: rgba(255, 255, 255, 0.15);
+            font-family: var(--vscode-editor-font-family);
+            background: var(--vscode-textBlockQuote-background);
             padding: 1px 4px;
             border-radius: 3px;
             font-size: 0.9em;
-            color: #E2E8F0;
+            color: var(--vscode-textBlockQuote-border);
         ">${code}</span>`;
     });
 }

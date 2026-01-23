@@ -129,10 +129,7 @@ function wrapLines(
 /**
  * Create a content texture with syntax highlighting and line numbers
  */
-/**
- * Create a content texture with syntax highlighting and line numbers
- * Now supports theming to match VSCode editor colors
- */
+
 /**
  * Create a content texture with syntax highlighting and line numbers
  * Now supports theming to match VSCode editor colors
@@ -253,7 +250,11 @@ export function createContentTexture(
     }
 
     // Truncation indicator
-    if (wrappedLines.length * lineHeight > canvasHeight - padding * 2 - 40 || lines.length >= maxLines) {
+    // Check if we have more lines than shown OR if the last shown line was wrapped and exceeds space
+    const renderedHeight = wrappedLines.length * lineHeight;
+    const availableHeight = canvasHeight - padding * 2;
+
+    if (lines.length > maxLines || renderedHeight > availableHeight) {
         const gradient = ctx.createLinearGradient(0, canvasHeight - 40, 0, canvasHeight);
         gradient.addColorStop(0, 'rgba(30, 30, 30, 0)');
         gradient.addColorStop(1, 'rgba(30, 30, 30, 1)');

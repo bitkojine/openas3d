@@ -19,7 +19,11 @@ import { SignObject } from '../objects/sign-object';
             moveTo: jest.fn(),
             lineTo: jest.fn(),
             stroke: jest.fn(),
-            fillRect: jest.fn()
+            fillRect: jest.fn(),
+            strokeRect: jest.fn(),
+            strokeText: jest.fn(),
+            fillText: jest.fn(),
+            measureText: jest.fn().mockReturnValue({ width: 0 })
         }),
         width: 0,
         height: 0

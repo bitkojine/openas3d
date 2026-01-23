@@ -99,6 +99,11 @@ export class CodeObjectManager {
         if (typeof (visualObject as any).initializeLabel === 'function') {
             (visualObject as any).initializeLabel(this.scene);
         }
+
+        // Apply current theme if one exists
+        if (this.currentTheme) {
+            visualObject.updateTheme(this.currentTheme);
+        }
     }
 
     public applyDescription(filePath: string, description: { summary: string; status: string; lastUpdated?: string }): void {
@@ -251,24 +256,16 @@ export class CodeObjectManager {
     public updateDescriptions(camera: THREE.Camera): void {
         this.objects.forEach(obj => {
             if (obj.descriptionMesh) {
-                obj.descriptionMesh.lookAt(camera.position);
-
-                // Recalculate position in case size changed or just to be safe
-                const meshHeight = obj.getHeight();
-                const labelHeight = obj.descriptionMesh.userData.height || 1;
-                // Check if it's sign or file for gap?? 
-                // VisualObject could have getGap()? 
-                // For now, assume consistent GAP logic or reuse obj specific logic?
-                // Actually, objects should probably handle their own billboarding if placement is complex.
-                // But CodeObjectManager traditionally did this.
-                // Let's stick to simple centering:
-
-                obj.descriptionMesh.position.set(
-                    obj.position.x,
-                    obj.mesh.position.y + meshHeight / 2 + this.GAP + labelHeight / 2,
-                    obj.position.z
-                );
+                if (obj.descriptionMesh) {
+                    obj.updateLabelPosition(camera);
+                }
             }
+
+            // Animate objects
+            // Use a fixed delta or calculate it if possible, but updateDescriptions is called in render loop
+            // We can approximate or just pass a time
+            const now = performance.now() / 1000;
+            obj.animate(now, 0.016); // Approx 60fps delta, or pass real delta if available
         });
     }
 

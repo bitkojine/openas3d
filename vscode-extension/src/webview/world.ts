@@ -290,7 +290,8 @@ export class World {
 
     /** Set zone bounds and create visual markers (signs and fences) */
     public setZoneBounds(zones: ZoneDTO[]): void {
-        this.zoneManager.updateZones(zones);
+        const currentTheme = this.themeManager.getTheme();
+        this.zoneManager.updateZones(zones, currentTheme);
     }
 
     /** Set architecture warnings to display in the overlay */

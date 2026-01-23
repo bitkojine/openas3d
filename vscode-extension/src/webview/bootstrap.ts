@@ -122,7 +122,7 @@ window.addEventListener('message', (event: MessageEvent<ExtensionMessage>) => {
             case 'perfUpdate':
                 const perfPanel = document.getElementById('perf-panel');
                 if (perfPanel) {
-                    perfPanel.textContent = message.data.report;
+                    perfPanel.innerText = message.data.report.replace(/\s*\|\s*/g, '\n');
                 }
                 break;
 

@@ -15,15 +15,15 @@ export class ZoneManager {
      * Set zone bounds and create visual markers (signs and fences).
      * Replaces any existing zone visuals.
      */
-    public updateZones(zones: ZoneDTO[]): void {
+    public updateZones(zones: ZoneDTO[], theme: ThemeColors): void {
         // Remove previous zone visuals if any
         removeZoneVisuals(this.scene);
 
         // Add new zone signs and fences
-        addZoneVisuals(this.scene, zones);
+        addZoneVisuals(this.scene, zones, theme);
 
         // Add Park Plaza Foundation (paved area connecting zones)
-        const foundation = createParkFoundation(zones);
+        const foundation = createParkFoundation(zones, theme);
         if (foundation) {
             this.scene.add(foundation);
         }

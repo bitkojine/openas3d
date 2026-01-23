@@ -106,15 +106,18 @@ export class WebviewPanelManager {
                 let summaryText = '';
                 let status: 'missing' | 'generated' | 'reconciled' = 'missing';
 
-                try {
-                    const doc = await vscode.workspace.openTextDocument(uri);
-                    content = doc.getText();
-                    const summaryMatch = content.match(/## Summary\s+([\s\S]*?)(\n##|$)/i);
-                    summaryText = summaryMatch ? summaryMatch[1].trim() : '';
-                    const statusMatch = content.match(/status:\s*(\w+)/i);
-                    status = statusMatch ? (statusMatch[1] as any) : 'missing';
-                } catch (e) {
-                    // File might not exist or be readable, handled below
+                const isDescriptionFile = uri.fsPath.endsWith('.md');
+                if (isDescriptionFile) {
+                    try {
+                        const doc = await vscode.workspace.openTextDocument(uri);
+                        content = doc.getText();
+                        const summaryMatch = content.match(/## Summary\s+([\s\S]*?)(\n##|$)/i);
+                        summaryText = summaryMatch ? summaryMatch[1].trim() : '';
+                        const statusMatch = content.match(/status:\s*(\w+)/i);
+                        status = statusMatch ? (statusMatch[1] as any) : 'missing';
+                    } catch (e) {
+                        // File might not exist or be readable
+                    }
                 }
 
                 if (!summaryText && this.panel) {

@@ -14,13 +14,9 @@ export { ZoneDTO };
 const SIGN_CONFIG = {
     postHeight: 2.5,
     postRadius: 0.08,
-    postColor: 0x5d4037,      // Brown wood
     boardWidth: 3.0,
     boardHeight: 0.8,
     boardDepth: 0.1,
-    boardColor: 0x8d6e63,     // Light wood
-    signBackground: '#2d1f14', // Dark brown - uniform for all signs
-    textColor: '#ffffff',      // White - high contrast
     fontSize: 48,
     fontFamily: 'Arial, sans-serif'
 } as const;
@@ -35,14 +31,12 @@ const FENCE_CONFIG = {
     railWidth: 0.1,
     postSpacing: 5.0,
     gapSize: 6.0,            // Gap for pathways
-    postColor: 0x6d4c41,     // Dark wood
-    railColor: 0x8d6e63      // Light wood
 } as const;
 
 /**
  * Create a zone sign with the zone name
  */
-export function createZoneSign(zone: ZoneDTO, side: 'north' | 'south' | 'east' | 'west'): THREE.Group {
+export function createZoneSign(zone: ZoneDTO, side: 'north' | 'south' | 'east' | 'west', theme: ThemeColors): THREE.Group {
     const group = new THREE.Group();
 
     // Wooden post
@@ -52,7 +46,7 @@ export function createZoneSign(zone: ZoneDTO, side: 'north' | 'south' | 'east' |
         SIGN_CONFIG.postHeight,
         8
     );
-    const postMaterial = new THREE.MeshLambertMaterial({ color: SIGN_CONFIG.postColor });
+    const postMaterial = new THREE.MeshLambertMaterial({ color: theme.signPost });
     const post = new THREE.Mesh(postGeometry, postMaterial);
     post.position.y = SIGN_CONFIG.postHeight / 2;
     post.castShadow = true;
@@ -67,14 +61,14 @@ export function createZoneSign(zone: ZoneDTO, side: 'north' | 'south' | 'east' |
     );
 
     // Create text texture for sign
-    const textTexture = createSignTexture(zone.displayName, zone.color);
+    const textTexture = createSignTexture(zone.displayName, theme);
     const boardMaterials = [
-        new THREE.MeshLambertMaterial({ color: SIGN_CONFIG.boardColor }), // right
-        new THREE.MeshLambertMaterial({ color: SIGN_CONFIG.boardColor }), // left
-        new THREE.MeshLambertMaterial({ color: SIGN_CONFIG.boardColor }), // top
-        new THREE.MeshLambertMaterial({ color: SIGN_CONFIG.boardColor }), // bottom
-        new THREE.MeshBasicMaterial({ map: textTexture }),                 // front
-        new THREE.MeshBasicMaterial({ map: textTexture })                  // back
+        new THREE.MeshLambertMaterial({ color: theme.signBoard }), // right
+        new THREE.MeshLambertMaterial({ color: theme.signBoard }), // left
+        new THREE.MeshLambertMaterial({ color: theme.signBoard }), // top
+        new THREE.MeshLambertMaterial({ color: theme.signBoard }), // bottom
+        new THREE.MeshBasicMaterial({ map: textTexture }),         // front
+        new THREE.MeshBasicMaterial({ map: textTexture })          // back
     ];
 
     const yPos = SIGN_CONFIG.postHeight - SIGN_CONFIG.boardHeight / 2 - 0.1;
@@ -127,7 +121,7 @@ export function createZoneSign(zone: ZoneDTO, side: 'north' | 'south' | 'east' |
 /**
  * Create texture with zone name text
  */
-function createSignTexture(text: string, _accentColor: number): THREE.Texture {
+function createSignTexture(text: string, theme: ThemeColors): THREE.Texture {
     const canvas = document.createElement('canvas');
     const width = 512;
     const height = 128;
@@ -136,16 +130,16 @@ function createSignTexture(text: string, _accentColor: number): THREE.Texture {
     const ctx = canvas.getContext('2d')!;
 
     // Uniform dark background for high contrast readability
-    ctx.fillStyle = SIGN_CONFIG.signBackground;
+    ctx.fillStyle = theme.signBoard;
     ctx.fillRect(0, 0, width, height);
 
     // Light border for visibility
-    ctx.strokeStyle = '#8b7355';
+    ctx.strokeStyle = theme.signPost; // Use post color for border
     ctx.lineWidth = 6;
     ctx.strokeRect(3, 3, width - 6, height - 6);
 
     // Text
-    ctx.fillStyle = SIGN_CONFIG.textColor;
+    ctx.fillStyle = theme.signText;
     ctx.font = `bold ${SIGN_CONFIG.fontSize}px ${SIGN_CONFIG.fontFamily}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -165,11 +159,11 @@ function createSignTexture(text: string, _accentColor: number): THREE.Texture {
 /**
  * Create fence segments around a zone boundary
  */
-export function createZoneFence(zone: ZoneDTO): THREE.Group {
+export function createZoneFence(zone: ZoneDTO, theme: ThemeColors): THREE.Group {
     const group = new THREE.Group();
 
-    const postMaterial = new THREE.MeshLambertMaterial({ color: FENCE_CONFIG.postColor });
-    const railMaterial = new THREE.MeshLambertMaterial({ color: FENCE_CONFIG.railColor });
+    const postMaterial = new THREE.MeshLambertMaterial({ color: theme.fencePost });
+    const railMaterial = new THREE.MeshLambertMaterial({ color: theme.fenceRail });
 
     // Create fence for each side with gaps for pathways
     createFenceSide(group, zone.minX, zone.minZ, zone.maxX, zone.minZ, postMaterial, railMaterial, 'horizontal');
@@ -320,7 +314,7 @@ function fillInterval(positions: Set<number>, start: number, end: number, spacin
 /**
  * Add all zone visual elements to the scene
  */
-export function addZoneVisuals(scene: THREE.Scene, zones: ZoneDTO[]): THREE.Group {
+export function addZoneVisuals(scene: THREE.Scene, zones: ZoneDTO[], theme: ThemeColors): THREE.Group {
     const visualsGroup = new THREE.Group();
     visualsGroup.name = 'zoneVisuals';
 
@@ -328,12 +322,12 @@ export function addZoneVisuals(scene: THREE.Scene, zones: ZoneDTO[]): THREE.Grou
         // Only add visuals for zones with files
         if (zone.fileCount > 0) {
             // Add signs for all 4 directions
-            visualsGroup.add(createZoneSign(zone, 'north'));
-            visualsGroup.add(createZoneSign(zone, 'south'));
-            visualsGroup.add(createZoneSign(zone, 'east'));
-            visualsGroup.add(createZoneSign(zone, 'west'));
+            visualsGroup.add(createZoneSign(zone, 'north', theme));
+            visualsGroup.add(createZoneSign(zone, 'south', theme));
+            visualsGroup.add(createZoneSign(zone, 'east', theme));
+            visualsGroup.add(createZoneSign(zone, 'west', theme));
 
-            const fence = createZoneFence(zone);
+            const fence = createZoneFence(zone, theme);
             visualsGroup.add(fence);
 
             // Add Grass Floor for the Zone
@@ -342,7 +336,7 @@ export function addZoneVisuals(scene: THREE.Scene, zones: ZoneDTO[]): THREE.Grou
 
             // Only create floor if zone has valid dimensions
             if (width > 0 && depth > 0) {
-                const grassTexture = createEnhancedGrassTexture();
+                const grassTexture = createEnhancedGrassTexture(theme);
                 // Adjust repeat based on size to keep scale consistent
                 grassTexture.repeat.set(width / 20, depth / 20);
 

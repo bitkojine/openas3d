@@ -11,14 +11,14 @@ import * as vscode from 'vscode';
 // - --vscode-editorWidget-background
 // - --vscode-editorWidget-border
 const STYLES = `
-body { margin:0; padding:0; overflow:hidden; background-color: var(--vscode-editor-background); color: var(--vscode-editor-foreground); font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+body { margin:0; padding:0; overflow:hidden; background-color: var(--vscode-editor-background); color: var(--vscode-editor-foreground); font-family: var(--vscode-font-family); user-select: none; }
 #container { width:100vw; height:100vh; position:relative; }
 #renderer { width:100%; height:100%; }
 
 /* Minimal Stats Bar */
 #stats-bar {
     position: absolute;
-    top: 15px;
+    top: 20px;
     left: 20px;
     z-index: 1000;
     display: flex;
@@ -30,13 +30,13 @@ body { margin:0; padding:0; overflow:hidden; background-color: var(--vscode-edit
     border-radius: 8px;
     border: 1px solid var(--vscode-editorWidget-border);
     color: var(--vscode-editor-foreground);
-    font-size: 11px;
-    font-family: 'Consolas', monospace;
+    font-size: 12px;
+    font-family: var(--vscode-editor-font-family);
     pointer-events: none;
     box-shadow: 0 4px 6px var(--vscode-widget-shadow);
 }
 #stats { color: var(--vscode-editor-foreground); }
-#version { opacity: 0.5; font-size: 10px; }
+#version { opacity: 0.5; font-size: 12px; }
 
 #loading { 
     position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); 
@@ -51,7 +51,7 @@ body { margin:0; padding:0; overflow:hidden; background-color: var(--vscode-edit
     position:absolute; bottom:20px; left:20px; 
     color: var(--vscode-descriptionForeground); 
     background: var(--vscode-editorWidget-background); 
-    padding:14px; border-radius:12px; font-size:11px; z-index:1000; 
+    padding:14px; border-radius:12px; font-size:12px; z-index:1000; 
     box-shadow:0 4px 16px var(--vscode-widget-shadow); 
     border:1px solid var(--vscode-editorWidget-border); 
     pointer-events: none;
@@ -62,9 +62,15 @@ body { margin:0; padding:0; overflow:hidden; background-color: var(--vscode-edit
     position:absolute; top:20px; right:20px; 
     background: var(--vscode-editorWidget-background); 
     color: var(--vscode-editor-foreground); 
-    font-size:10px; padding:6px; border-radius:4px; 
+    font-size: 12px; font-family: var(--vscode-editor-font-family);
+    padding: 6px 12px; border-radius: 8px;
     z-index:1001; pointer-events: none;
     border: 1px solid var(--vscode-editorWidget-border);
+    backdrop-filter: blur(4px);
+    box-shadow: 0 4px 6px var(--vscode-widget-shadow);
+    white-space: pre-wrap;
+    line-height: 1.4;
+    text-align: right;
 }
 `;
 
