@@ -42,12 +42,37 @@ export class CodebaseVisualizer {
             (edges) => {
                 this.addEdgesToScene(edges);
 
-                // Compute zone bounds from accumulated file counts (streaming mode)
+                // Compute FINAL layout from accumulated file counts
+                // This ensures zones are sized correctly based on actual content
+                this.layout.computeZoneBoundsFromCounts(this.fileZoneCounts);
                 const zoneBounds = this.layout.computeZoneBoundsFromCounts(this.fileZoneCounts);
 
                 this.panel?.webview.postMessage({
                     type: 'setZoneBounds',
                     data: zoneBounds
+                });
+
+                // RE-CALCULATE POSITIONS FOR ALL FILES
+                // Now that layout is final, we must update all file positions
+                // because zones may have shifted significantly
+                const zoneIndices: { [zone: string]: number } = {};
+
+                this.filesWithZones.forEach(f => {
+                    const zoneName = f.zone;
+                    const zone = this.layout.getZone(zoneName) || this.layout.getZone('core')!;
+
+                    if (!zoneIndices[zoneName]) zoneIndices[zoneName] = 0;
+                    const index = zoneIndices[zoneName]++;
+
+                    const pos = this.layout.getPositionForZone(zone, index);
+
+                    this.panel?.webview.postMessage({
+                        type: 'updateObjectPosition',
+                        data: {
+                            id: f.id,
+                            position: { x: pos.x, y: 0, z: pos.z }
+                        }
+                    });
                 });
 
                 this.panel?.webview.postMessage({ type: 'dependenciesComplete' });
@@ -89,7 +114,6 @@ export class CodebaseVisualizer {
         const zone = this.layout.getZone(zoneName) || this.layout.getZone('core')!;
         const pos2D = this.layout.getPositionForZone(zone, indexInZone);
 
-        // Track file with zone for architecture analysis
         // Track file with zone for architecture analysis
         this.filesWithZones.push({
             id: file.id,

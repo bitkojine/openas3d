@@ -605,3 +605,44 @@ export class Environment {
         this.clouds.update(deltaTime);
     }
 }
+
+/**
+ * Creates a seamless pathway texture (pavement/stone)
+ */
+export function createPathwayTexture(): THREE.Texture {
+    const canvas = document.createElement('canvas');
+    const size = 512;
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+
+    // Base color - neutral grey
+    ctx.fillStyle = '#666666';
+    ctx.fillRect(0, 0, size, size);
+
+    // Add noise/texture
+    for (let i = 0; i < 5000; i++) {
+        const x = Math.random() * size;
+        const y = Math.random() * size;
+        const radius = Math.random() * 2;
+        const shade = Math.floor(Math.random() * 40 + 90); // 90-130
+
+        ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Add some larger flagstone-like patterns
+    ctx.strokeStyle = '#555555';
+    ctx.lineWidth = 2;
+    // ... simple geometric pattern or just noise is fine for now
+    // Let's stick to a nice asphalt/gravel noise
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(100, 100); // Dense repeat for fine grain
+
+    return texture;
+}

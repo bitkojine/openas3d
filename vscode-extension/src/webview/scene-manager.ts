@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Environment, createEnhancedGrassTexture } from './environment';
+import { Environment, createEnhancedGrassTexture, createPathwayTexture } from './environment';
 
 export class SceneManager {
     public readonly scene: THREE.Scene;
@@ -84,7 +84,7 @@ export class SceneManager {
     }
 
     private addGround(): void {
-        // Use enhanced grass texture
+        // Global ground is grass (wilderness)
         const grassTexture = createEnhancedGrassTexture();
 
         // Larger ground for expanded park (1200x1200 to extend beyond visible area)
@@ -95,7 +95,7 @@ export class SceneManager {
         });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -0.01; // Slightly below 0 to avoid z-fighting
+        ground.position.y = -0.2; // Significantly below foundation to avoid z-fighting
         ground.receiveShadow = true;
         this.scene.add(ground);
     }

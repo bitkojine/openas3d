@@ -161,4 +161,32 @@ describe('DependencyManager', () => {
         // It should be 0 again (or minimal if lights/etc were there, but scene is empty in test)
         expect(scene.children.length).toBe(0);
     });
+
+    it('should update dependency lines when object moves', () => {
+        const objA = createMockObject('a', 0, 0, 0);
+        const objB = createMockObject('b', 10, 0, 0);
+        objects.set('a', objA);
+        objects.set('b', objB);
+
+        manager.add({
+            id: 'd1',
+            source: 'a',
+            target: 'b',
+            type: 'import'
+        }, objects);
+
+        // Move object A
+        objA.mesh.position.set(5, 5, 5);
+        objA.position.copy(objA.mesh.position);
+
+        // Update dependencies
+        manager.updateObjectPosition('a', objects);
+
+        // Check if dependency still exists
+        expect(manager.getDependencyCount()).toBe(1);
+
+        // We can't easily check the geometry vertices without deep inspection,
+        // but we can check that a group exists in the scene
+        expect(scene.children.length).toBe(1);
+    });
 });
