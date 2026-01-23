@@ -19,6 +19,11 @@ export class CodebaseVisualizer {
     private fileIndex = 0;
     private fileZoneCounts: { [zone: string]: number } = {};
     private filesWithZones: FileWithZone[] = [];
+    private extensionPath: string;
+
+    constructor(extensionPath: string) {
+        this.extensionPath = extensionPath;
+    }
 
     public async initialize(panel: vscode.WebviewPanel, data: { targetPath: string }): Promise<() => void> {
         this.panel = panel;
@@ -47,18 +52,21 @@ export class CodebaseVisualizer {
 
                 this.panel?.webview.postMessage({ type: 'dependenciesComplete' });
 
-                this.panel?.webview.postMessage({ type: 'dependenciesComplete' });
-
                 // Analyze architecture and send warnings
                 // Create map of absolute path -> file ID
                 const fileIdMap = new Map<string, string>();
                 this.filesWithZones.forEach(f => fileIdMap.set(f.filePath, f.id));
 
-                analyzeArchitecture(data.targetPath, fileIdMap).then(warnings => {
-                    console.log('[Architecture] Sending', warnings.length, 'warnings to webview');
+                analyzeArchitecture(data.targetPath, fileIdMap, { extensionPath: this.extensionPath }).then(warnings => {
                     this.panel?.webview.postMessage({
                         type: 'setWarnings',
                         data: warnings
+                    });
+                }).catch(err => {
+                    console.error('[Architecture] Analysis failed:', err);
+                    this.panel?.webview.postMessage({
+                        type: 'architectureError',
+                        data: { message: `Architecture analysis failed: ${err.message || err}` }
                     });
                 });
             }

@@ -19,7 +19,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Initialize core managers
     webviewPanelManager = new WebviewPanelManager(context, version);
-    const codebaseVisualizer = new CodebaseVisualizer();
+    const codebaseVisualizer = new CodebaseVisualizer(context.extensionPath);
     perf = new PerfTracker();
 
     // Initialize services

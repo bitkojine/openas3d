@@ -22,221 +22,287 @@ export { ArchitectureWarning, WarningSeverity, WarningType, FileWithZone, Archit
 export async function analyzeArchitecture(
     rootPath: string,
     fileIdMap: Map<string, string>, // Map absolute path -> file ID,
-    options: { cruiseOptions?: any, tsConfigPath?: string, cruiseFn?: any } = {}
+    options: { cruiseOptions?: any, tsConfigPath?: string, cruiseFn?: any, extensionPath?: string } = {}
 ): Promise<ArchitectureWarning[]> {
     const warnings: ArchitectureWarning[] = [];
 
-    try {
-        let cruiseOptions = options.cruiseOptions;
+    // 1. Locate Configuration Files
+    let configPath: string | null = null;
+    let searchDir = rootPath;
+    const fs = require('fs');
 
-        if (!cruiseOptions) {
-            // Debug: log the rootPath we're searching from
-            console.log('[Architecture] Searching for config, rootPath:', rootPath);
+    for (let i = 0; i < 5; i++) { // Search up to 5 levels
+        const candidate = path.join(searchDir, '.dependency-cruiser.cjs');
+        if (fs.existsSync(candidate)) {
+            configPath = candidate;
+            break;
+        }
+        searchDir = path.dirname(searchDir);
+    }
 
-            // Try to find .dependency-cruiser.cjs by walking up from rootPath
-            let configPath: string | null = null;
-            let searchDir = rootPath;
-            const fs = require('fs');
+    if (configPath) {
+        // config found
+    } else {
+        console.warn('[Architecture] No .dependency-cruiser.cjs found');
+    }
 
-            for (let i = 0; i < 5; i++) { // Search up to 5 levels
-                const candidate = path.join(searchDir, '.dependency-cruiser.cjs');
-                console.log('[Architecture] Checking:', candidate);
-                if (fs.existsSync(candidate)) {
-                    configPath = candidate;
-                    break;
-                }
-                searchDir = path.dirname(searchDir);
-            }
+    // Find tsconfig.json
+    let tsConfigPath = options.tsConfigPath;
+    let scanPath = rootPath; // Default to rootPath
 
-            if (configPath) {
-                try {
-                    // Use native Node.js require to bypass Webpack's bundled require
-                    // eslint-disable-next-line @typescript-eslint/no-var-requires
-                    const Module = require('module');
-                    const nativeRequire = Module.createRequire(__filename);
-                    const config = nativeRequire(configPath);
-                    // Merge options and forbidden rules into cruiseOptions
-                    cruiseOptions = {
-                        ...(config.options || {}),
-                        ruleSet: {
-                            forbidden: config.forbidden || []
-                        }
-                    };
-                    console.log('[Architecture] Loaded config from:', configPath);
-                } catch (e) {
-                    console.warn('[Architecture] Could not load .dependency-cruiser.cjs:', e);
-                    cruiseOptions = {};
-                }
-            } else {
-                console.warn('[Architecture] No .dependency-cruiser.cjs found, using default options');
-                cruiseOptions = {};
+    if (!tsConfigPath) {
+        // Check in common locations - prefer locations with both tsconfig and src
+        const candidates = [
+            { tsconfig: path.join(rootPath, 'tsconfig.json'), src: path.join(rootPath, 'src') },
+            { tsconfig: path.join(rootPath, 'vscode-extension', 'tsconfig.json'), src: path.join(rootPath, 'vscode-extension', 'src') },
+            { tsconfig: path.join(rootPath, 'src', 'tsconfig.json'), src: path.join(rootPath, 'src') }
+        ];
+        for (const candidate of candidates) {
+            if (fs.existsSync(candidate.tsconfig) && fs.existsSync(candidate.src)) {
+                tsConfigPath = candidate.tsconfig;
+                scanPath = candidate.src;
+                break;
             }
         }
+    }
 
-        // Use injected cruise function for testing, or dynamically import for production
-        let cruise = options.cruiseFn;
-        if (!cruise) {
-            // Dynamically import dependency-cruiser to avoid ESM/CJS issues at startup
-            // Use new Function to prevent Webpack from converting to require()
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            const mod = await (new Function('return import("dependency-cruiser")'))();
-            cruise = mod.cruise;
+    const effectiveBaseDir = tsConfigPath ? path.dirname(tsConfigPath) : rootPath;
+
+    // 2. Execute Analysis
+    // Use injected cruise function for testing if provided
+    let result: any = null;
+
+    if (options.cruiseFn) {
+        try {
+            // Legacy/Test mode using injected function
+            // We need to re-construct options object if we are mocking
+            // For now, minimal support or robust support logic? 
+            // The tests inject a mock that returns a promise.
+            // We'll just call it as before.
+            const cruiseOptions = options.cruiseOptions || {}; // We don't load config manually anymore for CLI, but for mock? 
+            // Actually, if we use cruiseFn, we might not have loaded config contents since we deleted that code.
+            // Tests usually mock the return value regardless of inputs.
+
+            result = await options.cruiseFn(
+                [path.relative(effectiveBaseDir, scanPath)],
+                {
+                    ...cruiseOptions,
+                    baseDir: effectiveBaseDir
+                },
+                undefined,
+                tsConfigPath ? { tsConfig: { fileName: tsConfigPath } } : undefined
+            );
+        } catch (e) {
+            console.error('[Architecture] Injected cruiseFn failed:', e);
         }
-
-        // Find tsconfig.json - search in rootPath and subdirectories
-        let tsConfigPath = options.tsConfigPath;
-        let scanPath = rootPath; // Default to rootPath
-
-        if (!tsConfigPath) {
-            const fs = require('fs');
-            // Check in common locations - prefer locations with both tsconfig and src
-            const candidates = [
-                { tsconfig: path.join(rootPath, 'tsconfig.json'), src: path.join(rootPath, 'src') },
-                { tsconfig: path.join(rootPath, 'vscode-extension', 'tsconfig.json'), src: path.join(rootPath, 'vscode-extension', 'src') },
-                { tsconfig: path.join(rootPath, 'src', 'tsconfig.json'), src: path.join(rootPath, 'src') }
-            ];
-            for (const candidate of candidates) {
-                if (fs.existsSync(candidate.tsconfig) && fs.existsSync(candidate.src)) {
-                    tsConfigPath = candidate.tsconfig;
-                    scanPath = candidate.src;
-                    console.log('[Architecture] Found tsconfig at:', tsConfigPath);
-                    console.log('[Architecture] Scanning src at:', scanPath);
-                    break;
-                }
-            }
-        }
-
-        const effectiveBaseDir = tsConfigPath ? path.dirname(tsConfigPath) : rootPath;
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const result: any = await cruise(
-            [path.relative(effectiveBaseDir, scanPath)], // Pass relative path to baseDir
-            {
-                ...cruiseOptions,
-                baseDir: effectiveBaseDir
-            },
-            undefined,
-            tsConfigPath ? { tsConfig: { fileName: tsConfigPath } } : undefined
-        );
-
-        if (result.outputType === 'err') {
-            console.error('Dependency-cruiser failed:', result);
+    } else {
+        // CLI Spawn Mode
+        if (!options.extensionPath) {
+            // Fallback for dev/test without extensionPath? 
+            // Logic: failed if we can't find binary.
+            console.error('[Architecture] extensionPath not provided, cannot find dependency-cruiser CLI');
             return [];
         }
 
-        // Process violations from dependency-cruiser
-        // dependency-cruiser reports violations on modules (files)
-
-        // 1. Map Modules to our File IDs
-        const moduleByPath = new Map<string, IModule>();
-
-        if (result.output?.modules) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            for (const mod of result.output.modules as any[]) {
-                const absPath = path.isAbsolute(mod.source)
-                    ? mod.source
-                    : path.resolve(effectiveBaseDir, mod.source);
-
-                moduleByPath.set(absPath, mod);
-            }
+        const cliPath = path.join(options.extensionPath, 'node_modules', 'dependency-cruiser', 'bin', 'dependency-cruise.mjs');
+        if (!fs.existsSync(cliPath)) {
+            console.error('[Architecture] dependency-cruiser CLI not found at:', cliPath);
+            return [];
         }
 
-        // 2. Process Forbidden Rules (Cycles, Layer Violations, Orphans)
-        // cruise() API returns { output: { modules, summary } } not { modules, summary }
-        const summary = result.output?.summary || result.summary;
-        const violations = summary?.violations || [];
-        console.log('[Architecture] Summary keys:', summary ? Object.keys(summary) : 'N/A');
-        console.log('[Architecture] RuleSetUsed forbidden count:', summary?.ruleSetUsed?.forbidden?.length || 0);
-        console.log('[Architecture] Total files cruised:', summary?.totalCruised || 0);
-        console.log('[Architecture] Violations from dep-cruiser:', violations.length);
-        if (violations.length > 0) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            for (const violation of violations as any[]) {
-                const sourceAbsPath = path.isAbsolute(violation.from)
-                    ? violation.from
-                    : path.resolve(effectiveBaseDir, violation.from);
+        const args = ['--output-type', 'json'];
+        if (configPath) {
+            args.push('--config', configPath);
+        }
+        if (tsConfigPath) {
+            args.push('--ts-config', tsConfigPath);
+        }
 
-                const sourceId = fileIdMap.get(sourceAbsPath);
+        // Target path (relative to CWD or absolute? CLI accepts strict relative if we are careful)
+        // Usually assume CWD is rootPath or we set cwd in spawn.
+        // Let's set cwd to effectiveBaseDir
+        args.push(path.relative(effectiveBaseDir, scanPath));
 
-                if (!sourceId) continue; // Skip if we don't track this file
 
-                const relatedIds: string[] = [];
-                if (violation.to) {
-                    const targetAbsPath = path.isAbsolute(violation.to)
-                        ? violation.to
-                        : path.resolve(effectiveBaseDir, violation.to);
-                    const targetId = fileIdMap.get(targetAbsPath);
-                    if (targetId) relatedIds.push(targetId);
-                }
 
-                if (violation.cycle) {
-                    // For cycles, add all participants as related
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    for (const step of violation.cycle) {
-                        const stepSource = typeof step === 'string' ? step : step.name || step.source;
+        try {
+            const { spawn } = require('child_process');
 
-                        const stepAbsPath = path.isAbsolute(stepSource)
-                            ? stepSource
-                            : path.resolve(effectiveBaseDir, stepSource);
-                        const stepId = fileIdMap.get(stepAbsPath);
-                        if (stepId && stepId !== sourceId && !relatedIds.includes(stepId)) {
-                            relatedIds.push(stepId);
-                        }
+            const child = spawn(process.execPath, [cliPath, ...args], {
+                cwd: effectiveBaseDir,
+                env: process.env
+            });
+
+            const stdout: Buffer[] = [];
+            const stderr: Buffer[] = [];
+
+            await new Promise<void>((resolve, reject) => {
+                child.stdout.on('data', (data: Buffer) => stdout.push(data));
+                child.stderr.on('data', (data: Buffer) => stderr.push(data));
+                child.on('close', (code: number) => {
+                    if (code !== 0 && code !== 0) { // dep-cruiser might return non-zero on violations, which is fine
+                        // We check output validity instead of exit code strictly
                     }
-                }
-
-                let type: WarningType = 'unknown';
-                let severity: WarningSeverity = 'medium';
-
-                if (violation.rule.name === 'no-circular') {
-                    type = 'circular-dependency';
-                    severity = 'high';
-                } else if (violation.rule.name === 'no-orphans') {
-                    type = 'orphan';
-                    severity = 'low';
-                } else if (violation.rule.name.startsWith('layer-')) {
-                    type = 'layer-violation';
-                    severity = 'high';
-                }
-
-                warnings.push({
-                    fileId: sourceId,
-                    type,
-                    message: violation.rule.name + ': ' + (violation.comment || 'Violation detected'),
-                    severity,
-                    relatedFileIds: relatedIds
+                    resolve();
                 });
+                child.on('error', (err: Error) => reject(err));
+            });
+
+            const outputStr = Buffer.concat(stdout).toString('utf8');
+            const errorStr = Buffer.concat(stderr).toString('utf8');
+
+            if (errorStr && !outputStr) {
+                console.error('[Architecture] CLI Stderr:', errorStr);
             }
+
+            if (outputStr) {
+                try {
+                    result = JSON.parse(outputStr);
+                } catch (e) {
+                    console.error('[Architecture] Failed to parse JSON output:', e);
+                    console.error('Output snippet:', outputStr.slice(0, 200));
+                }
+            }
+
+        } catch (e) {
+            console.error('[Architecture] CLI Execution failed:', e);
+            throw e;
         }
+    }
 
-        // 3. Custom Checks (Entry Bloat) - Dependency-cruiser counts dependencies too
-        // We can iterate over modules to check for bloated entry points
-        const ENTRY_BLOAT_THRESHOLD = 15;
-        if (result.modules) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            for (const mod of result.modules as any[]) {
-                const absPath = path.resolve(rootPath, mod.source);
-                const id = fileIdMap.get(absPath);
-                if (!id) continue;
+    if (!result || result.outputType === 'err') {
+        console.error('Dependency-cruiser failed or returned no result:', result);
+        return [];
+    }
 
-                // Check if it's an entry point (simple heuristic or use our zone map if we had it)
-                // For now, let's look at dependencies count
-                if (mod.dependencies.length > ENTRY_BLOAT_THRESHOLD) {
-                    // Check if it looks like an entry point
-                    if (mod.source.includes('index') || mod.source.includes('main') || mod.source.includes('App')) {
-                        warnings.push({
-                            fileId: id,
-                            type: 'entry-bloat',
-                            message: `Entry point has ${mod.dependencies.length} dependencies (consider splitting)`,
-                            severity: 'low'
-                        });
+    // 3. Process Result
+    // ... (Mapping logic remains same)
+
+    if (result.outputType === 'err') {
+        console.error('Dependency-cruiser failed:', result);
+        return [];
+    }
+
+    // Process violations from dependency-cruiser
+    // dependency-cruiser reports violations on modules (files)
+
+    // 1. Map Modules to our File IDs
+    const moduleByPath = new Map<string, IModule>();
+
+    if (result.output?.modules || result.modules) { // Handle both structures if CLI varies
+        const modules = result.output?.modules || result.modules;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const mod of modules as any[]) {
+            const absPath = path.isAbsolute(mod.source)
+                ? mod.source
+                : path.resolve(effectiveBaseDir, mod.source);
+
+            moduleByPath.set(absPath, mod);
+        }
+    }
+
+    // 2. Process Forbidden Rules (Cycles, Layer Violations, Orphans)
+    // cruise() API returns { output: { modules, summary } } not { modules, summary }
+    // CLI JSON output: top level object has "modules" and "summary" directly usually?
+    // Let's check CLI output structure. Usually it matches the API return type ICruiseResult.
+    // ICruiseResult: { modules: ..., summary: ... }
+    // But API execution wrapped it in { output: ... } in my previous code?
+    // Wait, line 153 prev: `result.output?.summary || result.summary`.
+    // So handling both is safe.
+
+    const summary = result.output?.summary || result.summary;
+    const violations = summary?.violations || [];
+
+
+    if (violations.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const violation of violations as any[]) {
+            const sourceAbsPath = path.isAbsolute(violation.from)
+                ? violation.from
+                : path.resolve(effectiveBaseDir, violation.from);
+
+            const sourceId = fileIdMap.get(sourceAbsPath);
+
+            if (!sourceId) continue; // Skip if we don't track this file
+
+            const relatedIds: string[] = [];
+            if (violation.to) {
+                const targetAbsPath = path.isAbsolute(violation.to)
+                    ? violation.to
+                    : path.resolve(effectiveBaseDir, violation.to);
+                const targetId = fileIdMap.get(targetAbsPath);
+                if (targetId) relatedIds.push(targetId);
+            }
+
+            if (violation.cycle) {
+                // For cycles, add all participants as related
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                for (const step of violation.cycle) {
+                    const stepSource = typeof step === 'string' ? step : step.name || step.source;
+
+                    const stepAbsPath = path.isAbsolute(stepSource)
+                        ? stepSource
+                        : path.resolve(effectiveBaseDir, stepSource);
+                    const stepId = fileIdMap.get(stepAbsPath);
+                    if (stepId && stepId !== sourceId && !relatedIds.includes(stepId)) {
+                        relatedIds.push(stepId);
                     }
                 }
             }
-        }
 
-    } catch (error) {
-        console.error('Architecture analysis error:', error);
+            let type: WarningType = 'unknown';
+            let severity: WarningSeverity = 'medium';
+
+            if (violation.rule.name === 'no-circular') {
+                type = 'circular-dependency';
+                severity = 'high';
+            } else if (violation.rule.name === 'no-orphans') {
+                type = 'orphan';
+                severity = 'low';
+            } else if (violation.rule.name.startsWith('layer-')) {
+                type = 'layer-violation';
+                severity = 'high';
+            }
+
+            warnings.push({
+                fileId: sourceId,
+                type,
+                message: violation.rule.name + ': ' + (violation.comment || 'Violation detected'),
+                severity,
+                relatedFileIds: relatedIds
+            });
+        }
+    }
+
+    // 3. Custom Checks (Entry Bloat) - Dependency-cruiser counts dependencies too
+    // We can iterate over modules to check for bloated entry points
+    const ENTRY_BLOAT_THRESHOLD = 15;
+    const modules = result.output?.modules || result.modules;
+    if (modules) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const mod of modules as any[]) {
+            // Determine absolute path
+            const absPath = path.isAbsolute(mod.source)
+                ? mod.source
+                : path.resolve(effectiveBaseDir, mod.source);
+
+            const id = fileIdMap.get(absPath);
+            if (!id) continue;
+
+            // Check if it's an entry point (simple heuristic or use our zone map if we had it)
+            // For now, let's look at dependencies count
+            if (mod.dependencies.length > ENTRY_BLOAT_THRESHOLD) {
+                // Check if it looks like an entry point
+                if (mod.source.includes('index') || mod.source.includes('main') || mod.source.includes('App')) {
+                    warnings.push({
+                        fileId: id,
+                        type: 'entry-bloat',
+                        message: `Entry point has ${mod.dependencies.length} dependencies (consider splitting)`,
+                        severity: 'low'
+                    });
+                }
+            }
+        }
     }
 
     return warnings;

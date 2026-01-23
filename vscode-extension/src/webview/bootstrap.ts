@@ -111,6 +111,11 @@ window.addEventListener('message', (event) => {
                 world.setWarnings(message.data);
                 break;
 
+            case 'architectureError':
+                console.error('[Webview] Architecture Analysis Error:', message.data.message);
+                // In the future, we could show a toast or UI notification here
+                break;
+
             case 'clear':
                 world.clear();
                 break;
