@@ -94,3 +94,13 @@ export interface ThemeColors {
     labelBackground: string;
     labelBorder: string;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Configuration Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface EditorConfig {
+    fontSize: number;
+    fontFamily: string;
+    lineHeight: number;
+}

@@ -145,22 +145,25 @@ export class CodeObjectManager {
         }
 
         this.isProcessingQueue = true;
+        const startTime = performance.now();
+        const FRAME_BUDGET_MS = 10; // Target ~10ms per frame to leave room for rendering
 
-        // Process a batch
-        const BATCH_SIZE = 2;
-        const batch = this.updateQueue.splice(0, BATCH_SIZE);
+        while (this.updateQueue.length > 0) {
+            // Check budget
+            if (performance.now() - startTime > FRAME_BUDGET_MS) {
+                // Yield to next frame if budget exceeded
+                requestAnimationFrame(() => this.processUpdateQueue());
+                return;
+            }
 
-        batch.forEach(obj => {
-            if (obj.mesh.parent && this.currentTheme) { // Only update if still in scene
+            const obj = this.updateQueue.shift();
+            if (obj && obj.mesh.parent && this.currentTheme) {
                 obj.updateTheme(this.currentTheme);
             }
-        });
+        }
 
-        // Schedule next batch
-        // Use requestAnimationFrame if available or setTimeout
-        setTimeout(() => {
-            this.processUpdateQueue();
-        }, 16); // ~60fps target
+        // Queue finished
+        this.isProcessingQueue = false;
     }
 
     public removeObject(id: string): void {

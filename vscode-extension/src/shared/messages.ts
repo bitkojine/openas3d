@@ -9,7 +9,7 @@
  * - WebviewMessage: Messages sent FROM the Webview TO the Extension Host
  */
 
-import { ZoneDTO, ArchitectureWarning, ImportKind, Position3D } from './types';
+import { ZoneDTO, ArchitectureWarning, ImportKind, Position3D, EditorConfig } from './types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Payload Types (shared data structures)
@@ -110,6 +110,9 @@ export type ExtensionMessage =
 
     // Performance
     | { type: 'perfUpdate'; data: { report: string } }
+
+    // Configuration
+    | { type: 'updateConfig'; data: EditorConfig }
 
     // Test Messages (only active in test mode)
     | { type: 'TEST_GET_SCENE_STATE' }

@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import { tokenizeLine, getSyntaxColors } from './syntax-highlighter';
-import { ThemeColors } from '../shared/types';
+import { ThemeColors, EditorConfig } from '../shared/types';
 
 /**
  * Helper to convert hex to rgba
@@ -24,15 +24,34 @@ export interface WrappedLine {
 }
 
 /** Configuration for content texture rendering */
-const CONTENT_CONFIG = {
+export let CONTENT_CONFIG = {
     maxLines: 150,
     padding: 12,
-    fontSize: 14,
-    lineHeight: 14 * 1.4,
-    lineNumberWidth: 45,
+    fontSize: 24,
+    lineHeight: 24 * 1.5,
+    lineNumberWidth: 55, // Increased for larger font
     canvasWidth: 1024,
-    font: 'bold 14px "Consolas", "Monaco", "Courier New", monospace'
-} as const;
+    fontFamily: '"Consolas", "Monaco", "Courier New", monospace'
+};
+
+/** Update the content configuration from editor settings */
+export function updateContentConfig(config: EditorConfig) {
+    // We scale up the editor font size for 3D legibility
+    const SCALE_FACTOR = 1.75;
+    CONTENT_CONFIG.fontSize = Math.round(config.fontSize * SCALE_FACTOR);
+    CONTENT_CONFIG.fontFamily = config.fontFamily;
+
+    // Recalculate line height based on new font size
+    const baseLineHeight = config.lineHeight > 0 ? config.lineHeight : config.fontSize * 1.5;
+    CONTENT_CONFIG.lineHeight = Math.round(baseLineHeight * SCALE_FACTOR);
+}
+
+/**
+ * Get the current font string
+ */
+function getFontString(): string {
+    return `bold ${CONTENT_CONFIG.fontSize}px ${CONTENT_CONFIG.fontFamily}`;
+}
 
 /** Configuration for text sprite rendering */
 const SPRITE_CONFIG = {
@@ -121,10 +140,18 @@ function wrapLines(
 export function createContentTexture(
     fileContent: string,
     theme?: ThemeColors,
-    cachedLines?: WrappedLine[]
+    cachedLines?: WrappedLine[],
+    meshWidth: number = 1,
+    meshHeight: number = 1
 ): { texture: THREE.Texture; lines: WrappedLine[] } {
     const colors = getSyntaxColors(theme);
-    const { maxLines, padding, fontSize, lineHeight, lineNumberWidth, canvasWidth, font } = CONTENT_CONFIG;
+    const { maxLines, padding, fontSize, lineHeight, lineNumberWidth, canvasWidth } = CONTENT_CONFIG;
+    const font = getFontString();
+
+    // Check if we need to invalidate cache due to config change
+    // (This is tricky because cache is passed in from outside. 
+    //  Caller needs to know invalidation logic.)
+
     const lines = fileContent.split('\n').slice(0, maxLines);
     const codeAreaWidth = canvasWidth - lineNumberWidth - padding * 2;
 
@@ -133,12 +160,16 @@ export function createContentTexture(
         // Pre-calculate wrapped lines (Expensive!)
         const tempCanvas = document.createElement('canvas');
         const tempCtx = tempCanvas.getContext('2d')!;
-        tempCtx.font = `bold ${fontSize}px ${font}`;
+        tempCtx.font = font;
         wrappedLines = wrapLines(lines, tempCtx, codeAreaWidth);
     }
 
-    // Force square aspect ratio to prevent distortion on 1:1 objects
-    const canvasHeight = canvasWidth;
+    // Dynamic height based on mesh aspect ratio
+    // If mesh is 1:1, canvas is square (1024x1024)
+    // If mesh is 1:2 (tall), canvas should be 1024x2048 to prevent stretch
+    // We base it on width being fixed at 1024.
+    const aspectRatio = meshHeight / meshWidth;
+    const canvasHeight = Math.round(canvasWidth * aspectRatio);
 
     const canvas = document.createElement('canvas');
     canvas.width = canvasWidth;
@@ -168,7 +199,7 @@ export function createContentTexture(
     }
     ctx.fillRect(0, 0, lineNumberWidth, canvas.height);
 
-    ctx.font = `${fontSize}px ${font}`;
+    ctx.font = font;
     ctx.textBaseline = 'top';
 
     let y = padding;
@@ -212,6 +243,7 @@ export function createContentTexture(
             // But tokenizer returns hardcoded hex.
             // Let's just use the token color as valid. 
             // IMPROVEMENT: If we implement full TextMate theming later, do it here.
+            ctx.fillStyle = token.color;
             // Reduce blurring by rounding coordinates
             ctx.fillText(token.text, Math.round(x), Math.round(y));
             x += ctx.measureText(token.text).width;

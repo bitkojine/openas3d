@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { VisualObject } from './visual-object';
 import { CodeEntityDTO } from '../types';
 import { getLanguageColor } from '../../utils/languageRegistry';
-import { createContentTexture, createTextSprite, createTextSpriteWithDeps, LabelDependencyStats, WrappedLine } from '../texture-factory';
+import { createContentTexture, createTextSprite, createTextSpriteWithDeps, LabelDependencyStats, WrappedLine, CONTENT_CONFIG } from '../texture-factory';
 import { ArchitectureWarning } from '../../core/analysis';
 import { ThemeColors } from '../../shared/types';
 
@@ -58,7 +58,7 @@ export class FileObject extends VisualObject {
         // 3. Content Screen - Front
         const content = this.metadata.metadata?.content || '';
         // Initial creation - cache lines
-        const { texture: contentTexture, lines } = createContentTexture(content);
+        const { texture: contentTexture, lines } = createContentTexture(content, undefined, undefined, width, height);
         this.cachedLines = lines;
         const screenGeometry = new THREE.PlaneGeometry(width * 0.9, height * 0.9);
         const screenMaterial = new THREE.MeshBasicMaterial({
@@ -172,6 +172,11 @@ export class FileObject extends VisualObject {
         if (data.filePath) { this.filePath = data.filePath; }
     }
 
+    // State for cache invalidation
+    private lastRenderedTheme?: string;
+    private lastRenderedContent?: string;
+    private lastRenderedFont?: string;
+
     public updateTheme(theme: ThemeColors): void {
         // Update Frame
         if (this._frameMesh) {
@@ -185,11 +190,6 @@ export class FileObject extends VisualObject {
                 const emissive = new THREE.Color(theme.editorBackground).multiplyScalar(0.2);
                 mat.emissive.copy(emissive);
             }
-        }
-
-        // Update Screen Back
-        if (this._screenBack) {
-            // Optional: Update back panel if we want to change its look
         }
 
         // Update Bar (Language Cap)
@@ -208,29 +208,56 @@ export class FileObject extends VisualObject {
         }
 
         // Update Content Texture (Code Body)
-        // We find the front screen mesh
+        this.updateContentTexture(theme);
+    }
+
+    private updateContentTexture(theme: ThemeColors): void {
         const screenFront = this.mesh.children.find(c => (c as THREE.Mesh).geometry && (c as THREE.Mesh).geometry.type === 'PlaneGeometry' && c.position.z > 0) as THREE.Mesh;
-        if (screenFront) {
-            const content = this.metadata.metadata?.content || '';
-            // Re-create texture with theme, reusing cached layout if available
-            const { texture: newTexture, lines } = createContentTexture(content, theme, this.cachedLines);
-            // Update cache (though it should be the same if we passed it in)
-            this.cachedLines = lines;
+        if (!screenFront) return;
 
-            // Dispose old texture
-            const oldMat = screenFront.material as THREE.MeshBasicMaterial;
-            if (oldMat.map) oldMat.map.dispose();
+        const content = this.metadata.metadata?.content || '';
 
-            // Update material
-            oldMat.map = newTexture;
-            oldMat.needsUpdate = true;
+        // Check cache
+        // We import CONTENT_CONFIG dynamically to check current state
+        // (Assuming it's exported from texture-factory)
+        const currentFont = JSON.stringify(CONTENT_CONFIG);
+        const currentThemeStr = JSON.stringify(theme);
 
-            // Also update back screen if we want (it matches front currently)
-            if (this._screenBack) {
-                const backMat = this._screenBack.material as THREE.MeshBasicMaterial;
-                backMat.map = newTexture; // Share texture or clone? Sharing is fine if managed.
-                backMat.needsUpdate = true;
-            }
+        if (this.lastRenderedContent === content &&
+            this.lastRenderedTheme === currentThemeStr &&
+            this.lastRenderedFont === currentFont) {
+            return; // No changes needed
+        }
+
+        // Re-create texture with theme, reusing cached layout if available 
+        // AND ONLY IF font/layout hasn't changed. If font changed, wrappedLines are invalid.
+        if (this.lastRenderedFont !== currentFont) {
+            this.cachedLines = undefined; // Force re-wrap
+        }
+
+        const width = this.metadata.size?.width ?? 1;
+        const height = this.metadata.size?.height ?? 1;
+        const { texture: newTexture, lines } = createContentTexture(content, theme, this.cachedLines, width, height);
+        this.cachedLines = lines;
+
+        // Update cache state
+        this.lastRenderedContent = content;
+        this.lastRenderedTheme = currentThemeStr;
+        this.lastRenderedFont = currentFont;
+
+        // Dispose old texture
+        const oldMat = screenFront.material as THREE.MeshBasicMaterial;
+        if (oldMat.map) oldMat.map.dispose();
+
+        // Update material
+        oldMat.map = newTexture;
+        oldMat.needsUpdate = true;
+
+        // Also update back screen if we want (it matches front currently)
+        if (this._screenBack) {
+            const backMat = this._screenBack.material as THREE.MeshBasicMaterial;
+            backMat.map = newTexture; // Share texture
+            backMat.needsUpdate = true;
         }
     }
 

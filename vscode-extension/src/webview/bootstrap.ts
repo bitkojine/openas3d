@@ -130,6 +130,10 @@ window.addEventListener('message', (event: MessageEvent<ExtensionMessage>) => {
                 world.updateObjectPosition(message.data);
                 break;
 
+            case 'updateConfig':
+                world.updateConfig(message.data);
+                break;
+
             default:
                 console.warn('Unknown message type:', message.type);
         }

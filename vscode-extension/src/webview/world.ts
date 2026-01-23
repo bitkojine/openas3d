@@ -19,6 +19,8 @@ import { ZoneManager } from './zone-manager';
 import { ZoneDTO } from '../core/domain/zone';
 import { WarningOverlay } from './warning-overlay';
 import { ArchitectureWarning } from '../core/analysis/types';
+import { updateContentConfig } from './texture-factory';
+import { EditorConfig } from '../shared/types';
 
 /**
  * The World class is the root controller for the 3D environment.
@@ -296,5 +298,14 @@ export class World {
         this.warningOverlay.setWarnings(warnings);
         // Also update object badges
         this.warningManager.setWarnings(warnings, this.objects.getInternalObjectsMap());
+    }
+
+    public updateConfig(config: EditorConfig): void {
+        updateContentConfig(config);
+
+        // Force refresh all objects with current theme
+        // This will trigger re-rendering of code textures with new font settings
+        const currentTheme = this.themeManager.getTheme();
+        this.objects.updateTheme(currentTheme);
     }
 }
