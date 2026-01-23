@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CodeObjectManager } from './code-object-manager';
 import { SelectionManager } from './selection-manager';
 import { DependencyManager } from './dependency-manager';
+import { WebviewMessage } from '../shared/messages';
 import { CodeEntityDTO } from './types'; // If needed, but code seems to not import it?
 // Checking file content from Step 140:
 // It imports THREE and CodeObjectManager.
@@ -71,6 +72,10 @@ export class InteractionController {
         this.updateCrosshairVisibility();
     }
 
+    private postMessage(message: WebviewMessage): void {
+        this.vscode.postMessage(message);
+    }
+
     dispose(): void {
         this.domElement.removeEventListener('pointerdown', this.onPointerDown);
         this.domElement.removeEventListener('dblclick', this.onDoubleClick);
@@ -101,7 +106,7 @@ export class InteractionController {
 
             const placePos = new THREE.Vector3().copy(this.camera.position).add(cameraDir.multiplyScalar(3));
 
-            this.vscode.postMessage({
+            this.postMessage({
                 type: 'addSignAtPosition',
                 data: { position: { x: placePos.x, y: placePos.y, z: placePos.z } }
             });
@@ -134,7 +139,7 @@ export class InteractionController {
         this.selectionManager.selectObject(obj);
         this.showDependencies(obj.id);
 
-        this.vscode.postMessage({
+        this.postMessage({
             type: 'objectSelected',
             data: {
                 id: obj.id,
@@ -164,7 +169,8 @@ export class InteractionController {
         if (!obj) { return; }
 
         // Open the file without affecting selection or highlighting
-        this.vscode.postMessage({
+        // Open the file without affecting selection or highlighting
+        this.postMessage({
             type: 'openFiles',
             data: {
                 codeFile: obj.filePath
@@ -264,7 +270,7 @@ export class InteractionController {
                     const safeMetadata = targetObj.metadata ? JSON.parse(JSON.stringify(targetObj.metadata)) : {};
 
                     try {
-                        this.vscode.postMessage({
+                        this.postMessage({
                             type: 'objectFocused',
                             data: {
                                 id: targetObj.id,

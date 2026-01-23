@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { getLanguageDisplayName, getLanguageFromExtension } from '../utils/languageRegistry';
 import { generateWebviewHtml } from './webview-template';
+import { ExtensionMessage, WebviewMessage, isWebviewMessage } from '../shared/messages';
 
 export class WebviewPanelManager {
     private panel: vscode.WebviewPanel | undefined;
@@ -130,13 +131,13 @@ export class WebviewPanelManager {
         });
     }
 
-    public sendMessage(message: any): void {
+    public sendMessage(message: ExtensionMessage): void {
         if (this.panel) {
             this.panel.webview.postMessage(message);
         }
     }
 
-    public dispatchMessage(message: any) {
+    public dispatchMessage(message: ExtensionMessage): void {
         this.panel?.webview.postMessage(message);
     }
 
@@ -162,13 +163,14 @@ export class WebviewPanelManager {
         this.watcher = undefined;
     }
 
-    private handleWebviewMessage(message: any): void {
+    private handleWebviewMessage(message: WebviewMessage): void {
         // Init Check waiters
         const waiterIndex = this.messageWaiters.findIndex(w => w.type === message.type);
         if (waiterIndex !== -1) {
             const waiter = this.messageWaiters[waiterIndex];
             this.messageWaiters.splice(waiterIndex, 1);
-            waiter.resolve(message.data);
+            // Not all messages have data, so safely pass undefined if missing
+            waiter.resolve('data' in message ? message.data : undefined);
             // Stop processing if it's a test message we were waiting for
             if (message.type.startsWith('TEST_')) { return; }
         }
@@ -191,9 +193,6 @@ export class WebviewPanelManager {
                 break;
             case 'ready':
                 this.isReady = true;
-                break;
-            case 'perfUpdate':
-                // Webview handles this in bootstrap.js, nothing needed here
                 break;
             case 'error':
                 vscode.window.showErrorMessage(`3D World Error: ${message.data.message}`);
