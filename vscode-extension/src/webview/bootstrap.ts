@@ -127,6 +127,10 @@ window.addEventListener('message', (event) => {
                 }
                 break;
 
+            case 'updateObjectPosition':
+                world.updateObjectPosition(message.data);
+                break;
+
             default:
                 console.warn('Unknown message type:', message.type);
         }

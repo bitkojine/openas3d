@@ -37,41 +37,46 @@ export class CodebaseLayoutEngine {
     private initializeZones() {
         const configs: ZoneConfig[] = [
             { name: 'core', displayName: 'Core Logic', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0x9b59b6 },  // Purple
-            { name: 'entry', displayName: 'Entry Points', xCenter: -25, zCenter: -50, spacing: 5.0, color: 0x3498db },  // Blue
-            { name: 'api', displayName: 'API Layer', xCenter: 25, zCenter: -50, spacing: 5.0, color: 0x27ae60 },  // Green
-            { name: 'data', displayName: 'Data Layer', xCenter: 50, zCenter: 0, spacing: 5.0, color: 0xf39c12 },  // Orange
-            { name: 'ui', displayName: 'User Interface', xCenter: 0, zCenter: 50, spacing: 5.0, color: 0xe74c3c },  // Red
-            { name: 'infra', displayName: 'Infrastructure', xCenter: -50, zCenter: 50, spacing: 5.0, color: 0x95a5a6 },  // Gray
-            { name: 'lib', displayName: 'Utilities', xCenter: -50, zCenter: 0, spacing: 5.0, color: 0x00bcd4 },  // Cyan
-            { name: 'test', displayName: 'Tests', xCenter: 50, zCenter: 50, spacing: 5.0, color: 0x2ecc71 }   // Light Green
+            { name: 'entry', displayName: 'Entry Points', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0x3498db },  // Blue
+            { name: 'api', displayName: 'API Layer', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0x27ae60 },  // Green
+            { name: 'data', displayName: 'Data Layer', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0xf39c12 },  // Orange
+            { name: 'ui', displayName: 'User Interface', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0xe74c3c },  // Red
+            { name: 'infra', displayName: 'Infrastructure', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0x95a5a6 },  // Gray
+            { name: 'lib', displayName: 'Utilities', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0x00bcd4 },  // Cyan
+            { name: 'test', displayName: 'Tests', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0x2ecc71 }   // Light Green
         ];
 
         configs.forEach(config => {
             this.zones.set(config.name, new Zone(config));
         });
-        // Ensure 'other' or fallback exists if needed, or just map unknown to 'core' or 'lib'
-        // For now, getZoneForFile returns one of these keys.
     }
 
     /**
      * Compute positions for all files in the dependency graph
      */
     public computePositions(files: CodeFile[]): Map<string, { x: number; z: number }> {
-        // Reset zones
+        // Reset zones to default
         this.initializeZones();
 
         const zoneBuckets: { [zone: string]: CodeFile[] } = {};
 
+        // 1. Bucket files
         files.forEach(file => {
             const zoneName = this.getZoneForFile(file);
             if (!zoneBuckets[zoneName]) { zoneBuckets[zoneName] = []; }
             zoneBuckets[zoneName].push(file);
         });
 
+        // 2. Calculate dynamic layout based on counts
+        const zoneCounts: { [zone: string]: number } = {};
+        Object.keys(zoneBuckets).forEach(k => zoneCounts[k] = zoneBuckets[k].length);
+        this.calculateZoneLayout(zoneCounts);
+
         const positions = new Map<string, { x: number; z: number }>();
 
+        // 3. Place files
         Object.entries(zoneBuckets).forEach(([zoneName, filesInZone]) => {
-            const zone = this.zones.get(zoneName) || this.zones.get('core')!; // Fallback to core
+            const zone = this.zones.get(zoneName) || this.zones.get('core')!;
 
             filesInZone.forEach((file, i) => {
                 const pos = this.getPositionForZone(zone, i);
@@ -83,6 +88,96 @@ export class CodebaseLayoutEngine {
         });
 
         return positions;
+    }
+
+    /**
+     * Dynamically calculate zone centers based on file counts.
+     * Uses a weighted grid approach to pack zones tightly but safely.
+     */
+    private calculateZoneLayout(counts: { [zone: string]: number }) {
+        const PATH_GAP = 25.0; // Space between zones for pathways
+        const SPACING = 5.0;
+
+        // Helper to get radius of a zone based on count
+        const getRadius = (zoneName: string): number => {
+            const count = counts[zoneName] || 0;
+            if (count === 0) return 0;
+            // Ring count ~ sqrt(N)/2. Radius = Ring * Spacing
+            const rings = Math.ceil((Math.sqrt(count + 1) - 1) / 2);
+            // Add a small buffer (1 unit) to ensure fit
+            return (rings + 1) * SPACING;
+        };
+
+        const r = {
+            core: getRadius('core'),
+            entry: getRadius('entry'),
+            api: getRadius('api'),
+            data: getRadius('data'),
+            ui: getRadius('ui'),
+            infra: getRadius('infra'),
+            lib: getRadius('lib'),
+            test: getRadius('test')
+        };
+
+        // Layout Schema:
+        // [Entry] [ API ]
+        // [ Lib ] [Core ] [Data ]
+        // [Infra] [ UI  ] [Test ]
+
+        // Core is at (0,0)
+
+        // Column X Offsets
+        const xLeft = -(r.core + PATH_GAP + Math.max(r.lib, r.entry, r.infra));
+        const xRight = +(r.core + PATH_GAP + Math.max(r.data, r.api, r.test));
+
+        // Row Z Offsets
+        const zNorth = -(r.core + PATH_GAP + Math.max(r.entry, r.api));
+        const zSouth = +(r.core + PATH_GAP + Math.max(r.ui, r.infra, r.test));
+
+        // Update Zone Configs
+        const setCenter = (name: string, x: number, z: number) => {
+            const zone = this.zones.get(name);
+            if (zone) {
+                zone.config.xCenter = x;
+                zone.config.zCenter = z;
+            }
+        };
+
+        setCenter('core', 0, 0);
+
+        // North Row
+        setCenter('entry', xLeft, zNorth);
+        setCenter('api', xRight, zNorth); // API usually fits better on right to balance? Or center-north? 
+        // Let's allow API to be Top-Right.
+        // Wait, standard grid is 3x3.
+        // If Entry is (-1, -1) and API is (+1, -1), we have a gap at (0, -1).
+        // Let's adjust slightly:
+        // Entry at Top-Left, API at Top-Right.
+
+        // Middle Row
+        setCenter('lib', xLeft, 0);
+        setCenter('data', xRight, 0);
+
+        // South Row
+        setCenter('infra', xLeft, zSouth); // Infra Bottom-Left
+        setCenter('ui', 0, zSouth);       // UI Bottom-Center (often large)
+        setCenter('test', xRight, zSouth);// Test Bottom-Right
+
+        // Refined adjustment:
+        // entry: North-West
+        // api: North-East
+        // But what about North-Center?
+        // Let's put API North-Center if it's large? No, stick to grid.
+        // Actually, if UI is South-Center, we can put API North-Center?
+        // The implementation plan said:
+        // Row -1 (North): entry, api
+        // entry is usually smaller. api can be large.
+
+        // Let's place API at (0, zNorth) if it fits? 
+        // No, Keep simple grid for now.
+        // Entry -> (-1, -1) => xLeft, zNorth
+        // API -> (1, -1) => xRight, zNorth
+        // This leaves (0, -1) empty. That's fine, it makes 'Core' stand out.
     }
 
     /**
@@ -114,6 +209,12 @@ export class CodebaseLayoutEngine {
      * Call this instead of getZoneBounds() when using streaming file additions.
      */
     public computeZoneBoundsFromCounts(zoneCounts: { [zone: string]: number }): ZoneDTO[] {
+        // Reset zones to ensure clean state
+        this.initializeZones();
+
+        // Calculate dynamic layout based on provided counts
+        this.calculateZoneLayout(zoneCounts);
+
         const tempZones: Zone[] = [];
 
         // Create temp zones just for calculation
@@ -121,6 +222,7 @@ export class CodebaseLayoutEngine {
             const count = zoneCounts[existingZone.name] || 0;
             if (count === 0) return;
 
+            // existingZone.config has now been updated by calculateZoneLayout
             const tempZone = new Zone(existingZone.config);
 
             for (let i = 0; i < count; i++) {

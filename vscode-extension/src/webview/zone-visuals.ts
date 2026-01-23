@@ -4,6 +4,7 @@
  */
 import * as THREE from 'three';
 import { ZoneDTO } from '../core/domain/zone';
+import { createEnhancedGrassTexture } from './environment';
 export { ZoneDTO };
 
 /**
@@ -333,6 +334,31 @@ export function addZoneVisuals(scene: THREE.Scene, zones: ZoneDTO[]): THREE.Grou
 
             const fence = createZoneFence(zone);
             visualsGroup.add(fence);
+
+            // Add Grass Floor for the Zone
+            const width = zone.maxX - zone.minX;
+            const depth = zone.maxZ - zone.minZ;
+
+            // Only create floor if zone has valid dimensions
+            if (width > 0 && depth > 0) {
+                const grassTexture = createEnhancedGrassTexture();
+                // Adjust repeat based on size to keep scale consistent
+                grassTexture.repeat.set(width / 20, depth / 20);
+
+                const floorGeometry = new THREE.PlaneGeometry(width, depth);
+                const floorMaterial = new THREE.MeshLambertMaterial({
+                    map: grassTexture,
+                    transparent: false
+                });
+
+                const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+                floor.rotation.x = -Math.PI / 2;
+                // Position slightly above global path (y=-0.01) to sit on top
+                floor.position.set((zone.minX + zone.maxX) / 2, 0.02, (zone.minZ + zone.maxZ) / 2);
+                floor.receiveShadow = true;
+
+                visualsGroup.add(floor);
+            }
         }
     });
 

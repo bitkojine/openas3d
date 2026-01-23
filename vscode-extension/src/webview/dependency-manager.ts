@@ -225,6 +225,50 @@ export class DependencyManager {
     constructor(private scene: THREE.Scene) { }
 
     /**
+     * Update dependency lines connected to a specific object
+     */
+    public updateObjectPosition(
+        objectId: string,
+        objects: Map<string, VisualObject>
+    ): void {
+        // Find existing deps connected to this object
+        // We can't easily find them by ID without iterating all.
+        // Optimization: In a real app we might index by objectId.
+        // For now, iterate and rebuild if matching.
+
+        // Collect IDs to rebuild to avoid modification during iteration issues
+        const depsToRebuild: string[] = [];
+        this.dependencies.forEach(dep => {
+            if (dep.source === objectId || dep.target === objectId) {
+                depsToRebuild.push(dep.id);
+            }
+        });
+
+        depsToRebuild.forEach(depId => {
+            const oldDep = this.dependencies.get(depId)!;
+            // Capture data needed for recreation
+            const data: DependencyData = {
+                id: oldDep.id,
+                source: oldDep.source,
+                target: oldDep.target,
+                type: oldDep.type,
+                weight: oldDep.weight,
+                isCircular: oldDep.isCircular,
+                importKind: oldDep.importKind
+                // ignoring color/opacity preservation for simplicity, 
+                // defaulting to standard logic or we could extract it from material.
+                // Standard logic is safer to ensure consistency.
+            };
+
+            // Remove old line
+            this.remove(depId);
+
+            // Add new line with new positions
+            this.add(data, objects);
+        });
+    }
+
+    /**
      * Add a dependency line between two objects
      */
     public add(

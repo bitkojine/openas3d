@@ -209,6 +209,12 @@ export class World {
         this.dependencyManager.remove(id);
     }
 
+    public updateObjectPosition(data: { id: string; position: { x: number; y: number; z: number } }): void {
+        this.objects.updateObjectPosition(data.id, data.position);
+        // Also update connected dependencies
+        this.dependencyManager.updateObjectPosition(data.id, this.objects.getInternalObjectsMap());
+    }
+
     public clear(): void {
         this.objects.clear();
         this.dependencyManager.clear();

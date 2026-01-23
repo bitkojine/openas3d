@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Environment, createEnhancedGrassTexture } from './environment';
+import { Environment, createEnhancedGrassTexture, createPathwayTexture } from './environment';
 
 export class SceneManager {
     public readonly scene: THREE.Scene;
@@ -84,13 +84,13 @@ export class SceneManager {
     }
 
     private addGround(): void {
-        // Use enhanced grass texture
-        const grassTexture = createEnhancedGrassTexture();
+        // Use pathway texture for the global ground
+        const pathTexture = createPathwayTexture();
 
         // Larger ground for expanded park (1200x1200 to extend beyond visible area)
         const groundGeometry = new THREE.PlaneGeometry(1200, 1200);
         const groundMaterial = new THREE.MeshLambertMaterial({
-            map: grassTexture,
+            map: pathTexture,
             transparent: false
         });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);

@@ -128,6 +128,25 @@ export class CodeObjectManager {
         }
     }
 
+    public updateObjectPosition(id: string, position: { x: number; y: number; z: number }): void {
+        const obj = this.objects.get(id);
+        if (!obj) return;
+
+        // Update stored position
+        obj.position.set(position.x, position.y, position.z);
+
+        // Update mesh position (handling floating height)
+        const meshHeight = obj.getHeight();
+        const EYE_LEVEL_Y = 3.9;
+        const minY = this.GROUND_Y + meshHeight / 2;
+
+        // Code objects float; we ignore the incoming Y usually (it's often just 0 or passed from generic layout)
+        // Unless we want to support true 3D layout later. For now, enforce floating logic.
+        const y = Math.max(EYE_LEVEL_Y, minY);
+
+        obj.mesh.position.set(position.x, y, position.z);
+    }
+
     public clear(): void {
         this.objects.forEach(obj => {
             this.scene.remove(obj.mesh);
