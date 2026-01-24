@@ -21,6 +21,8 @@ import { WarningOverlay } from './warning-overlay';
 import { ArchitectureWarning } from '../core/analysis/types';
 import { updateContentConfig } from './texture-factory';
 import { EditorConfig } from '../shared/types';
+import { MessageRouter } from './message-router';
+import { AddObjectPayload, AddDependencyPayload, UpdatePositionPayload } from '../shared/messages';
 
 /**
  * The World class is the root controller for the 3D environment.
@@ -308,5 +310,87 @@ export class World {
         // This will trigger re-rendering of code textures with new font settings
         const currentTheme = this.themeManager.getTheme();
         this.objects.updateTheme(currentTheme);
+    }
+
+    /**
+     * Register message handlers with the router
+     * This decouples message protocol from business logic
+     */
+    public registerMessageHandlers(router: MessageRouter): void {
+        // World Management
+        router.register('clear', () => {
+            this.clear();
+        });
+
+        router.register('loadWorld', () => {
+            this.clear();
+        });
+
+        // Object Management
+        router.register('addObject', (data: AddObjectPayload) => {
+            try {
+                this.addCodeObject(data);
+            } catch (e: any) {
+                console.error(`Failed to add object ${data.id}:`, e);
+                throw e; // Re-throw so router can handle it
+            }
+        });
+
+        router.register('removeObject', (data: { id: string }) => {
+            this.removeCodeObject(data.id);
+        });
+
+        router.register('updateObjectPosition', (data: UpdatePositionPayload) => {
+            this.updateObjectPosition(data);
+        });
+
+        // Dependency Management
+        router.register('addDependency', (data: AddDependencyPayload) => {
+            this.addDependency(data);
+        });
+
+        router.register('removeDependency', (data: { id: string }) => {
+            this.removeDependency(data.id);
+        });
+
+        router.register('showDependencies', () => {
+            this.showAllDependencies();
+        });
+
+        router.register('hideDependencies', () => {
+            this.hideDependencies();
+        });
+
+        router.register('dependenciesComplete', () => {
+            this.refreshLabels();
+        });
+
+        // Zone Management
+        router.register('setZoneBounds', (data: ZoneDTO[]) => {
+            this.setZoneBounds(data);
+        });
+
+        // Architecture Analysis
+        router.register('setWarnings', (data: ArchitectureWarning[]) => {
+            this.setWarnings(data);
+        });
+
+        router.register('architectureError', (data: { message: string }) => {
+            console.error('[Webview] Architecture Analysis Error:', data.message);
+            // In the future, we could show a toast or UI notification here
+        });
+
+        // Configuration
+        router.register('updateConfig', (data: EditorConfig) => {
+            this.updateConfig(data);
+        });
+
+        // Performance (handled in bootstrap, but register for completeness)
+        router.register('perfUpdate', (data: { report: string }) => {
+            const perfPanel = document.getElementById('perf-panel');
+            if (perfPanel) {
+                perfPanel.innerText = data.report.replace(/\s*\|\s*/g, '\n');
+            }
+        });
     }
 }
