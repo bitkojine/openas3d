@@ -16,8 +16,8 @@ async function main() {
             extensionDevelopmentPath,
             extensionTestsPath,
             launchArgs: [
-                // Use a temporary workspace for testing
-                path.resolve(__dirname, '../../src/test/fixtures/simple-workspace')
+                // Use the project root as workspace for testing
+                extensionDevelopmentPath
             ]
         });
     } catch (err) {

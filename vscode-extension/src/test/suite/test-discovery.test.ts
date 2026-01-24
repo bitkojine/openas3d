@@ -17,7 +17,11 @@ suite('TestDiscoveryService Test Suite', () => {
     });
 
     setup(() => {
-        service = new TestDiscoveryService();
+        service = new TestDiscoveryService(`test-discovery-${Math.random()}`);
+    });
+
+    teardown(() => {
+        service.dispose();
     });
 
     test('Should discover tests in a .test.ts file', async () => {

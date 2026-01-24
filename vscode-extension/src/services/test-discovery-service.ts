@@ -15,8 +15,8 @@ export class TestDiscoveryService {
     private _onDidChangeTests = new vscode.EventEmitter<void>();
     public readonly onDidChangeTests = this._onDidChangeTests.event;
 
-    constructor() {
-        this.controller = vscode.tests.createTestController('openas3dTests', 'OpenAs3D Tests');
+    constructor(controllerId: string = 'openas3dTests') {
+        this.controller = vscode.tests.createTestController(controllerId, 'OpenAs3D Tests');
         this.initialize();
         this.setupRunProfile();
     }
@@ -29,31 +29,107 @@ export class TestDiscoveryService {
                 const run = this.controller.createTestRun(request);
                 const queue: vscode.TestItem[] = [];
 
+                // 1. Gather tests
                 if (request.include) {
                     request.include.forEach(test => queue.push(test));
                 } else {
                     this.controller.items.forEach(test => queue.push(test));
                 }
 
-                while (queue.length > 0 && !token.isCancellationRequested) {
-                    const test = queue.pop()!;
+                // 2. Determine Scope (are we running specific files?)
+                // Simple strategy: If queue implies specific files, pass them as args
+                const filesToRun = new Set<string>();
+                queue.forEach(item => {
+                    if (item.uri) {
+                        filesToRun.add(vscode.workspace.asRelativePath(item.uri));
+                    }
+                });
 
-                    // If it has children, add them to queue
-                    test.children.forEach(child => queue.push(child));
-
+                // Mark all as running
+                queue.forEach(test => {
                     run.started(test);
                     this.updateInternalStatus(test, 'running');
+                });
 
-                    // Simulate run
-                    await new Promise(r => setTimeout(r, 50));
+                // 3. Execute Jest
+                // We use the workspace root for CWD
+                const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+                if (!workspaceRoot) {
+                    run.end();
+                    return;
+                }
 
-                    if (test.label.toLowerCase().includes('fail')) {
-                        run.failed(test, new vscode.TestMessage('Deliberate failure'));
-                        this.updateInternalStatus(test, 'failed');
-                    } else {
-                        run.passed(test);
-                        this.updateInternalStatus(test, 'passed');
+                try {
+                    const spawn = require('cross-spawn');
+                    const args = ['run', 'test', '--', '--json', '--testLocationInResults', '--passWithNoTests'];
+
+                    // Add File Filters if not running full suite
+                    if (filesToRun.size > 0 && filesToRun.size < 10) { // arbitrary limit to avoid huge command line
+                        args.push(...Array.from(filesToRun));
                     }
+
+                    const child = spawn('npm', args, { cwd: workspaceRoot });
+
+                    let outputBuffer = '';
+                    child.stdout.on('data', (data: any) => { outputBuffer += data.toString(); });
+                    child.stderr.on('data', (data: any) => {
+                        // Optional: log stderr to console 
+                        const msg = data.toString();
+                        console.log(`[Jest Stderr]: ${msg}`);
+                        run.appendOutput(msg.replace(/\n/g, '\r\n'));
+                    });
+
+                    await new Promise<void>((resolve) => {
+                        child.on('close', (code: number) => {
+                            resolve();
+                        });
+                    });
+
+                    // 4. Parse Results
+                    // Jest JSON output might be mixed with other stdout if not careful, 
+                    // but typically starts with { and ends with } if it's the only reporter.
+                    // However, 'npm run' output might prepend. We look for first { and last }
+                    const jsonStart = outputBuffer.indexOf('{');
+                    const jsonEnd = outputBuffer.lastIndexOf('}');
+
+                    if (jsonStart === -1 || jsonEnd === -1) {
+                        throw new Error('Could not find JSON in Jest output');
+                    }
+
+                    const jsonStr = outputBuffer.substring(jsonStart, jsonEnd + 1);
+                    const result = JSON.parse(jsonStr);
+
+                    // 5. Map results back to TestItems
+                    // Result structure: { testResults: [ { name: absolutePath, assertionResults: [ { title: string, status: passed/failed } ] } ] }
+
+                    result.testResults.forEach((fileResult: any) => {
+                        const relPath = vscode.workspace.asRelativePath(fileResult.name);
+
+                        fileResult.assertionResults.forEach((assertion: any) => {
+                            // Find the matching TestItem
+                            // Our ID schema is "relPath:testName"
+                            const testName = assertion.title;
+                            const id = `${relPath}:${testName}`;
+
+                            // We need to find this item in our map specifically to update status
+                            const item = this.findTestItemById(id);
+
+                            if (item) {
+                                if (assertion.status === 'passed') {
+                                    run.passed(item);
+                                    this.updateInternalStatus(item, 'passed');
+                                } else if (assertion.status === 'failed') {
+                                    const message = new vscode.TestMessage(assertion.failureMessages.join('\n'));
+                                    run.failed(item, message);
+                                    this.updateInternalStatus(item, 'failed');
+                                }
+                            }
+                        });
+                    });
+
+                } catch (err: any) {
+                    console.error('Test run failed:', err);
+                    run.appendOutput(`Error running tests: ${err.message}\r\n`);
                 }
 
                 run.end();
@@ -149,6 +225,20 @@ export class TestDiscoveryService {
         } catch (e) {
             console.error(`Failed to parse test file ${uri.fsPath}`, e);
         }
+    }
+
+    private findTestItemById(id: string): vscode.TestItem | undefined {
+        // ID format: fileId:testName
+        // Structure: FileItem -> TestItems
+        // So we can extract the fileId first
+        const parts = id.split(':');
+        const fileId = parts[0];
+
+        const fileItem = this.controller.items.get(fileId);
+        if (fileItem) {
+            return fileItem.children.get(id);
+        }
+        return undefined;
     }
 
     private removeFile(uri: vscode.Uri) {
