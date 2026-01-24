@@ -19,11 +19,13 @@ export class FileObject extends VisualObject {
     private _barMesh?: THREE.Mesh;
     private _bottomCapMesh?: THREE.Mesh;
     private _screenBack?: THREE.Mesh;
+    private _statusBeam?: THREE.Object3D;
+    private _testStatus: 'passed' | 'failed' | 'running' | 'unknown' = 'unknown';
 
+    // Interaction State
+    private _isFocused = false;
+    private _isSelected = false;
 
-
-
-    // State for re-rendering labels
     private sceneRef?: THREE.Scene;
     private currentStats?: LabelDependencyStats;
     private cachedLines?: WrappedLine[];
@@ -32,112 +34,109 @@ export class FileObject extends VisualObject {
 
 
     protected createMesh(): THREE.Mesh {
-        // Create geometry based on size in metadata or default
-        const width = FileObject.STRICT_WIDTH;
         const bodyHeight = this.metadata.size?.height ?? 1;
-        // Ignore cubic depth for visuals to achieve "smart display" look
+        const width = FileObject.STRICT_WIDTH;
         const HITBOX_DEPTH = 0.2;
-        const FRAME_DEPTH = 0.1; // Very slim visual
 
-        const capHeight = FileObject.BAR_HEIGHT;
-
-        // 1. Root Mesh - Invisible HITBOX
+        // 1. Root Hitbox (Invisible)
         const rootGeometry = new THREE.BoxGeometry(width, bodyHeight, HITBOX_DEPTH);
-        const rootMaterial = new THREE.MeshBasicMaterial({
-            visible: false
-        });
+        const rootMaterial = new THREE.MeshBasicMaterial({ visible: false });
         const rootMesh = new THREE.Mesh(rootGeometry, rootMaterial);
 
-        // 2. Frame Mesh - The structure (Smart Display Body)
-        // Slightly larger in W/H, very thin
-        const frameGeometry = new THREE.BoxGeometry(width + 0.1, bodyHeight + 0.1, FRAME_DEPTH);
-        const frameTexture = this.createTechTexture(width + 0.1, bodyHeight + 0.1);
+        // 2. Build Components
+        this.addFrame(rootMesh, width, bodyHeight);
+        this.addScreens(rootMesh, width, bodyHeight);
+        this.addCaps(rootMesh, width, bodyHeight);
+
+        rootMesh.castShadow = true;
+        rootMesh.receiveShadow = true;
+        return rootMesh;
+    }
+
+    private addFrame(root: THREE.Mesh, width: number, height: number): void {
+        const FRAME_DEPTH = 0.1;
+        const frameGeometry = new THREE.BoxGeometry(width + 0.1, height + 0.1, FRAME_DEPTH);
+        const frameTexture = this.createTechTexture(width + 0.1, height + 0.1);
         const frameMaterial = new THREE.MeshLambertMaterial({
-            color: 0xffffff, // White base to show texture colors correctly
+            color: 0xffffff,
             emissive: 0x111111,
             map: frameTexture
         });
-        const frameMesh = new THREE.Mesh(frameGeometry, frameMaterial);
-        frameMesh.castShadow = true;
-        frameMesh.receiveShadow = true;
-        frameMesh.userData.visualObject = this;
-        rootMesh.add(frameMesh);
-        this._frameMesh = frameMesh;
 
-        // 3. Content Screen - Front
+        this._frameMesh = new THREE.Mesh(frameGeometry, frameMaterial);
+        this._frameMesh.castShadow = true;
+        this._frameMesh.receiveShadow = true;
+        this._frameMesh.userData.visualObject = this;
+        root.add(this._frameMesh);
+    }
+
+    private addScreens(root: THREE.Mesh, width: number, height: number): void {
+        const FRAME_DEPTH = 0.1;
         const content = this.metadata.metadata?.content || '';
-        // Initial creation - cache lines
-        const { texture: contentTexture, lines } = createContentTexture(content, undefined, undefined, width, bodyHeight);
+        const { texture: contentTexture, lines } = createContentTexture(content, undefined, undefined, width, height);
         this.cachedLines = lines;
-        const screenGeometry = new THREE.PlaneGeometry(width * 0.9, bodyHeight * 0.9);
+
+        const screenGeometry = new THREE.PlaneGeometry(width * 0.9, height * 0.9);
         const screenMaterial = new THREE.MeshBasicMaterial({
             map: contentTexture,
             side: THREE.FrontSide,
-            fog: false, // Ensure high contrast regardless of atmosphere
-            toneMapped: false // Ensure sharp colors without grading
+            fog: false,
+            toneMapped: false
         });
+
+        // Front Screen
         const screenFront = new THREE.Mesh(screenGeometry, screenMaterial);
-        // Position slightly in front of frame
         screenFront.position.z = FRAME_DEPTH / 2 + 0.01;
         screenFront.userData.visualObject = this;
-        rootMesh.add(screenFront);
+        root.add(screenFront);
 
-        // 4. Content Screen - Back
-        const screenBack = new THREE.Mesh(screenGeometry, screenMaterial);
-        screenBack.rotation.y = Math.PI;
-        screenBack.position.z = -(FRAME_DEPTH / 2 + 0.01);
-        screenBack.userData.visualObject = this;
-        rootMesh.add(screenBack);
-        this._screenBack = screenBack;
+        // Back Screen
+        this._screenBack = new THREE.Mesh(screenGeometry, screenMaterial);
+        this._screenBack.rotation.y = Math.PI;
+        this._screenBack.position.z = -(FRAME_DEPTH / 2 + 0.01);
+        this._screenBack.userData.visualObject = this;
+        root.add(this._screenBack);
+    }
 
-        // 5. Status Bar / Connection Point
-        // Top bezel/accent cap.
+    private addCaps(root: THREE.Mesh, width: number, height: number): void {
+        const capHeight = FileObject.BAR_HEIGHT;
+        const FRAME_DEPTH = 0.1;
+
+        // Top Bar (Language)
         const lang = this.metadata.metadata?.language?.toLowerCase() || 'other';
         const color = this.metadata.color ?? getLanguageColor(lang);
-
-        // Make it a thin cap on top
         const barGeometry = new THREE.BoxGeometry(width + 0.1, capHeight, FRAME_DEPTH);
         const barTexture = this.createLanguageTexture(lang, color, width + 0.1, capHeight);
         const barMaterial = new THREE.MeshLambertMaterial({
             color: 0xffffff,
             map: barTexture,
-            emissive: 0xffffff, // White emissive to let texture colors shine
-            emissiveMap: barTexture, // Glow using the texture itself
-            emissiveIntensity: 0.8 // High intensity for "sign" look
-        });
-        const barMesh = new THREE.Mesh(barGeometry, barMaterial);
-        barMesh.position.y = (bodyHeight + 0.1) / 2 + capHeight / 2; // Sit exactly on top
-        barMesh.position.z = 0.01; // Slight Z offset
-        barMesh.userData.visualObject = this;
-        rootMesh.add(barMesh);
-
-        this._barMesh = barMesh;
-
-        // 6. Bottom Cap (Filename)
-        // Similar to top bar but at bottom
-        const bottomCapGeometry = new THREE.BoxGeometry(width + 0.1, capHeight, FRAME_DEPTH);
-        const filename = this.getFilename(this.filePath);
-        // Use a neutral dark color for bottom cap unless themed
-        const bottomCapTexture = this.createFilenameTexture(filename, 0x222222, width + 0.1, capHeight);
-        const bottomCapMaterial = new THREE.MeshLambertMaterial({
-            color: 0xffffff,
-            map: bottomCapTexture,
             emissive: 0xffffff,
-            emissiveMap: bottomCapTexture,
+            emissiveMap: barTexture,
+            emissiveIntensity: 0.8
+        });
+
+        this._barMesh = new THREE.Mesh(barGeometry, barMaterial);
+        this._barMesh.position.y = (height + 0.1) / 2 + capHeight / 2;
+        this._barMesh.position.z = 0.01;
+        this._barMesh.userData.visualObject = this;
+        root.add(this._barMesh);
+
+        // Bottom Bar (Filename)
+        const filename = this.getFilename(this.filePath);
+        const bottomTexture = this.createFilenameTexture(filename, 0x222222, width + 0.1, capHeight);
+        const bottomMaterial = new THREE.MeshLambertMaterial({
+            color: 0xffffff,
+            map: bottomTexture,
+            emissive: 0xffffff,
+            emissiveMap: bottomTexture,
             emissiveIntensity: 0.6
         });
-        const bottomCapMesh = new THREE.Mesh(bottomCapGeometry, bottomCapMaterial);
-        // Position at bottom: center is -(height + 0.1)/2 - barHeight/2
-        bottomCapMesh.position.y = -((bodyHeight + 0.1) / 2 + capHeight / 2);
-        bottomCapMesh.position.z = 0.01; // Slight Z offset
-        bottomCapMesh.userData.visualObject = this;
-        rootMesh.add(bottomCapMesh);
-        this._bottomCapMesh = bottomCapMesh;
 
-        rootMesh.castShadow = true;
-        rootMesh.receiveShadow = true;
-
-        return rootMesh;
+        this._bottomCapMesh = new THREE.Mesh(barGeometry, bottomMaterial); // Reuse barGeometry size
+        this._bottomCapMesh.position.y = -((height + 0.1) / 2 + capHeight / 2);
+        this._bottomCapMesh.position.z = 0.01;
+        this._bottomCapMesh.userData.visualObject = this;
+        root.add(this._bottomCapMesh);
     }
 
     private createTechTexture(width: number, height: number, theme?: ThemeColors): THREE.CanvasTexture {
@@ -435,23 +434,37 @@ export class FileObject extends VisualObject {
         if (this._bottomCapMesh) {
             const mat = this._bottomCapMesh.material as THREE.MeshLambertMaterial;
             if (mat && mat.map) {
-                // Scroll speed - Flipped direction (positive moves texture left, content right? No wait.
-                // U offset += delta shifts texture coordinates right, so image moves LEFT.
-                // User said "flowing in wrong direction". Previous was `-=`.
-                // So let's try `+=`.
                 mat.map.offset.x += 0.2 * deltaTime;
                 if (mat.emissiveMap) mat.emissiveMap.offset.x = mat.map.offset.x;
             }
         }
+
+        // TDD Failure Pulse
+        if (this._testStatus === 'failed') {
+            const pulse = 0.5 + 0.5 * Math.sin(time * 5); // 0.5 to 1.0 glow
+            this.setEmissiveIntensity(pulse);
+        } else if (this._testStatus === 'running') {
+            const pulse = 0.3 + 0.2 * Math.sin(time * 8); // Rapid subtle pulse
+            this.setEmissiveIntensity(pulse);
+        }
     }
 
-    /**
-     * Post-creation initialization to add label.
-     */
+    private setEmissiveIntensity(intensity: number): void {
+        const materials = [
+            this._frameMesh?.material,
+            this._barMesh?.material,
+            this._bottomCapMesh?.material
+        ].filter(Boolean) as THREE.MeshLambertMaterial[];
+
+        materials.forEach(mat => {
+            mat.emissiveIntensity = intensity;
+        });
+    }
+
+    /** Post-creation initialization to add label. */
     public initializeLabel(scene: THREE.Scene): void {
         this.sceneRef = scene;
-        const descriptionText = this.getDescriptionText();
-        this.updateLabel(scene, descriptionText);
+        this.updateLabel(scene, this.getDescriptionText());
     }
 
     public update(data: any): void {
@@ -459,35 +472,23 @@ export class FileObject extends VisualObject {
         if (data.filePath) { this.filePath = data.filePath; }
     }
 
-    // State for cache invalidation
-    private lastRenderedTheme?: string;
-    private lastRenderedContent?: string;
-    private lastRenderedFont?: string;
-
     public updateTheme(theme: ThemeColors): void {
+        const isDark = new THREE.Color(theme.editorBackground).getHSL({ h: 0, s: 0, l: 0 }).l < 0.5;
+
         // Update Frame
         if (this._frameMesh) {
             const mat = this._frameMesh.material as THREE.MeshLambertMaterial;
-            if (mat && mat.emissive) {
-                // Use editor background logic to enhance visual
+            if (mat?.emissive) {
                 const color = new THREE.Color(theme.editorBackground);
-                if (color.getHSL({ h: 0, s: 0, l: 0 }).l < 0.1) {
-                    color.offsetHSL(0, 0, 0.1);
-                }
-                const emissive = new THREE.Color(theme.editorBackground).multiplyScalar(0.2);
-                mat.emissive.copy(emissive);
+                if (color.getHSL({ h: 0, s: 0, l: 0 }).l < 0.1) color.offsetHSL(0, 0, 0.1);
+                mat.emissive.copy(color.multiplyScalar(0.2));
             }
         }
 
         // Update Bar (Language Cap)
         if (this._barMesh) {
             const mat = this._barMesh.material as THREE.MeshLambertMaterial;
-            if (mat) {
-                // Ensure the bar stays visible and vibrant but fits the lighting
-                const isDark = new THREE.Color(theme.editorBackground).getHSL({ h: 0, s: 0, l: 0 }).l < 0.5;
-                // Boost intensity for dark mode to make it pop like a neon sign
-                mat.emissiveIntensity = isDark ? 0.9 : 0.6;
-            }
+            if (mat) mat.emissiveIntensity = isDark ? 0.9 : 0.6;
         }
 
         // Update Bottom Cap (Filename)
@@ -499,16 +500,12 @@ export class FileObject extends VisualObject {
 
                 const width = FileObject.STRICT_WIDTH;
                 const filename = this.getFilename(this.filePath);
-                const capHeight = FileObject.BAR_HEIGHT;
-                const tex = this.createFilenameTexture(filename, 0x000000, width + 0.1, capHeight, theme);
+                const tex = this.createFilenameTexture(filename, 0x000000, width + 0.1, FileObject.BAR_HEIGHT, theme);
 
                 mat.map = tex;
                 mat.emissiveMap = tex;
-                mat.needsUpdate = true;
-
-                // Match intensity with top bar or slightly less
-                const isDark = new THREE.Color(theme.editorBackground).getHSL({ h: 0, s: 0, l: 0 }).l < 0.5;
                 mat.emissiveIntensity = isDark ? 0.8 : 0.5;
+                mat.needsUpdate = true;
             }
         }
 
@@ -521,16 +518,12 @@ export class FileObject extends VisualObject {
         this.updateContentTexture(theme);
 
         // Update Frame Texture (Tech Body)
-        // Check if theme colors relevant to frame have changed
         const newFrameKey = `${theme.activityBarBackground}-${theme.editorBackground}-${theme.selectionBackground}`;
         if (this._lastFrameThemeKey !== newFrameKey) {
             if (this._frameMesh) {
                 const mat = this._frameMesh.material as THREE.MeshLambertMaterial;
                 if (mat.map) mat.map.dispose();
-
-                const width = FileObject.STRICT_WIDTH;
-                const height = this.metadata.size?.height ?? 1;
-                mat.map = this.createTechTexture(width + 0.1, height + 0.1, theme);
+                mat.map = this.createTechTexture(FileObject.STRICT_WIDTH + 0.1, (this.metadata.size?.height ?? 1) + 0.1, theme);
                 mat.needsUpdate = true;
             }
             this._lastFrameThemeKey = newFrameKey;
@@ -538,6 +531,9 @@ export class FileObject extends VisualObject {
     }
 
     private _lastFrameThemeKey: string = '';
+    private lastRenderedTheme?: string;
+    private lastRenderedContent?: string;
+    private lastRenderedFont?: string;
 
     private updateContentTexture(theme: ThemeColors): void {
         const screenFront = this.mesh.children.find(c => (c as THREE.Mesh).geometry && (c as THREE.Mesh).geometry.type === 'PlaneGeometry' && c.position.z > 0) as THREE.Mesh;
@@ -631,9 +627,6 @@ export class FileObject extends VisualObject {
             this.descriptionMesh.lookAt(camera.position);
 
             const height = this.metadata.size?.height ?? 1;
-            // FileObject has a bar on top, so top is higher than mesh bounds center
-            // Bar sits at (height+0.1)/2 + capHeight/2
-            // Top of bar is (height+0.1)/2 + capHeight
             const topOfCap = (height + 0.1) / 2 + FileObject.BAR_HEIGHT;
             const labelHeight = this.descriptionMesh.userData.height || 1;
 
@@ -642,6 +635,38 @@ export class FileObject extends VisualObject {
                 this.mesh.position.y + topOfCap + this.GAP + labelHeight / 2,
                 this.mesh.position.z
             );
+        }
+    }
+
+    // Interaction Overrides to preserve Test Color
+    public override select(): void {
+        this._isSelected = true;
+        this.updateEmissiveColor();
+    }
+
+    public override deselect(): void {
+        this._isSelected = false;
+        this.updateEmissiveColor();
+    }
+
+    public override setInteractionState(start: boolean): void {
+        this._isFocused = start;
+        this.updateEmissiveColor();
+    }
+
+    private updateEmissiveColor(): void {
+        if (this._testStatus === 'failed') {
+            this.setEmissive(0xff0000); // Priority 1: Failing
+        } else if (this._testStatus === 'running') {
+            this.setEmissive(0xffaa00); // Priority 2: Running (Orange/Yellow)
+        } else if (this._testStatus === 'passed') {
+            this.setEmissive(0x00ff00); // Priority 3: Passed
+        } else if (this._isSelected) {
+            this.setEmissive(0x444444); // Selection highlight
+        } else if (this._isFocused) {
+            this.setEmissive(0x222222); // Focus/Hover
+        } else {
+            this.setEmissive(0x000000); // Normal
         }
     }
 
@@ -671,161 +696,189 @@ export class FileObject extends VisualObject {
     }
 
     public override dispose(): void {
-        super.dispose(); // Disposes root mesh geometry/material
+        super.dispose();
 
-        // Recursively dispose children
-        if (this.mesh && this.mesh.children) {
-            this.mesh.children.forEach(child => {
-                if (child instanceof THREE.Mesh) {
-                    if (child.geometry) { child.geometry.dispose(); }
-                    if (child.material) {
-                        if (Array.isArray(child.material)) {
-                            child.material.forEach(m => m.dispose());
-                        } else {
-                            child.material.dispose();
-                        }
-                    }
-                }
-            });
+        // 1. Recursive child disposal
+        if (this.mesh?.children) {
+            [...this.mesh.children].forEach(child => this.disposeObject(child));
         }
 
-        // Dispose label texture if present
-        if (this.descriptionMesh) {
-            if (this.descriptionMesh.material.map) {
-                this.descriptionMesh.material.map.dispose();
-            }
-            this.descriptionMesh.material.dispose();
+        // 2. Specialized assets
+        if (this.descriptionMesh) this.disposeObject(this.descriptionMesh);
+        if (this.warningBadge) this.disposeObject(this.warningBadge);
+    }
+
+    private disposeObject(obj: THREE.Object3D): void {
+        if (!obj) return;
+
+        // Remove from parent if still attached
+        if (obj.parent) obj.parent.remove(obj);
+
+        // Recursive disposal for Groups/Meshes
+        if (obj.children.length > 0) {
+            [...obj.children].forEach(child => this.disposeObject(child));
         }
 
-        // Dispose warning badge
-        if (this.warningBadge) {
-            if (this.warningBadge.material.map) {
-                this.warningBadge.material.map.dispose();
+        if (obj instanceof THREE.Mesh || obj instanceof THREE.Sprite) {
+            obj.geometry?.dispose();
+            if (Array.isArray(obj.material)) {
+                obj.material.forEach(m => {
+                    m.map?.dispose();
+                    m.dispose();
+                });
+            } else if (obj.material) {
+                obj.material.map?.dispose();
+                obj.material.dispose();
             }
-            this.warningBadge.material.dispose();
         }
     }
 
-    /**
-     * Set or clear the warning badge on this file object
-     */
+    /** Set or clear the architecture warning badge. */
     public setWarningBadge(warnings: ArchitectureWarning[] | null): void {
-        // Clear existing badge
         if (this.warningBadge) {
-            this.mesh.remove(this.warningBadge);
-            if (this.warningBadge.material.map) {
-                this.warningBadge.material.map.dispose();
-            }
-            this.warningBadge.material.dispose();
+            this.disposeObject(this.warningBadge);
             this.warningBadge = null;
         }
 
         if (!warnings || warnings.length === 0) return;
 
-        // Create warning badge
         const canvas = document.createElement('canvas');
         canvas.width = 64;
         canvas.height = 64;
         const ctx = canvas.getContext('2d')!;
 
-        // Determine color based on highest severity
         const hasHigh = warnings.some(w => w.severity === 'high');
         const hasMedium = warnings.some(w => w.severity === 'medium');
         const color = hasHigh ? '#ef4444' : hasMedium ? '#f97316' : '#eab308';
 
-        // Draw badge circle
         ctx.beginPath();
         ctx.arc(32, 32, 28, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.fill();
 
-        // Draw count
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 28px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(warnings.length.toString(), 32, 32);
 
-        // Create sprite
-        const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
-        const sprite = new THREE.Sprite(material);
+        const material = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true });
+        this.warningBadge = new THREE.Sprite(material);
 
-        // Position in top-right corner of the file object
-        const width = FileObject.STRICT_WIDTH;
         const height = this.metadata.size?.height ?? 1;
-        sprite.scale.set(0.5, 0.5, 1);
-        sprite.position.set(width / 2 + 0.1, height / 2 + 0.1, 0.2);
+        this.warningBadge.scale.set(0.5, 0.5, 1);
+        this.warningBadge.position.set(FileObject.STRICT_WIDTH / 2 + 0.1, height / 2 + 0.1, 0.2);
 
-        this.warningBadge = sprite;
-        this.mesh.add(sprite);
+        this.mesh.add(this.warningBadge);
     }
 
-    /**
-     * Set test status visualization
-     */
+    /** Set test status visualization. */
     public setTestStatus(status: 'passed' | 'failed' | 'running' | 'unknown'): void {
-        // Clear existing badge
+        if (this._testStatus === status) return;
+        this._testStatus = status;
+
+        if (this._statusBeam) {
+            this.disposeObject(this._statusBeam);
+            this._statusBeam = undefined;
+        }
+
         if (this.warningBadge) {
-            this.mesh.remove(this.warningBadge);
-            if (this.warningBadge.material.map) this.warningBadge.material.map.dispose();
-            this.warningBadge.material.dispose();
+            this.disposeObject(this.warningBadge);
             this.warningBadge = null;
         }
 
-        if (status === 'unknown') return;
+        this.updateEmissiveColor();
 
-        // Create Badge
+        if (status === 'failed') {
+            this.createStatusBeam(0xff0000);
+        } else if (status === 'passed') {
+            this.setEmissiveIntensity(0.5);
+            this.createStatusBeam(0x00ff00);
+        } else if (status === 'unknown') {
+            this.setEmissiveIntensity(0.2);
+        }
+
+        if (status !== 'unknown' && status !== 'failed' && status !== 'passed') {
+            this.createTestBadge(status as any);
+        }
+    }
+
+    private createStatusBeam(color: number): void {
+        const beamHeight = 500;
+        const container = new THREE.Group();
+
+        // 1. Inner Core (Highly saturated)
+        const coreGeometry = new THREE.CylinderGeometry(0.04, 0.08, beamHeight, 8, 1, true);
+        const coreMaterial = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.9,
+            side: THREE.DoubleSide
+        });
+        const core = new THREE.Mesh(coreGeometry, coreMaterial);
+        container.add(core);
+
+        // 2. Outer Glow (Soft emission)
+        const glowGeometry = new THREE.CylinderGeometry(0.1, 0.5, beamHeight, 8, 1, true);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.3,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        container.add(glow);
+
+        // Position at top of object, extending upwards
+        const bodyHeight = this.metadata.size?.height ?? 1;
+        const capHeight = FileObject.BAR_HEIGHT;
+        const topOfCap = (bodyHeight + 0.1) / 2 + capHeight;
+
+        container.position.y = topOfCap + beamHeight / 2;
+        container.userData.visualObject = this;
+
+        this.mesh.add(container);
+        this._statusBeam = container as any; // Store for disposal
+    }
+
+    private createTestBadge(status: 'passed' | 'running'): void {
         const canvas = document.createElement('canvas');
         canvas.width = 64;
         canvas.height = 64;
         const ctx = canvas.getContext('2d')!;
 
-        // Colors
-        const color = status === 'passed' ? '#22c55e' : status === 'failed' ? '#ef4444' : '#eab308';
-        const symbol = status === 'passed' ? '✓' : status === 'failed' ? '✕' : '●';
+        const color = status === 'passed' ? '#22c55e' : '#eab308';
+        const symbol = status === 'passed' ? '✓' : '●';
 
-        // Draw Circle
         ctx.beginPath();
         ctx.arc(32, 32, 28, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.fill();
 
-        // Draw Symbol
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 32px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(symbol, 32, 32);
 
-        // Create Sprite
         const texture = new THREE.CanvasTexture(canvas);
         const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
         const sprite = new THREE.Sprite(material);
 
         const width = FileObject.STRICT_WIDTH;
         const height = this.metadata.size?.height ?? 1;
-        // Position top-right
-        sprite.scale.set(0.6, 0.6, 1);
+        sprite.scale.set(0.5, 0.5, 1);
         sprite.position.set(width / 2 + 0.2, height / 2 + 0.2, 0.3);
 
         this.warningBadge = sprite;
         this.mesh.add(sprite);
-
-        // Emissive Pulse (Simple static for now)
-        if (status === 'failed') {
-            this.setEmissive(0x550000); // Red tint
-        } else if (status === 'passed') {
-            this.setEmissive(0x005500); // Green tint (subtle)
-        } else {
-            // Running - keep normal or yellow tint
-        }
     }
 
     public toDTO(): FileEntityDTO {
         return {
             id: this.id,
-            type: this.type as any, // 'file' | 'module' | 'class' | 'function'
+            type: this.type as any,
             position: { x: this.position.x, y: this.position.y, z: this.position.z },
             filePath: this.filePath,
             metadata: {

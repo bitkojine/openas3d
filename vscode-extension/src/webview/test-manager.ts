@@ -11,42 +11,61 @@ interface TestState {
 }
 
 export class TestManager {
-    private tests: Map<string, TestState> = new Map();
+    private tests: Map<string, Map<string, TestState>> = new Map(); // fileId -> testId -> TestState
 
     constructor(
         private objects: CodeObjectManager,
         private postMessage: (msg: WebviewMessage) => void
     ) { }
 
-    public updateTestResult(id: string, status: 'passed' | 'failed' | 'running') {
-        // ID is likely just a file path in our simple implementation
-        // Or "fileId:TestName".
-        // Find the file object
+    public updateTestResult(id: string, status: 'passed' | 'failed' | 'running' | 'unknown') {
         const parts = id.split(':');
-        const fileId = parts[0];
+        const rawFileId = parts[0];
+        // Sanitize to match CodebaseAnalyzer's generateFileId logic
+        const fileId = rawFileId.replace(/[^a-zA-Z0-9]/g, '_');
+
+        let fileTests = this.tests.get(fileId);
+        if (!fileTests) {
+            fileTests = new Map();
+            this.tests.set(fileId, fileTests);
+        }
+
+        fileTests.set(id, {
+            id,
+            fileId,
+            label: parts[1] || id,
+            status
+        });
+
+        this.syncFileStatus(fileId);
+    }
+
+    private syncFileStatus(fileId: string) {
+        const fileTests = this.tests.get(fileId);
+        if (!fileTests) return;
+
+        const allTests = Array.from(fileTests.values());
+
+        // Aggregate status: Fail > Running > Pass > Unknown
+        let aggregate: 'passed' | 'failed' | 'running' | 'unknown' = 'unknown';
+
+        if (allTests.some(t => t.status === 'failed')) {
+            aggregate = 'failed';
+        } else if (allTests.some(t => t.status === 'running')) {
+            aggregate = 'running';
+        } else if (allTests.some(t => t.status === 'passed')) {
+            aggregate = 'passed';
+        }
 
         const obj = this.objects.getObject(fileId);
-        if (obj && obj instanceof FileObject) {
-            obj.setTestStatus(status);
-
-            // If failed, maybe create a Failure Cone? (Future)
+        if (obj && typeof (obj as any).setTestStatus === 'function') {
+            (obj as any).setTestStatus(aggregate);
         }
     }
 
     public updateTests(tests: any[]) {
-        // Bulk update logic
         tests.forEach(test => {
-            // Map TestDTO status to visual status
-            // test.status: 'unknown' | 'passed' | 'failed' | 'running'
-            const status = test.status === 'passed' ? 'passed' :
-                test.status === 'failed' ? 'failed' :
-                    test.status === 'running' ? 'running' : 'unknown';
-
-            // Allow Unknown to clear badge if needed, or just ignore?
-            // Let's pass it through.
-            if (status !== 'unknown') {
-                this.updateTestResult(test.id, status);
-            }
+            this.updateTestResult(test.id, test.status);
         });
     }
 }
