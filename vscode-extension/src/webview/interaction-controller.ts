@@ -3,46 +3,6 @@ import { CodeObjectManager } from './code-object-manager';
 import { SelectionManager } from './selection-manager';
 import { DependencyManager } from './dependency-manager';
 import { WebviewMessage } from '../shared/messages';
-import { CodeEntityDTO } from './types'; // If needed, but code seems to not import it?
-// Checking file content from Step 140:
-// It imports THREE and CodeObjectManager.
-// It DOES NOT import CodeObject.
-// So no changes needed for imports?
-// Wait, Step 140 showed:
-// 1: import * as THREE from 'three';
-// 2: import { CodeObjectManager } from './code-object-manager';
-// No CodeObject import.
-// So InteractionController might be fine?
-// But it accesses `obj.type`, `obj.filePath` etc. `VisualObject` has these.
-// So InteractionController is fine.
-
-// Actually, `test-bridge.ts` ?
-// Step 141:
-// It imports SceneManager, CodeObjectManager, CharacterController.
-// Does it import CodeObject? No.
-// It defines SceneSnapshot.
-// It iterates objects.
-// `scene.traverse`... check `object.userData.visualObject`.
-// visualObject is `VisualObject`.
-// So it seems I don't need to update `interaction-controller.ts` or `test-bridge.ts` if they don't import `CodeObject` explicitly.
-// But wait, `CodeObjectManager.getFocusedObject` returns `CodeEntityDTO | null`.
-// Does InteractionController use that?
-// Line 209: `const currentSelected = this.objects.getSelectedObject();`
-// `getSelectedObject` now returns `CodeEntityDTO`.
-// `targetObj` is `VisualObject` (from `findByMesh`).
-// Comparison `targetObj !== currentSelected` might fail if `currentSelected` is a DTO copy?
-// `toCodeObject()` returns `this` in `VisualObject` (Step 131: `return this;`).
-// So they are the same instance. Comparison is safe.
-
-// So Interaction Controller is safe.
-// Test Bridge?
-// `getSceneState` uses `visualObject` from `userData`.
-// Safe.
-
-// So only `dependency-manager` needed updates? 
-// And `world-renderer.ts`?
-// Let's check `world-renderer.ts` imports.
-
 
 export class InteractionController {
     private raycaster = new THREE.Raycaster();

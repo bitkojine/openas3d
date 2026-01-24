@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { VisualObject } from './visual-object';
-import { CodeEntityDTO } from '../types';
+import { RenderableEntity } from '../types';
+import { CodeEntityDTO, FileEntityDTO } from '../../shared/types';
 import { getLanguageColor } from '../../utils/languageRegistry';
 import { createContentTexture, createTextSprite, createTextSpriteWithDeps, LabelDependencyStats, WrappedLine, CONTENT_CONFIG } from '../texture-factory';
 import { ArchitectureWarning } from '../../core/analysis';
@@ -758,5 +759,20 @@ export class FileObject extends VisualObject {
 
         this.warningBadge = sprite;
         this.mesh.add(sprite);
+    }
+
+    public toDTO(): FileEntityDTO {
+        return {
+            id: this.id,
+            type: this.type as any, // 'file' | 'module' | 'class' | 'function'
+            position: { x: this.position.x, y: this.position.y, z: this.position.z },
+            filePath: this.filePath,
+            metadata: {
+                ...this.metadata,
+                description: this.description,
+                descriptionStatus: this.descriptionStatus,
+                descriptionLastUpdated: this.descriptionLastUpdated
+            }
+        };
     }
 }

@@ -57,6 +57,40 @@ export interface Position3D {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Data Transfer Objects (DTOs)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type CodeEntityDTO = FileEntityDTO | SignEntityDTO;
+
+export interface BaseEntityDTO {
+    id: string;
+    position: Position3D;
+    type: string;
+}
+
+export interface FileEntityDTO extends BaseEntityDTO {
+    type: 'file' | 'module' | 'class' | 'function';
+    filePath: string;
+    metadata: {
+        description?: string;
+        descriptionStatus?: 'missing' | 'generated' | 'reconciled';
+        descriptionLastUpdated?: string;
+        size?: { width?: number; height?: number; depth?: number };
+        color?: number;
+        [key: string]: any;
+    };
+}
+
+export interface SignEntityDTO extends BaseEntityDTO {
+    type: 'sign';
+    text: string;
+    metadata: {
+        description?: string; // Signs might have descriptions too
+        [key: string]: any;
+    };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Theme Types
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -3,7 +3,7 @@
  * Provides curved tubes with animated flow textures, arrows, and circular dependency detection.
  */
 import * as THREE from 'three';
-import { CodeEntityDTO, DependencyDTO, ImportKind } from './types';
+import { DependencyDTO, ImportKind } from './types';
 import { VisualObject } from './objects/visual-object';
 
 /** Dependency type for import/extends/calls relationships */

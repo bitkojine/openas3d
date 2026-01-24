@@ -7,8 +7,9 @@ export { ImportKind, Position3D, CodeEntityType };
 /**
  * A renderable code entity in the 3D world.
  * Extends the pure CodeEntity with Three.js rendering concerns.
+ * Renamed from CodeEntityDTO to RenderableEntity to avoid confusion with pure DTOs.
  */
-export interface CodeEntityDTO extends Omit<CodeEntity, 'position'> {
+export interface RenderableEntity extends Omit<CodeEntity, 'position'> {
     /**
      * World-space position (THREE.Vector3 for rendering)
      */
