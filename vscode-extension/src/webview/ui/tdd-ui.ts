@@ -3,30 +3,33 @@ import { WebviewMessage } from '../../shared/messages';
 export class TddUi {
     private container: HTMLElement;
     private list: HTMLElement;
-    private isVisible = true;
+    private isCollapsed = false;
 
     constructor(private postMessage: (msg: WebviewMessage) => void) {
         this.container = document.createElement('div');
+        this.container.id = 'tdd-ui-container';
+        this.container.className = 'micro-panel';
         this.container.style.position = 'fixed';
         this.container.style.top = '20px';
         this.container.style.left = '20px';
         this.container.style.width = '400px';
-        this.container.style.background = 'var(--vscode-notifications-background)';
+        this.container.style.background = 'var(--vscode-editorWidget-background)';
         this.container.style.backdropFilter = 'blur(10px)';
         this.container.style.border = '1px solid var(--vscode-widget-border)';
         this.container.style.borderRadius = '6px';
         this.container.style.padding = '0'; // Use padding in inner elements
         this.container.style.fontFamily = 'var(--vscode-font-family)';
         this.container.style.fontSize = 'var(--vscode-font-size)';
-        this.container.style.color = 'var(--vscode-notifications-foreground)';
+        this.container.style.color = 'var(--vscode-editorWidget-foreground)';
         this.container.style.zIndex = '1000';
         this.container.style.maxHeight = '50vh';
         this.container.style.display = 'flex';
         this.container.style.flexDirection = 'column';
-        this.container.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.25)';
+        this.container.style.boxShadow = '0 4px 12px var(--vscode-widget-shadow)';
 
         // Header
         const header = document.createElement('div');
+        header.className = 'micro-panel-header';
         header.style.padding = '12px';
         header.style.borderBottom = '1px solid var(--vscode-widget-border)';
         header.style.background = 'var(--vscode-editor-background)';
@@ -34,6 +37,27 @@ export class TddUi {
         header.style.display = 'flex';
         header.style.justifyContent = 'space-between';
         header.style.alignItems = 'center';
+        header.style.cursor = 'pointer';
+        header.onclick = () => this.toggleCollapse();
+
+        const titleGroup = document.createElement('div');
+        titleGroup.style.display = 'flex';
+        titleGroup.style.alignItems = 'center';
+        titleGroup.style.gap = '8px';
+
+        const icon = document.createElement('div');
+        icon.textContent = '🧪';
+        icon.style.width = '24px';
+        icon.style.height = '24px';
+        icon.style.background = 'var(--vscode-button-secondaryBackground)';
+        icon.style.color = 'var(--vscode-button-secondaryForeground)';
+        icon.style.borderRadius = '4px';
+        icon.style.display = 'flex';
+        icon.style.alignItems = 'center';
+        icon.style.justifyContent = 'center';
+        icon.style.fontSize = '14px';
+        icon.style.fontWeight = 'bold';
+        titleGroup.appendChild(icon);
 
         const title = document.createElement('h3');
         title.textContent = 'Business Rules';
@@ -42,7 +66,11 @@ export class TddUi {
         title.style.fontWeight = '600';
         title.style.textTransform = 'uppercase';
         title.style.letterSpacing = '0.5px';
-        header.appendChild(title);
+        titleGroup.appendChild(title);
+
+        header.appendChild(titleGroup);
+
+        header.appendChild(titleGroup);
 
         this.container.appendChild(header);
 
@@ -73,6 +101,11 @@ export class TddUi {
         document.body.appendChild(this.container);
     }
 
+    private toggleCollapse(): void {
+        this.isCollapsed = !this.isCollapsed;
+        this.container.classList.toggle('collapsed', this.isCollapsed);
+    }
+
     private createButton(text: string, kind: 'primary' | 'secondary', onClick: () => void): HTMLButtonElement {
         const btn = document.createElement('button');
         btn.textContent = text;
@@ -85,11 +118,12 @@ export class TddUi {
         btn.style.background = bg;
         btn.style.color = fg;
         btn.style.border = 'none';
-        btn.style.borderRadius = '2px';
-        btn.style.padding = '4px 12px';
+        btn.style.borderRadius = '3px'; // Match VSCode standard
+        btn.style.padding = '4px 14px';
         btn.style.cursor = 'pointer';
         btn.style.fontSize = '11px';
         btn.style.fontFamily = 'inherit';
+        btn.style.transition = 'background 0.15s ease';
 
         btn.onmouseenter = () => btn.style.background = hoverBg;
         btn.onmouseleave = () => btn.style.background = bg;

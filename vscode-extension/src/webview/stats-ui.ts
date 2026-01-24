@@ -3,22 +3,81 @@
  */
 export class StatsUI {
     private frameCount: number = 0;
+    private isCollapsed: boolean = false;
+    private contentElement: HTMLElement;
 
     constructor(
         private statsElement: HTMLElement,
         private loadingElement: HTMLElement
-    ) { }
+    ) {
+        this.statsElement.classList.add('micro-panel');
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'micro-panel-header';
+        Object.assign(header.style, {
+            padding: '12px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            cursor: 'pointer',
+            borderBottom: '1px solid var(--vscode-editorWidget-border)',
+            background: 'var(--vscode-editor-background)',
+            borderRadius: '8px 8px 0 0'
+        });
+        header.onclick = () => this.toggleCollapse();
+
+        const titleGroup = document.createElement('div');
+        titleGroup.style.display = 'flex';
+        titleGroup.style.alignItems = 'center';
+        titleGroup.style.gap = '8px';
+
+        const icon = document.createElement('div');
+        icon.textContent = '📊';
+        Object.assign(icon.style, {
+            width: '20px',
+            height: '20px',
+            background: 'var(--vscode-button-secondaryBackground)',
+            color: 'var(--vscode-button-secondaryForeground)',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px'
+        });
+        titleGroup.appendChild(icon);
+
+        const title = document.createElement('h3');
+        title.textContent = 'Statistics';
+        Object.assign(title.style, {
+            margin: '0',
+            fontSize: '11px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            fontWeight: '600'
+        });
+        titleGroup.appendChild(title);
+        header.appendChild(titleGroup);
+
+        this.statsElement.appendChild(header);
+
+        // Content
+        this.contentElement = document.createElement('div');
+        this.contentElement.className = 'micro-panel-content';
+        this.contentElement.style.padding = '12px';
+        this.statsElement.appendChild(this.contentElement);
+    }
+
+    private toggleCollapse(): void {
+        this.isCollapsed = !this.isCollapsed;
+        this.statsElement.classList.toggle('collapsed', this.isCollapsed);
+    }
 
     /** Hide the loading screen */
     public hideLoading(): void {
         this.loadingElement.classList.add('hidden');
     }
-    /**
-     * Update the stats display
-     */
-    /**
-     * Update the stats display
-     */
+
     public update(
         deltaTime: number,
         objectCount: number,
@@ -30,7 +89,6 @@ export class StatsUI {
         // Update FPS counter frequently (every 10 frames ≈ 6 times/sec)
         if (this.frameCount % 10 === 0) {
             const fps = Math.round(1 / deltaTime);
-            const buildVersion = this.statsElement.getAttribute('data-version') || 'dev';
 
             // Format numbers with commas
             const fmt = (n: number) => n.toLocaleString();
@@ -82,10 +140,7 @@ export class StatsUI {
                 html += `</tbody></table>`;
             }
 
-            // Build Info Footer
-            html += `<div id="build-info">OpenAs3D v${buildVersion}</div>`;
-
-            this.statsElement.innerHTML = html;
+            this.contentElement.innerHTML = html;
         }
     }
 }

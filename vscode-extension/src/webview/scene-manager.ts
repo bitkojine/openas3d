@@ -27,8 +27,28 @@ export class SceneManager {
         // Keep floating particles for ambient feel
         this.addAtmosphere();
 
-        window.addEventListener('resize', () => this.onResize());
+        window.addEventListener('resize', this.handleResize);
     }
+
+    public dispose(): void {
+        window.removeEventListener('resize', this.handleResize);
+
+        // Dispose Three.js objects
+        this.scene.clear();
+        this.renderer.dispose();
+
+        // Specific disposals
+        if (this.ground.geometry) this.ground.geometry.dispose();
+        if (this.ground.material instanceof THREE.Material) {
+            const mat = this.ground.material as THREE.MeshLambertMaterial;
+            if (mat.map) mat.map.dispose();
+            mat.dispose();
+        }
+
+        this.environment.dispose();
+    }
+
+    private handleResize = () => this.onResize();
 
     private createScene(): THREE.Scene {
         const scene = new THREE.Scene();

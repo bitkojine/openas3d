@@ -2,6 +2,7 @@ import { CodeObjectManager } from './code-object-manager';
 import { FileObject } from './objects/file-object';
 import { WebviewMessage } from '../shared/messages';
 import * as THREE from 'three';
+import { ContextMenuRegistry } from './services/context-menu-registry';
 
 interface TestState {
     id: string; // Test ID (fileId:testName)
@@ -16,7 +17,47 @@ export class TestManager {
     constructor(
         private objects: CodeObjectManager,
         private postMessage: (msg: WebviewMessage) => void
-    ) { }
+    ) {
+        this.registerContextMenuProvider();
+    }
+
+    private registerContextMenuProvider() {
+        ContextMenuRegistry.getInstance().registerProvider(
+            (obj) => {
+                const path = obj.filePath.toLowerCase();
+                return path.includes('.test.') || path.includes('.spec.') || path.includes('__tests__');
+            },
+            (obj) => {
+                const items = [
+                    {
+                        id: 'run-all-file',
+                        label: 'Run File Tests',
+                        action: () => this.postMessage({
+                            type: 'runTests',
+                            data: { fileId: obj.id }
+                        })
+                    }
+                ];
+
+                // Add individual tests if discovered
+                const fileTests = this.tests.get(obj.id);
+                if (fileTests) {
+                    fileTests.forEach(test => {
+                        items.push({
+                            id: `run-test-${test.id}`,
+                            label: `Run: ${test.label}`,
+                            action: () => this.postMessage({
+                                type: 'runTests',
+                                data: { testId: test.id }
+                            })
+                        });
+                    });
+                }
+
+                return items;
+            }
+        );
+    }
 
     public updateTestResult(id: string, status: 'passed' | 'failed' | 'running' | 'unknown') {
         const parts = id.split(':');

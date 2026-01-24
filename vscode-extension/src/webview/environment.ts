@@ -161,6 +161,13 @@ export class ProceduralSky {
             mat.uniforms.starIntensity.value = 0.0;
         }
     }
+
+    public dispose(): void {
+        this.mesh.geometry.dispose();
+        if (this.mesh.material instanceof THREE.Material) {
+            this.mesh.material.dispose();
+        }
+    }
 }
 
 // ============================================================================
@@ -264,6 +271,17 @@ export class CloudSystem {
             // Subtle bobbing
             cloud.group.position.y += Math.sin(this.time * 0.5 + cloud.baseX) * 0.01;
         }
+    }
+
+    public dispose(): void {
+        this.group.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                child.geometry.dispose();
+                if (child.material instanceof THREE.Material) {
+                    child.material.dispose();
+                }
+            }
+        });
     }
 }
 
@@ -507,6 +525,17 @@ export class DistantTerrain {
         // Iterate children to find trunks?
         // Or store trunk material reference
     }
+
+    public dispose(): void {
+        this.group.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                child.geometry.dispose();
+                if (child.material instanceof THREE.Material) {
+                    child.material.dispose();
+                }
+            }
+        });
+    }
 }
 
 // ============================================================================
@@ -694,6 +723,12 @@ export class Environment {
     public updateTheme(theme: ThemeColors): void {
         this.sky.updateTheme(theme);
         this.terrain.updateTheme(theme);
+    }
+
+    public dispose(): void {
+        this.sky.dispose();
+        this.clouds.dispose();
+        this.terrain.dispose();
     }
 }
 

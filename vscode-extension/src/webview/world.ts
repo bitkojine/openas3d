@@ -14,6 +14,7 @@ import { ThemeManager } from './theme-manager';
 import { InteractionController } from './interaction-controller';
 import { TestManager } from './test-manager';
 import { TddUi } from './ui/tdd-ui';
+import { LegendUI } from './ui/legend-ui';
 import { StatsUI } from './stats-ui';
 import { TestBridge } from './test-utils/test-bridge';
 import { DependencyManager } from './dependency-manager';
@@ -38,6 +39,7 @@ export class World {
     private interaction: InteractionController;
     private ui: StatsUI;
     private warningOverlay: WarningOverlay;
+    private legendUi: LegendUI;
     private testManager: TestManager;
     private tddUi: TddUi;
 
@@ -75,6 +77,7 @@ export class World {
         // Initialize TDD Components
         this.testManager = new TestManager(this.objects, (msg) => this.vscode.postMessage(msg));
         this.tddUi = new TddUi((msg) => this.vscode.postMessage(msg));
+        this.legendUi = new LegendUI(container);
 
         // Initialize theme
         const initialTheme = this.themeManager.getTheme();
@@ -108,16 +111,7 @@ export class World {
         this.ui.hideLoading();
 
         // Listen for description updates from the extension
-        window.addEventListener('message', (event) => {
-            const message = event.data;
-            if (!this.objects) { return; }
-
-            switch (message.type) {
-                case 'updateObjectDescription':
-                    this.objects.applyDescription(message.data.filePath, message.data.description);
-                    break;
-            }
-        });
+        window.addEventListener('message', this.handleWindowMessage);
 
         // Initialize Test Bridge for automated testing
         // Delay initialization to avoid blocking the main thread during startup
@@ -132,6 +126,31 @@ export class World {
 
         this.animate();
     }
+
+    public dispose(): void {
+        window.removeEventListener('message', this.handleWindowMessage);
+
+        this.sceneManager.dispose();
+        this.character.dispose();
+        this.interaction.dispose();
+        this.dependencyManager.dispose();
+        this.themeManager.dispose();
+        this.objects.clear();
+
+        // Stop animation loop? 
+        // World typically exists for the life of the page, but dispose() is good for reload safety.
+    }
+
+    private handleWindowMessage = (event: MessageEvent) => {
+        const message = event.data;
+        if (!this.objects) { return; }
+
+        switch (message.type) {
+            case 'updateObjectDescription':
+                this.objects.applyDescription(message.data.filePath, message.data.description);
+                break;
+        }
+    };
 
     /** Main animation loop */
     private animate(): void {
