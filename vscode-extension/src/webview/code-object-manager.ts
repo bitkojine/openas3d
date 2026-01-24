@@ -37,6 +37,10 @@ export class CodeObjectManager {
         return this.objects;
     }
 
+    public getObject(id: string): VisualObject | undefined {
+        return this.objects.get(id);
+    }
+
     private readonly GAP = 0.5;
 
     private readonly GROUND_Y = 0;

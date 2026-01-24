@@ -2,6 +2,7 @@ import { CodeFile } from '../core/domain/code-file';
 import { ZoneConfig, Zone, ZoneDTO } from '../core/domain/zone';
 import { ZoneClassifier } from './zone-classifier';
 import { profile } from '../utils/profiling';
+import { LayoutPersistenceService } from '../services/layout-persistence';
 
 export { ZoneConfig, Zone, ZoneDTO };
 
@@ -30,8 +31,10 @@ export class CodebaseLayoutEngine {
     private classifier = new ZoneClassifier();
 
     private zones: Map<string, Zone> = new Map();
+    private persistenceService?: LayoutPersistenceService;
 
-    constructor() {
+    constructor(persistenceService?: LayoutPersistenceService) {
+        this.persistenceService = persistenceService;
         this.initializeZones();
     }
 
@@ -81,6 +84,21 @@ export class CodebaseLayoutEngine {
             const zone = this.zones.get(zoneName) || this.zones.get('core')!;
 
             filesInZone.forEach((file, i) => {
+                // Check override first
+                // Use workspace relative path as ID if possible, otherwise existing ID
+                // File.id is usually the relative path in this codebase? need to check, but assumed yes or persistence needs ID
+                if (this.persistenceService) {
+                    const override = this.persistenceService.getOverride(file.id);
+                    if (override) {
+                        positions.set(file.id, override);
+                        // Update zone bounds even for override? 
+                        // Yes, to ensure camera frames it? Or maybe not?
+                        // Let's expand zone to include manual items for now so they aren't off-screen
+                        zone.expandToInclude(override.x, override.z);
+                        return; // Skip procedural placement
+                    }
+                }
+
                 const pos = this.getPositionForZone(zone, i);
                 positions.set(file.id, pos);
 

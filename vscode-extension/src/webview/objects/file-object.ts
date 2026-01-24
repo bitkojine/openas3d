@@ -761,6 +761,67 @@ export class FileObject extends VisualObject {
         this.mesh.add(sprite);
     }
 
+    /**
+     * Set test status visualization
+     */
+    public setTestStatus(status: 'passed' | 'failed' | 'running' | 'unknown'): void {
+        // Clear existing badge
+        if (this.warningBadge) {
+            this.mesh.remove(this.warningBadge);
+            if (this.warningBadge.material.map) this.warningBadge.material.map.dispose();
+            this.warningBadge.material.dispose();
+            this.warningBadge = null;
+        }
+
+        if (status === 'unknown') return;
+
+        // Create Badge
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d')!;
+
+        // Colors
+        const color = status === 'passed' ? '#22c55e' : status === 'failed' ? '#ef4444' : '#eab308';
+        const symbol = status === 'passed' ? '✓' : status === 'failed' ? '✕' : '●';
+
+        // Draw Circle
+        ctx.beginPath();
+        ctx.arc(32, 32, 28, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        // Draw Symbol
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 32px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(symbol, 32, 32);
+
+        // Create Sprite
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+        const sprite = new THREE.Sprite(material);
+
+        const width = FileObject.STRICT_WIDTH;
+        const height = this.metadata.size?.height ?? 1;
+        // Position top-right
+        sprite.scale.set(0.6, 0.6, 1);
+        sprite.position.set(width / 2 + 0.2, height / 2 + 0.2, 0.3);
+
+        this.warningBadge = sprite;
+        this.mesh.add(sprite);
+
+        // Emissive Pulse (Simple static for now)
+        if (status === 'failed') {
+            this.setEmissive(0x550000); // Red tint
+        } else if (status === 'passed') {
+            this.setEmissive(0x005500); // Green tint (subtle)
+        } else {
+            // Running - keep normal or yellow tint
+        }
+    }
+
     public toDTO(): FileEntityDTO {
         return {
             id: this.id,

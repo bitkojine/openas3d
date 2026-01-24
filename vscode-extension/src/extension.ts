@@ -6,11 +6,16 @@ import { PerfTracker } from './utils/perf-tracker';
 import { ExploreDependenciesService } from './services/explore-dependencies-service';
 import { SignService } from './services/sign-service';
 
+import { LayoutPersistenceService } from './services/layout-persistence';
+import { TestDiscoveryService } from './services/test-discovery-service';
+
 let webviewPanelManager: WebviewPanelManager;
 let perf: PerfTracker;
 
 let exploreService: ExploreDependenciesService;
 let signService: SignService;
+let layoutPersistence: LayoutPersistenceService;
+let testDiscovery: TestDiscoveryService;
 
 export function activate(context: vscode.ExtensionContext) {
     const extension = vscode.extensions.getExtension('openas3d.openas3d-vscode');
@@ -18,12 +23,18 @@ export function activate(context: vscode.ExtensionContext) {
     console.log(`OpenAs3D extension is now active! (Build ${version})`);
 
     // Initialize core managers
-    // Initialize core managers
     // We pass perf tracker to WebviewPanelManager for middleware support
     perf = new PerfTracker();
     PerfTracker.instance = perf; // Set singleton for decorators
     webviewPanelManager = new WebviewPanelManager(context, perf, version);
-    const codebaseVisualizer = new CodebaseVisualizer(context.extensionPath);
+
+    // Initialize Backend Services
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    layoutPersistence = new LayoutPersistenceService(workspaceRoot);
+    testDiscovery = new TestDiscoveryService();
+
+    // Inject persistence into Visualizer -> LayoutEngine
+    const codebaseVisualizer = new CodebaseVisualizer(context.extensionPath, layoutPersistence);
 
     // Initialize services
     signService = new SignService(webviewPanelManager);
@@ -34,11 +45,46 @@ export function activate(context: vscode.ExtensionContext) {
         signService // inject SignService here
     );
 
+    // Register TDD Commands
+    context.subscriptions.push(
+        vscode.commands.registerCommand('openas3d.tdd.runAll', () => {
+            vscode.commands.executeCommand('testing.runAll');
+        }),
+        vscode.commands.registerCommand('openas3d.tdd.runFailed', () => {
+            vscode.commands.executeCommand('testing.runFailed');
+        }),
+        vscode.commands.registerCommand('openas3d.tdd.toggleWatch', () => {
+            // Toggle watch mode logic (future)
+            vscode.window.showInformationMessage('TDD Watch Mode toggled (Simulated)');
+        })
+    );
+
+    // Wire up Test Discovery to Webview
+    testDiscovery.onDidChangeTests(() => {
+        const testsMap = testDiscovery.getTests();
+        const allTests: any[] = [];
+        testsMap.forEach((tests) => allTests.push(...tests));
+
+        webviewPanelManager.dispatchMessage({
+            type: 'updateTests',
+            data: allTests
+        });
+    });
+
+    // Register Move Handler for persistence
+    webviewPanelManager.registerMoveHandler(async (id, pos) => {
+        await layoutPersistence.savePosition(id, pos.x, pos.z);
+    });
+
     // Register commands
     const exploreDependenciesCommand = vscode.commands.registerCommand(
         'openas3d.exploreDependencies',
         async (uri?: vscode.Uri) => {
             try {
+                // Update workspace root if it changed (e.g. multi-root or first load)
+                if (uri) {
+                    // logic to determine root from uri? For now keep simple
+                }
                 await exploreService.exploreDependencies(uri);
             } catch (error) {
                 vscode.window.showErrorMessage(`Failed to explore dependencies: ${error}`);
@@ -176,7 +222,10 @@ export function activate(context: vscode.ExtensionContext) {
         }
     }, 2000);
 
-    context.subscriptions.push({ dispose: () => clearInterval(perfInterval) });
+    context.subscriptions.push(
+        { dispose: () => clearInterval(perfInterval) },
+        { dispose: () => testDiscovery.dispose() }
+    );
 }
 
 export function deactivate() {

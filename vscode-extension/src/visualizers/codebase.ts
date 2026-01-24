@@ -8,6 +8,8 @@ import { analyzeArchitecture } from '../core/analysis/architecture-analyzer';
 import { ExtensionMessage } from '../shared/messages';
 
 // Re-export types for backward compatibility within the module if needed
+import { LayoutPersistenceService } from '../services/layout-persistence';
+
 export { CodeFile, DependencyEdge };
 /**
  * Facade class for the VSCode extension loader.
@@ -16,14 +18,15 @@ export { CodeFile, DependencyEdge };
 export class CodebaseVisualizer {
 
     private panel: vscode.WebviewPanel | null = null;
-    private layout = new CodebaseLayoutEngine();
+    private layout: CodebaseLayoutEngine;
     private fileIndex = 0;
     private fileZoneCounts: { [zone: string]: number } = {};
     private filesWithZones: FileWithZone[] = [];
     private extensionPath: string;
 
-    constructor(extensionPath: string) {
+    constructor(extensionPath: string, persistenceService?: LayoutPersistenceService) {
         this.extensionPath = extensionPath;
+        this.layout = new CodebaseLayoutEngine(persistenceService);
     }
 
     private postMessage(message: ExtensionMessage): void {

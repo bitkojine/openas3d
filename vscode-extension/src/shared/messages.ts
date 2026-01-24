@@ -9,7 +9,7 @@
  * - WebviewMessage: Messages sent FROM the Webview TO the Extension Host
  */
 
-import { ZoneDTO, ArchitectureWarning, ImportKind, Position3D, EditorConfig } from './types';
+import { ZoneDTO, ArchitectureWarning, ImportKind, Position3D, EditorConfig, TestDTO } from './types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Payload Types (shared data structures)
@@ -115,6 +115,9 @@ export type ExtensionMessage =
     // Configuration
     | { type: 'updateConfig'; data: EditorConfig }
 
+    // Test Data
+    | { type: 'updateTests'; data: TestDTO[] }
+
     // Test Messages (only active in test mode)
     | { type: 'TEST_GET_SCENE_STATE' }
     | { type: 'TEST_SIMULATE_SELECTION'; data: { id: string } }
@@ -146,6 +149,8 @@ export type WebviewMessage =
     | { type: 'openFile'; data: { filePath: string } }
     | { type: 'openFiles'; data: { codeFile: string } }
     | { type: 'navigateToFile'; data: { fileId: string } }
+    | { type: 'moveObject'; data: { id: string; position: Position3DPayload } }
+    | { type: 'runAllTests' }
 
     // Sign Management
     | { type: 'addSignAtPosition'; data: { position: Position3DPayload } }
