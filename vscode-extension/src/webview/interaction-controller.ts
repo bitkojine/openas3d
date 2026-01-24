@@ -5,12 +5,15 @@ import { DependencyManager } from './dependency-manager';
 import { WebviewMessage } from '../shared/messages';
 
 import { DraggableObjectController } from './controllers/draggable-controller';
+import { ContextMenu } from './ui/context-menu';
+import { ContextMenuRegistry } from './services/context-menu-registry';
 
 export class InteractionController {
     private raycaster = new THREE.Raycaster();
     private mouse = new THREE.Vector2();
     private crosshair: HTMLDivElement;
     private draggable: DraggableObjectController;
+    private contextMenu: ContextMenu;
 
     constructor(
         private camera: THREE.Camera,
@@ -30,16 +33,20 @@ export class InteractionController {
             })
         );
 
+        this.contextMenu = new ContextMenu();
+
         this.onPointerDown = this.onPointerDown.bind(this);
         this.onPointerUp = this.onPointerUp.bind(this);
         this.onDoubleClick = this.onDoubleClick.bind(this);
         this.onMouseMove = this.onMouseMove.bind(this);
         this.onPointerLockChange = this.onPointerLockChange.bind(this);
+        this.onContextMenu = this.onContextMenu.bind(this);
 
         domElement.addEventListener('pointerdown', this.onPointerDown);
         domElement.addEventListener('pointerup', this.onPointerUp);
         domElement.addEventListener('dblclick', this.onDoubleClick);
         domElement.addEventListener('mousemove', this.onMouseMove);
+        domElement.addEventListener('contextmenu', this.onContextMenu);
         document.addEventListener('pointerlockchange', this.onPointerLockChange);
 
         this.crosshair = this.createCrosshair();
@@ -55,17 +62,57 @@ export class InteractionController {
         this.domElement.removeEventListener('pointerup', this.onPointerUp);
         this.domElement.removeEventListener('dblclick', this.onDoubleClick);
         this.domElement.removeEventListener('mousemove', this.onMouseMove);
+        this.domElement.removeEventListener('contextmenu', this.onContextMenu);
         document.removeEventListener(
             'pointerlockchange',
             this.onPointerLockChange
         );
 
         this.crosshair.remove();
+        this.contextMenu.hide();
     }
 
     // ────────────────────────────────────────────────
     // Pointer + Interaction
     // ────────────────────────────────────────────────
+
+    private onContextMenu(event: MouseEvent): void {
+        event.preventDefault();
+
+        // If pointer is locked, we can't easily show a menu at the cursor
+        // because the cursor is hidden/fixed.
+        // We either unlock pointer OR show menu at center.
+        // VSCode users usually expect right-click to show a menu.
+
+        if (document.pointerLockElement === this.domElement) {
+            document.exitPointerLock();
+            this.mouse.set(0, 0); // center
+        } else {
+            // Calculate mouse position in normalized device coordinates
+            // (-1 to +1) for both components
+            const rect = this.domElement.getBoundingClientRect();
+            this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        }
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+
+        const intersects = this.raycaster.intersectObjects(
+            this.objects.getObjectMeshes(),
+            true
+        );
+
+        if (intersects.length > 0) {
+            const mesh = intersects[0].object as THREE.Mesh;
+            const obj = this.objects.findByMesh(mesh);
+
+            if (obj) {
+                const items = ContextMenuRegistry.getInstance().getMenuItems(obj);
+                if (items.length > 0) {
+                    this.contextMenu.show(event.clientX, event.clientY, items, obj);
+                }
+            }
+        }
+    }
 
     private onPointerDown(event: PointerEvent): void {
         // Acquire pointer lock on first interaction

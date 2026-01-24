@@ -5,9 +5,8 @@ import { VisualObject } from '../objects/visual-object';
 export class DraggableObjectController {
     private isDragging = false;
     private draggedObject: VisualObject | null = null;
-    private dragPlane: THREE.Plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    private intersection = new THREE.Vector3();
-    private offset = new THREE.Vector3();
+    private initialDistance = 0;
+    private initialY = 0;
 
     constructor(
         private objects: CodeObjectManager,
@@ -18,35 +17,40 @@ export class DraggableObjectController {
     public startDrag(visualObject: VisualObject, raycaster: THREE.Raycaster): boolean {
         if (this.isDragging) return false;
 
-        // Calculate intersection with drag plane
-        if (raycaster.ray.intersectPlane(this.dragPlane, this.intersection)) {
-            this.isDragging = true;
-            this.draggedObject = visualObject;
+        this.isDragging = true;
+        this.draggedObject = visualObject;
 
-            // Calculate offset between intersection point and object position
-            // This prevents the object from snapping to the mouse center
-            this.offset.subVectors(visualObject.mesh.position, this.intersection);
-            return true;
-        }
-        return false;
+        // Store initial height to lock Y movement
+        this.initialY = visualObject.mesh.position.y;
+
+        // Maintain the distance from the camera to the object center at grab time.
+        // This is robust at all viewing angles (unlike plane intersections).
+        this.initialDistance = this.camera.position.distanceTo(visualObject.mesh.position);
+
+        // Optional: snap the center to the ray immediately
+        this.update(raycaster);
+
+        return true;
     }
 
     public update(raycaster: THREE.Raycaster) {
         if (!this.isDragging || !this.draggedObject) return;
 
-        if (raycaster.ray.intersectPlane(this.dragPlane, this.intersection)) {
-            // Apply offset
-            const targetPos = new THREE.Vector3().addVectors(this.intersection, this.offset);
+        // Project the current ray forward by the initial distance.
+        // This keeps the object at a consistent distance from the player
+        // and perfectly aligned with the crosshair (ray center).
+        const targetPos = new THREE.Vector3()
+            .copy(this.camera.position)
+            .add(raycaster.ray.direction.clone().multiplyScalar(this.initialDistance));
 
-            // Constrain Y (optional, or allow lifting?)
-            // For now, lock Y? No, CodeObjectManager handles Y via 'updateObjectPosition' which respects floating height
-            // But we should probably feed the X/Z back.
+        // Enforce Y lock to prevent the object from moving up or down
+        targetPos.y = this.initialY;
 
-            this.draggedObject.mesh.position.set(targetPos.x, targetPos.y, targetPos.z);
+        this.draggedObject.mesh.position.copy(targetPos);
 
-            // Notify listener (debouncing handled by consumer if needed, or we can debounce here)
-            this.onMove(this.draggedObject.id, targetPos);
-        }
+        // Notify listener. 
+        // Note: CodeObjectManager usually clamps the Y component to floating height.
+        this.onMove(this.draggedObject.id, targetPos);
     }
 
     public endDrag() {

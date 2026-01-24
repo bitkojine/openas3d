@@ -8,6 +8,7 @@ import { ThemeColors } from '../shared/types';
 export class ThemeManager {
     private currentTheme: ThemeColors;
     private listeners: ((theme: ThemeColors) => void)[] = [];
+    private observer: MutationObserver | null = null;
 
     constructor() {
         this.currentTheme = this.readThemeColors();
@@ -28,11 +29,19 @@ export class ThemeManager {
         this.listeners.push(callback);
     }
 
+    public dispose(): void {
+        if (this.observer) {
+            this.observer.disconnect();
+            this.observer = null;
+        }
+        this.listeners = [];
+    }
+
     /**
      * Start observing DOM changes to detect theme switches
      */
     private startObserving(): void {
-        const observer = new MutationObserver(() => {
+        this.observer = new MutationObserver(() => {
             const newTheme = this.readThemeColors();
             if (this.hasThemeChanged(this.currentTheme, newTheme)) {
                 this.currentTheme = newTheme;
@@ -42,19 +51,21 @@ export class ThemeManager {
 
         // Watch for class changes on body (vscode-light/dark/high-contrast usually toggle here)
         // Also watch style attribute in case variables are updated directly on body/root
-        observer.observe(document.body, {
-            attributes: true,
-            attributeFilter: ['class', 'style'],
-            subtree: false
-        });
-
-        // Also watch html element as some themes might apply there
-        if (document.documentElement) {
-            observer.observe(document.documentElement, {
+        if (this.observer) {
+            this.observer.observe(document.body, {
                 attributes: true,
                 attributeFilter: ['class', 'style'],
                 subtree: false
             });
+
+            // Also watch html element as some themes might apply there
+            if (document.documentElement) {
+                this.observer.observe(document.documentElement, {
+                    attributes: true,
+                    attributeFilter: ['class', 'style'],
+                    subtree: false
+                });
+            }
         }
     }
 

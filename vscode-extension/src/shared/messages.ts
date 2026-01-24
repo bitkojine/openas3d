@@ -151,6 +151,7 @@ export type WebviewMessage =
     | { type: 'navigateToFile'; data: { fileId: string } }
     | { type: 'moveObject'; data: { id: string; position: Position3DPayload } }
     | { type: 'runAllTests' }
+    | { type: 'runTests'; data: { fileId?: string; testId?: string } }
 
     // Sign Management
     | { type: 'addSignAtPosition'; data: { position: Position3DPayload } }
