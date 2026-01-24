@@ -16,6 +16,16 @@
         },
         {
             "type": "npm",
+            "script": "watch-tests",
+            "problemMatcher": "$tsc-watch",
+            "isBackground": true,
+            "presentation": {
+                "reveal": "never"
+            },
+            "group": "build"
+        },
+        {
+            "type": "npm",
             "script": "compile",
             "problemMatcher": "$tsc",
             "group": "build"
@@ -24,7 +34,9 @@
             "label": "package extension",
             "type": "shell",
             "command": "vsce",
-            "args": ["package"],
+            "args": [
+                "package"
+            ],
             "group": "build"
         }
     ]

@@ -7,10 +7,10 @@ export function run(): Promise<void> {
     const mocha = new Mocha({
         ui: 'tdd',
         color: true,
-        timeout: 20000 // Higher timeout for integration tests
+        timeout: 60000 // Higher timeout for integration tests
     });
 
-    const testsRoot = path.resolve(__dirname, '..');
+    const testsRoot = path.resolve(__dirname);
 
     return new Promise(async (resolve, reject) => {
         try {
