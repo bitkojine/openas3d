@@ -88,7 +88,7 @@ describe('PerfTracker', () => {
     });
 
     it('calculates stats correctly', () => {
-        const nowSpy = jest.spyOn(performance, 'now');
+        const nowSpy = jest.spyOn(perf, 'now');
 
         nowSpy.mockReturnValueOnce(1000)
             .mockReturnValueOnce(1100) // taskA: 100ms

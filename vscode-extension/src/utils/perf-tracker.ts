@@ -25,10 +25,18 @@ export class PerfTracker {
     }
 
     /**
+     * Get current time in milliseconds.
+     * Exposed for testing/mocking purposes.
+     */
+    public now(): number {
+        return performance.now();
+    }
+
+    /**
      * Start timing a labeled section
      */
     public start(label: string): number {
-        const now = performance.now();
+        const now = this.now();
         this.activeStack.push(label);
 
         // We log 'B' (Begin) event if we were streaming, but since we are buffering 
@@ -46,7 +54,7 @@ export class PerfTracker {
      * Stop timing a labeled section and store the duration
      */
     public stop(label: string, startTime: number): void {
-        const now = performance.now();
+        const now = this.now();
         const duration = now - startTime;
 
         // Hierarchy Validation
