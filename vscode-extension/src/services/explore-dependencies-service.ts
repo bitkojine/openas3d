@@ -36,11 +36,8 @@ export class ExploreDependenciesService {
             const panel = await this.panelManager.createOrShowPanel();
             this.perf.stop('createOrShowPanel', tPanel);
 
-            panel.webview.onDidReceiveMessage(async (message) => {
-                if (message.type === 'addSignAtPosition') {
-                    await this.signService.addSignAtPosition(message.data.position);
-                }
-            });
+            // Register sign handler
+            this.panelManager.registerSignHandler(this.signService);
 
             // Ensure webview is ready before sending large data streams
             // This prevents race conditions where 'addObject' messages are lost
