@@ -108,6 +108,46 @@ export class World {
             this.vscode.postMessage({ type: 'navigateToFile', data: { fileId } });
         });
 
+        // Register Global Context Menu Provider
+        // This ensures right-click works on ALL objects, not just tests
+        const { ContextMenuRegistry } = require('./services/context-menu-registry');
+        ContextMenuRegistry.getInstance().registerProvider(
+            () => true, // Applies to all objects
+            (obj: any) => {
+                const items = [
+                    {
+                        id: 'focus-obj',
+                        label: 'Focus Camera',
+                        action: () => {
+                            this.selectionManager.selectObject(obj);
+                            // Teleport logic could go here, or just select
+                        }
+                    },
+                    {
+                        id: 'copy-path',
+                        label: 'Copy Path',
+                        action: () => {
+                            // We can't write to clipboard from webview easily without permission,
+                            // but we can send a message to extension to do it.
+                            this.vscode.postMessage({ type: 'copyText', data: { text: obj.filePath } });
+                        }
+                    }
+                ];
+
+                // Dependency actions
+                const stats = this.dependencyManager.getStatsForObject(obj.id);
+                if (stats && (stats.incoming > 0 || stats.outgoing > 0)) {
+                    items.push({
+                        id: 'show-deps',
+                        label: 'Show Dependencies',
+                        action: () => this.dependencyManager.showForObject(obj.id)
+                    });
+                }
+
+                return items;
+            }
+        );
+
         this.ui.hideLoading();
 
         // Listen for description updates from the extension

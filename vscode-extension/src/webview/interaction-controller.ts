@@ -86,9 +86,14 @@ export class InteractionController {
 
         if (document.pointerLockElement === this.domElement) {
             document.exitPointerLock();
+            this.mouse.set(0, 0); // center
+        } else {
+            // Calculate mouse position in normalized device coordinates
+            // (-1 to +1) for both components
+            const rect = this.domElement.getBoundingClientRect();
+            this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         }
-
-        this.mouse.set(0, 0); // center
         this.raycaster.setFromCamera(this.mouse, this.camera);
 
         const intersects = this.raycaster.intersectObjects(
