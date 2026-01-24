@@ -56,23 +56,36 @@ export class CharacterController {
     }
 
     private initInput(): void {
-        document.addEventListener('keydown', (e) => this.onKeyDown(e));
-        document.addEventListener('keyup', (e) => this.onKeyUp(e));
-        window.addEventListener('blur', () => this.resetControls());
-
-        document.addEventListener('pointerlockchange', () => this.onPointerLockChange());
-        document.addEventListener('pointerlockerror', () => {
-            // Pointer lock may fail in certain environments - expected
-        });
-
-        this.domElement.addEventListener('click', () => {
-            if (!this.isPointerLocked) {
-                this.domElement.requestPointerLock();
-            }
-        });
-
-        this.domElement.addEventListener('mousemove', (e) => this.onMouseMove(e));
+        document.addEventListener('keydown', this.handleKeyDown);
+        document.addEventListener('keyup', this.handleKeyUp);
+        window.addEventListener('blur', this.handleBlur);
+        document.addEventListener('pointerlockchange', this.handlePointerLockChange);
+        document.addEventListener('pointerlockerror', this.handlePointerLockError);
+        this.domElement.addEventListener('click', this.handleClick);
+        this.domElement.addEventListener('mousemove', this.handleMouseMove);
     }
+
+    public dispose(): void {
+        document.removeEventListener('keydown', this.handleKeyDown);
+        document.removeEventListener('keyup', this.handleKeyUp);
+        window.removeEventListener('blur', this.handleBlur);
+        document.removeEventListener('pointerlockchange', this.handlePointerLockChange);
+        document.removeEventListener('pointerlockerror', this.handlePointerLockError);
+        this.domElement.removeEventListener('click', this.handleClick);
+        this.domElement.removeEventListener('mousemove', this.handleMouseMove);
+    }
+
+    private handleKeyDown = (e: KeyboardEvent) => this.onKeyDown(e);
+    private handleKeyUp = (e: KeyboardEvent) => this.onKeyUp(e);
+    private handleBlur = () => this.resetControls();
+    private handlePointerLockChange = () => this.onPointerLockChange();
+    private handlePointerLockError = () => { };
+    private handleClick = () => {
+        if (!this.isPointerLocked) {
+            this.domElement.requestPointerLock();
+        }
+    };
+    private handleMouseMove = (e: MouseEvent) => this.onMouseMove(e);
 
     private onKeyDown(event: KeyboardEvent): void {
         switch (event.code) {

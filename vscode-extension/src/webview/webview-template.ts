@@ -41,24 +41,36 @@ body { margin:0; padding:0; overflow:hidden; background-color: var(--vscode-edit
     background: var(--vscode-editorWidget-background); 
     color: var(--vscode-editor-foreground); 
     font-size: 12px; font-family: var(--vscode-editor-font-family);
-    padding: 12px; border-radius: 8px;
-    z-index:1001; pointer-events: none;
+    padding: 0; border-radius: 8px;
+    z-index:1001; pointer-events: auto;
     border: 1px solid var(--vscode-editorWidget-border);
     backdrop-filter: blur(4px);
     box-shadow: 0 4px 6px var(--vscode-widget-shadow);
     min-width: 300px;
 }
-#stats-panel table { width: 100%; border-collapse: collapse; font-size: 11px; }
-#stats-panel th { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--vscode-editorWidget-border); opacity: 0.7; font-weight: 600; }
-#stats-panel td { padding: 3px 6px; }
-#build-info { 
-    margin-top: 8px; 
-    padding-top: 4px; 
-    border-top: 1px solid var(--vscode-editorWidget-border); 
-    font-size: 10px; 
-    opacity: 0.5; 
-    text-align: right; 
+#version-tag {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--vscode-statusBar-background);
+    color: var(--vscode-statusBar-foreground);
+    padding: 2px 14px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-family: var(--vscode-editor-font-family);
+    pointer-events: none;
+    z-index: 1100;
+    opacity: 1;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-weight: 800;
+    box-shadow: 0 2px 4px var(--vscode-widget-shadow);
+    border: 1px solid var(--vscode-statusBar-border);
 }
+#stats-panel table { width: 100%; border-collapse: collapse; font-size: 11px; }
+#stats-panel th { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--vscode-editorWidget-border); color: var(--vscode-descriptionForeground); font-weight: 600; }
+#stats-panel td { padding: 3px 6px; color: var(--vscode-editor-foreground); }
 
 /* Theme-specific coloring for performance stats */
 /* Dark Theme (Default) */
@@ -72,6 +84,43 @@ body.vscode-light .row-medium { color: #f57f17; }
 /* High Contrast */
 body.vscode-high-contrast .row-slow { color: #ff0000; }
 body.vscode-high-contrast .row-medium { color: #ff8f00; }
+
+/* Micro-Panels (Collapsible UI) */
+.micro-panel {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+.micro-panel.collapsed {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    padding: 0 !important;
+    border-radius: 20px !important;
+}
+.micro-panel.collapsed > *:not(.micro-panel-header) {
+    display: none !important;
+}
+.micro-panel.collapsed .micro-panel-header {
+    border: none !important;
+    padding: 8px !important;
+    justify-content: center !important;
+    height: 100% !important;
+    box-sizing: border-box !important;
+}
+.micro-panel.collapsed .micro-panel-header h3 {
+    display: none !important;
+}
+.micro-panel-toggle {
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+    font-size: 10px;
+}
+.micro-panel-toggle:hover {
+    opacity: 1;
+}
 `;
 
 /** Controls help text */
@@ -121,13 +170,11 @@ export function generateWebviewHtml(
 </head>
 <body>
 <div id="container">
+    <div id="version-tag">Pre-Alpha v${version}</div>
     <div id="loading">Initializing 3D World...</div>
     <div id="renderer"></div>
     
-    <!-- Controls Help -->
-    <div id="controls-help">${CONTROLS_HELP}</div>
-
-    <!-- Main Stats Panel (Top Right) -->
+    <!-- Dynamic UI Containers -->
     <div id="stats-panel" data-version="${version}"></div>
 </div>
 <!-- Pass nonce to script -->

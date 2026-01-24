@@ -25,135 +25,129 @@ const SEVERITY_ICONS: Record<WarningSeverity, string> = {
  */
 export class WarningOverlay {
     private container: HTMLDivElement;
-    private panel: HTMLDivElement;
-    private toggleButton: HTMLButtonElement;
     private warningsList: HTMLDivElement;
     private copyButton: HTMLButtonElement;
-    private isExpanded: boolean = false;
+    private isCollapsed: boolean = true;
     private warnings: ArchitectureWarning[] = [];
     private onWarningClick?: (fileId: string) => void;
 
     constructor(parentElement: HTMLElement) {
         this.container = document.createElement('div');
         this.container.id = 'warning-overlay';
-        this.container.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-            font-family: var(--vscode-font-family);
-            font-size: var(--vscode-font-size);
-            color: var(--vscode-editor-foreground);
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-        `;
+        this.container.className = 'micro-panel collapsed';
+        Object.assign(this.container.style, {
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            zIndex: '1000',
+            background: 'var(--vscode-editorWidget-background)',
+            color: 'var(--vscode-editorWidget-foreground)',
+            fontFamily: 'var(--vscode-font-family)',
+            fontSize: 'var(--vscode-font-size)',
+            border: '1px solid var(--vscode-editorWidget-border)',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px var(--vscode-widget-shadow)',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            width: '350px',
+            maxHeight: '400px',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+        });
 
-        // Toggle button (always visible)
-        this.toggleButton = document.createElement('button');
-        this.toggleButton.style.cssText = `
-            background: var(--vscode-notifications-background);
-            border: 1px solid var(--vscode-widget-border);
-            border-radius: 4px;
-            padding: 6px 10px;
-            color: var(--vscode-notifications-foreground);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-family: inherit;
-            font-size: inherit;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        `;
-        this.toggleButton.onmouseenter = () => {
-            this.toggleButton.style.boxShadow = '0 0 8px rgba(0,0,0,0.2)';
-        };
-        this.toggleButton.onmouseleave = () => {
-            this.toggleButton.style.background = 'var(--vscode-notifications-background)';
-        };
-        this.toggleButton.onclick = () => this.toggle();
-
-        // Expandable panel
-        this.panel = document.createElement('div');
-        this.panel.style.cssText = `
-            background: var(--vscode-notifications-background);
-            border: 1px solid var(--vscode-widget-border);
-            color: var(--vscode-notifications-foreground);
-            border-radius: 4px;
-            margin-bottom: 8px;
-            max-height: 300px;
-            max-width: 600px;
-            overflow-y: auto;
-            display: none;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-            word-break: break-word;
-        `;
-
-        // Warnings list inside panel
-        this.warningsList = document.createElement('div');
-        this.warningsList.style.cssText = `
-            padding: 8px 0;
-            max-height: 250px;
-            overflow-y: auto;
-        `;
-
-        // Panel header with Copy button
+        // Header
         const header = document.createElement('div');
-        header.style.cssText = `
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 12px;
-            border-bottom: 1px solid var(--vscode-widget-border);
-            background: var(--vscode-editor-background);
-            border-radius: 4px 4px 0 0;
-            opacity: 0.9;
-        `;
+        header.className = 'micro-panel-header';
+        Object.assign(header.style, {
+            padding: '12px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            cursor: 'pointer',
+            borderBottom: '1px solid var(--vscode-widget-border)',
+            background: 'var(--vscode-editor-background)',
+            borderRadius: '6px 6px 0 0'
+        });
+        header.onclick = () => this.toggleCollapse();
 
-        const title = document.createElement('span');
-        title.style.cssText = `
-            font-weight: 600;
-            color: var(--vscode-editor-foreground);
-        `;
-        title.textContent = 'Architecture Issues';
+        const titleGroup = document.createElement('div');
+        titleGroup.style.display = 'flex';
+        titleGroup.style.alignItems = 'center';
+        titleGroup.style.gap = '8px';
 
+        const icon = document.createElement('div');
+        icon.textContent = '🏛️';
+        Object.assign(icon.style, {
+            width: '20px',
+            height: '20px',
+            background: 'var(--vscode-button-secondaryBackground)',
+            color: 'var(--vscode-button-secondaryForeground)',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px'
+        });
+        titleGroup.appendChild(icon);
+
+        const title = document.createElement('h3');
+        title.textContent = 'Architecture';
+        Object.assign(title.style, {
+            margin: '0',
+            fontSize: '11px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            fontWeight: '600'
+        });
+        titleGroup.appendChild(title);
+        header.appendChild(titleGroup);
+
+        this.container.appendChild(header);
+
+        // Warnings list (Content)
+        this.warningsList = document.createElement('div');
+        this.warningsList.className = 'micro-panel-content';
+        Object.assign(this.warningsList.style, {
+            padding: '8px 0',
+            overflowY: 'auto',
+            maxHeight: '350px'
+        });
+
+        // Initialize Copy button (hidden by default inside collapsed content)
         this.copyButton = document.createElement('button');
-        this.copyButton.innerHTML = '📋 Copy';
+        this.copyButton.textContent = '📋 Copy to Clipboard';
         this.copyButton.title = 'Copy warnings to clipboard';
-        this.copyButton.style.cssText = `
-            background: var(--vscode-button-secondaryBackground);
-            border: 1px solid transparent;
-            border-radius: 2px;
-            padding: 2px 8px;
-            color: var(--vscode-button-secondaryForeground);
-            cursor: pointer;
-            font-size: 11px;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        `;
+        Object.assign(this.copyButton.style, {
+            background: 'var(--vscode-button-secondaryBackground)',
+            border: 'none',
+            borderRadius: '4px',
+            color: 'var(--vscode-button-secondaryForeground)',
+            cursor: 'pointer',
+            fontSize: '11px',
+            padding: '6px 12px',
+            margin: '8px 12px',
+            width: 'calc(100% - 24px)',
+            transition: 'all 0.2s ease',
+            display: 'block'
+        });
         this.copyButton.onmouseenter = () => {
             this.copyButton.style.background = 'var(--vscode-button-secondaryHoverBackground)';
-            this.copyButton.style.color = 'var(--vscode-button-secondaryForeground)';
         };
         this.copyButton.onmouseleave = () => {
             this.copyButton.style.background = 'var(--vscode-button-secondaryBackground)';
-            this.copyButton.style.color = 'var(--vscode-button-secondaryForeground)';
         };
         this.copyButton.onclick = () => this.copyWarnings();
 
-        header.appendChild(title);
-        header.appendChild(this.copyButton);
-        this.panel.appendChild(header);
-        this.panel.appendChild(this.warningsList);
+        this.container.appendChild(this.warningsList);
+        this.warningsList.appendChild(this.copyButton);
 
-        this.container.appendChild(this.panel);
-        this.container.appendChild(this.toggleButton);
         parentElement.appendChild(this.container);
+        this.updatePanel();
+    }
 
-        this.updateButton();
+    private toggleCollapse(): void {
+        this.isCollapsed = !this.isCollapsed;
+        this.container.classList.toggle('collapsed', this.isCollapsed);
     }
 
     /**
@@ -168,23 +162,14 @@ export class WarningOverlay {
      */
     public setWarnings(warnings: ArchitectureWarning[]): void {
         this.warnings = warnings;
-        this.updateButton();
+        this.updateHeader();
         this.updatePanel();
     }
 
     /**
-     * Toggle panel visibility
+     * Update header appearance based on issues
      */
-    private toggle(): void {
-        this.isExpanded = !this.isExpanded;
-        this.panel.style.display = this.isExpanded ? 'block' : 'none';
-        this.updateButton();
-    }
-
-    /**
-     * Update toggle button appearance
-     */
-    private updateButton(): void {
+    private updateHeader(): void {
         const summary = {
             high: this.warnings.filter(w => w.severity === 'high').length,
             medium: this.warnings.filter(w => w.severity === 'medium').length,
@@ -192,38 +177,20 @@ export class WarningOverlay {
         };
         const total = summary.high + summary.medium + summary.low;
 
-        if (total === 0) {
-            this.toggleButton.innerHTML = `✅ <span>No Issues</span>`;
-            this.toggleButton.style.borderColor = 'var(--vscode-debugIcon-startForeground)';
-            return;
+        const icon = this.container.querySelector('.micro-panel-header div:first-child div') as HTMLElement;
+        if (icon) {
+            if (total === 0) {
+                icon.textContent = '✅';
+            } else {
+                icon.textContent = '🏛️';
+            }
+            icon.style.background = 'var(--vscode-button-secondaryBackground)';
+            icon.style.color = 'var(--vscode-button-secondaryForeground)';
         }
 
-        // Build badge HTML
-        let badges = '';
-        if (summary.high > 0) {
-            badges += `<span style="background: ${SEVERITY_COLORS.high}; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${summary.high}</span>`;
-        }
-        if (summary.medium > 0) {
-            badges += `<span style="background: ${SEVERITY_COLORS.medium}; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${summary.medium}</span>`;
-        }
-        if (summary.low > 0) {
-            badges += `<span style="background: ${SEVERITY_COLORS.low}; color: var(--vscode-editor-background); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${summary.low}</span>`;
-        }
-
-        const arrow = this.isExpanded ? '▼' : '▲';
-        this.toggleButton.innerHTML = `
-            ⚠️ <span>Architecture Issues</span>
-            <span style="display: flex; gap: 4px;">${badges}</span>
-            <span style="opacity: 0.5;">${arrow}</span>
-        `;
-
-        // Set border color based on highest severity
-        if (summary.high > 0) {
-            this.toggleButton.style.borderColor = SEVERITY_COLORS.high;
-        } else if (summary.medium > 0) {
-            this.toggleButton.style.borderColor = SEVERITY_COLORS.medium;
-        } else {
-            this.toggleButton.style.borderColor = SEVERITY_COLORS.low;
+        const title = this.container.querySelector('h3') as HTMLElement;
+        if (title) {
+            title.textContent = total > 0 ? `Issues (${total})` : 'No Issues';
         }
     }
 
@@ -234,6 +201,7 @@ export class WarningOverlay {
         this.warningsList.innerHTML = '';
 
         if (this.warnings.length === 0) {
+            this.copyButton.style.display = 'none';
             this.warningsList.innerHTML = `
                 <div style="padding: 12px 16px; color: var(--vscode-descriptionForeground);">
                     No architecture issues detected.
@@ -241,6 +209,10 @@ export class WarningOverlay {
             `;
             return;
         }
+
+        // Prepend Copy button to the list
+        this.copyButton.style.display = 'block';
+        this.warningsList.appendChild(this.copyButton);
 
         // Group by severity
         const bySeverity = {
@@ -389,8 +361,7 @@ export class WarningOverlay {
             this.copyButton.style.color = 'var(--vscode-debugIcon-startForeground)';
 
             setTimeout(() => {
-                this.copyButton.innerHTML = originalText;
-                this.copyButton.style.borderColor = 'transparent';
+                this.copyButton.textContent = originalText;
                 this.copyButton.style.color = 'var(--vscode-button-secondaryForeground)';
             }, 2000);
 

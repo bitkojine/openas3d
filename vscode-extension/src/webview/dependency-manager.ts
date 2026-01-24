@@ -492,6 +492,17 @@ export class DependencyManager {
     }
 
     /**
+     * Clear all dependencies and dispose resources
+     */
+    public dispose(): void {
+        this.clear();
+        if (_flowTexture) {
+            _flowTexture.dispose();
+            _flowTexture = null;
+        }
+    }
+
+    /**
      * Clear all dependencies
      */
     public clear(): void {
