@@ -1,8 +1,11 @@
 import { World } from './world';
 import { ExtensionMessage } from '../shared/messages';
+import { MessageRouter } from './message-router';
 
 // Initialize the world when the page loads
 let world: World;
+let router: MessageRouter;
+let vscode: any; // Store vscode API for use in message handler
 
 // Declare global API
 declare const acquireVsCodeApi: () => any;
@@ -12,7 +15,6 @@ declare const acquireVsCodeApi: () => any;
 let logToExtension: (type: 'log' | 'error', message: string) => void = () => { };
 
 window.addEventListener('DOMContentLoaded', () => {
-    let vscode: any;
     try {
         vscode = acquireVsCodeApi();
         logToExtension = (type, message) => {
@@ -25,8 +27,23 @@ window.addEventListener('DOMContentLoaded', () => {
 
     try {
         world = new World(vscode);
+        router = new MessageRouter();
+
+        // Register all message handlers
+        world.registerMessageHandlers(router);
+
+        // Add middleware for logging (optional - can be disabled in production)
+        router.use((message) => {
+            // Log message handling for debugging
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`[MessageRouter] Handling: ${message.type}`);
+            }
+            return message;
+        });
+
         // Expose globally for VSCode extension or debugging
         (window as any).world = world;
+        (window as any).router = router;
 
         // Enhance logging by wrapping console methods
         const originalLog = console.log;
@@ -56,88 +73,22 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // Handle messages from VSCode extension
-window.addEventListener('message', (event: MessageEvent<ExtensionMessage>) => {
+window.addEventListener('message', async (event: MessageEvent<ExtensionMessage>) => {
     const message = event.data;
 
-    if (!world) {
-        console.error('[Bootstrap] World not initialized, dropping message:', message.type);
+    if (!world || !router) {
+        console.error('[Bootstrap] World or router not initialized, dropping message:', message.type);
         return;
     }
 
     try {
-        switch (message.type) {
-            case 'loadWorld':
-                world.clear();
-                break;
-
-            case 'addObject':
-                try {
-                    world.addCodeObject(message.data);
-                } catch (e: any) {
-                    console.error(`Failed to add object ${message.data.id}:`, e);
-                }
-                break;
-
-            case 'removeObject':
-                world.removeCodeObject(message.data.id);
-                break;
-
-            case 'addDependency':
-                world.addDependency(message.data);
-                break;
-
-            case 'removeDependency':
-                world.removeDependency(message.data.id);
-                break;
-
-            case 'showDependencies':
-                world.showAllDependencies();
-                break;
-
-            case 'hideDependencies':
-                world.hideDependencies();
-                break;
-
-            case 'dependenciesComplete':
-                world.refreshLabels();
-                break;
-
-            case 'setZoneBounds':
-                world.setZoneBounds(message.data);
-                break;
-
-            case 'setWarnings':
-                world.setWarnings(message.data);
-                break;
-
-            case 'architectureError':
-                console.error('[Webview] Architecture Analysis Error:', message.data.message);
-                // In the future, we could show a toast or UI notification here
-                break;
-
-            case 'clear':
-                world.clear();
-                break;
-
-            case 'perfUpdate':
-                const perfPanel = document.getElementById('perf-panel');
-                if (perfPanel) {
-                    perfPanel.innerText = message.data.report.replace(/\s*\|\s*/g, '\n');
-                }
-                break;
-
-            case 'updateObjectPosition':
-                world.updateObjectPosition(message.data);
-                break;
-
-            case 'updateConfig':
-                world.updateConfig(message.data);
-                break;
-
-            default:
-                console.warn('Unknown message type:', message.type);
-        }
+        await router.handle(message);
     } catch (err: any) {
-        console.error('Critical error in message handler:', err);
+        console.error('[Bootstrap] Critical error in message handler:', err);
+        // Optionally send error back to extension
+        vscode.postMessage({
+            type: 'error',
+            data: { message: `Message handling error: ${err.message || err}` }
+        });
     }
 });
