@@ -105,7 +105,7 @@ describe('WebviewMessageHandler', () => {
         });
 
         it('should notify dispatcher with data', async () => {
-            handler.register('error', () => {});
+            handler.register('error', () => { });
 
             const message: WebviewMessage = {
                 type: 'error',
@@ -199,7 +199,7 @@ describe('WebviewMessageHandler', () => {
     describe('default handlers', () => {
         it('should have default handler for ready', async () => {
             const message: WebviewMessage = { type: 'ready' };
-            
+
             // Should not throw
             await expect(handler.handle(message)).resolves.not.toThrow();
         });
@@ -233,6 +233,55 @@ describe('WebviewMessageHandler', () => {
 
             // Should not throw (handler is no-op)
             await expect(handler.handle(message)).resolves.not.toThrow();
+        });
+    });
+    describe('middleware', () => {
+        it('should execute middleware before handler', async () => {
+            const operations: string[] = [];
+
+            handler.use(async (msg, next) => {
+                operations.push('middleware-start');
+                await next();
+                operations.push('middleware-end');
+            });
+
+            handler.register('ready', () => {
+                operations.push('handler');
+            });
+
+            await handler.handle({ type: 'ready' });
+
+            expect(operations).toEqual(['middleware-start', 'handler', 'middleware-end']);
+        });
+
+        it('should execute multiple middleware in order', async () => {
+            const operations: string[] = [];
+
+            handler.use(async (msg, next) => {
+                operations.push('m1-start');
+                await next();
+                operations.push('m1-end');
+            });
+
+            handler.use(async (msg, next) => {
+                operations.push('m2-start');
+                await next();
+                operations.push('m2-end');
+            });
+
+            handler.register('ready', () => {
+                operations.push('handler');
+            });
+
+            await handler.handle({ type: 'ready' });
+
+            expect(operations).toEqual([
+                'm1-start',
+                'm2-start',
+                'handler',
+                'm2-end',
+                'm1-end'
+            ]);
         });
     });
 });

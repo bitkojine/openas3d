@@ -32,9 +32,9 @@ export class ExploreDependenciesService {
             progress.report({ increment: 0, message: 'Initializing 3D world...' });
 
             // ───── Create or reveal the panel ─────
-            const tPanel = this.perf.start('createOrShowPanel');
+            const tPanel = this.perf.start('ExploreDependenciesService.createOrShowPanel');
             const panel = await this.panelManager.createOrShowPanel();
-            this.perf.stop('createOrShowPanel', tPanel);
+            this.perf.stop('ExploreDependenciesService.createOrShowPanel', tPanel);
 
             // Register sign handler
             this.panelManager.registerSignHandler(this.signService);
@@ -44,22 +44,22 @@ export class ExploreDependenciesService {
             await this.panelManager.ensureReady();
 
             // Live performance reporting
-            this.perf.setUICallback(report => {
+            this.perf.setUICallback(stats => {
                 this.panelManager.sendMessage({
                     type: 'perfUpdate',
-                    data: { report }
+                    data: { stats }
                 });
             });
 
             progress.report({ increment: 50, message: 'Loading codebase visualizer...' });
 
             // ───── Load codebase visualizer ─────
-            const tVisualizer = this.perf.start('loadCodebaseVisualizer');
+            const tVisualizer = this.perf.start('ExploreDependenciesService.loadCodebaseVisualizer');
             // FIX: call visualizer.initialize directly
             // We need to manage the cleanup function returned by initialize if we want to be correct, 
             // but for now let's just await it.
             await this.visualizer.initialize(panel, { targetPath });
-            this.perf.stop('loadCodebaseVisualizer', tVisualizer);
+            this.perf.stop('ExploreDependenciesService.loadCodebaseVisualizer', tVisualizer);
 
             progress.report({ increment: 100, message: 'Complete!' });
             this.perf.report();

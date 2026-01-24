@@ -109,7 +109,8 @@ export type ExtensionMessage =
     | { type: 'architectureError'; data: { message: string } }
 
     // Performance
-    | { type: 'perfUpdate'; data: { report: string } }
+    | { type: 'perfUpdate'; data: { stats: { label: string; count: number; avg: number; max: number }[] } }
+    | { type: 'perfStats'; data: { label: string; count: number; avg: number; max: number }[] }
 
     // Configuration
     | { type: 'updateConfig'; data: EditorConfig }

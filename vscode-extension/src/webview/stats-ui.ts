@@ -13,29 +13,79 @@ export class StatsUI {
     public hideLoading(): void {
         this.loadingElement.classList.add('hidden');
     }
-
     /**
      * Update the stats display
-     * @param deltaTime Time elapsed since last frame in seconds
-     * @param objectCount Number of code objects in the scene
-     * @param depCount Number of dependency lines in the scene
-     * @param circularCount Number of circular dependencies detected
+     */
+    /**
+     * Update the stats display
      */
     public update(
         deltaTime: number,
         objectCount: number,
         depCount: number,
-        circularCount: number = 0
+        perfStats?: { label: string; count: number; avg: number; max: number }[]
     ): void {
         this.frameCount++;
-        if (this.frameCount % 60 === 0) { // update once per second-ish
+
+        // Update FPS counter frequently (every 10 frames ≈ 6 times/sec)
+        if (this.frameCount % 10 === 0) {
             const fps = Math.round(1 / deltaTime);
+            const buildVersion = this.statsElement.getAttribute('data-version') || 'dev';
 
-            // Simple text update for the minimal bar
-            this.statsElement.textContent = `Objects: ${objectCount} | Deps: ${depCount} | FPS: ${fps}`;
+            // Format numbers with commas
+            const fmt = (n: number) => n.toLocaleString();
 
-            // If circular dependencies exist, we could add a subtle indicator if needed, 
-            // but the WarningOverlay is now the primary place for this.
+            let html = `
+                <table style="margin-bottom: 8px; width: 100%;">
+                    <tr>
+                        <td style="opacity:0.7">Objects</td>
+                        <td style="text-align:right; font-weight:600">${fmt(objectCount)} objs</td>
+                    </tr>
+                    <tr>
+                        <td style="opacity:0.7">Dependencies</td>
+                        <td style="text-align:right; font-weight:600">${fmt(depCount)} deps</td>
+                    </tr>
+                    <tr>
+                        <td style="opacity:0.7">FPS</td>
+                        <td style="text-align:right; font-weight:600">${fps} fps</td>
+                    </tr>
+                </table>
+            `;
+
+            // Append performance table if available
+            if (perfStats && perfStats.length > 0) {
+                html += `
+                    <div style="border-top: 1px solid var(--vscode-editorWidget-border); margin: 8px 0; opacity: 0.2"></div>
+                    <table><thead><tr><th>Op</th><th style="text-align:right">Cnt</th><th style="text-align:right">Avg</th><th style="text-align:right">Max</th></tr></thead><tbody>
+                `;
+
+                perfStats.forEach(stat => {
+                    // Remove package prefix for readability, but keep full method name
+                    let label = stat.label;
+                    if (label.includes('.')) label = label.split('.').pop()!;
+                    // No artificial truncation here - let CSS handle overflow if needed
+
+                    // Colorize slow operations via CSS classes
+                    let rowClass = '';
+                    if (stat.avg > 100) rowClass = 'row-slow';
+                    else if (stat.avg > 16) rowClass = 'row-medium';
+
+                    html += `
+                        <tr class="${rowClass}">
+                            <td style="white-space:nowrap">${label}</td>
+                            <td style="text-align:right">${fmt(stat.count)}x</td>
+                            <td style="text-align:right">${fmt(Math.round(stat.avg))} ms</td>
+                            <td style="text-align:right">${fmt(Math.round(stat.max))} ms</td>
+                        </tr>
+                    `;
+                });
+                html += `</tbody></table>`;
+            }
+
+            // Build Info Footer
+            html += `<div id="build-info">OpenAs3D v${buildVersion}</div>`;
+
+            this.statsElement.innerHTML = html;
         }
     }
 }

@@ -15,29 +15,6 @@ body { margin:0; padding:0; overflow:hidden; background-color: var(--vscode-edit
 #container { width:100vw; height:100vh; position:relative; }
 #renderer { width:100%; height:100%; }
 
-/* Minimal Stats Bar */
-#stats-bar {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    background: var(--vscode-editorWidget-background);
-    backdrop-filter: blur(4px);
-    padding: 6px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--vscode-editorWidget-border);
-    color: var(--vscode-editor-foreground);
-    font-size: 12px;
-    font-family: var(--vscode-editor-font-family);
-    pointer-events: none;
-    box-shadow: 0 4px 6px var(--vscode-widget-shadow);
-}
-#stats { color: var(--vscode-editor-foreground); }
-#version { opacity: 0.5; font-size: 12px; }
-
 #loading { 
     position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); 
     color: var(--vscode-editor-foreground); 
@@ -46,7 +23,8 @@ body { margin:0; padding:0; overflow:hidden; background-color: var(--vscode-edit
     box-shadow:0 4px 20px var(--vscode-widget-shadow); 
     border: 1px solid var(--vscode-editorWidget-border);
 }
-.hidden { display:none; }
+.hidden { display:none !important; }
+
 #controls-help { 
     position:absolute; bottom:20px; left:20px; 
     color: var(--vscode-descriptionForeground); 
@@ -58,20 +36,42 @@ body { margin:0; padding:0; overflow:hidden; background-color: var(--vscode-edit
     backdrop-filter: blur(4px);
     line-height: 1.6;
 }
-#perf-panel { 
+#stats-panel { 
     position:absolute; top:20px; right:20px; 
     background: var(--vscode-editorWidget-background); 
     color: var(--vscode-editor-foreground); 
     font-size: 12px; font-family: var(--vscode-editor-font-family);
-    padding: 6px 12px; border-radius: 8px;
+    padding: 12px; border-radius: 8px;
     z-index:1001; pointer-events: none;
     border: 1px solid var(--vscode-editorWidget-border);
     backdrop-filter: blur(4px);
     box-shadow: 0 4px 6px var(--vscode-widget-shadow);
-    white-space: pre-wrap;
-    line-height: 1.4;
-    text-align: right;
+    min-width: 300px;
 }
+#stats-panel table { width: 100%; border-collapse: collapse; font-size: 11px; }
+#stats-panel th { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--vscode-editorWidget-border); opacity: 0.7; font-weight: 600; }
+#stats-panel td { padding: 3px 6px; }
+#build-info { 
+    margin-top: 8px; 
+    padding-top: 4px; 
+    border-top: 1px solid var(--vscode-editorWidget-border); 
+    font-size: 10px; 
+    opacity: 0.5; 
+    text-align: right; 
+}
+
+/* Theme-specific coloring for performance stats */
+/* Dark Theme (Default) */
+body.vscode-dark .row-slow { color: #ff6b6b; }
+body.vscode-dark .row-medium { color: #feca57; }
+
+/* Light Theme */
+body.vscode-light .row-slow { color: #d32f2f; }
+body.vscode-light .row-medium { color: #f57f17; }
+
+/* High Contrast */
+body.vscode-high-contrast .row-slow { color: #ff0000; }
+body.vscode-high-contrast .row-medium { color: #ff8f00; }
 `;
 
 /** Controls help text */
@@ -123,13 +123,11 @@ export function generateWebviewHtml(
     <div id="loading">Initializing 3D World...</div>
     <div id="renderer"></div>
     
-    <div id="stats-bar">
-        <span id="stats">Objects: 0 | FPS: 0</span>
-        <span id="version">v${version}</span>
-    </div>
-
+    <!-- Controls Help -->
     <div id="controls-help">${CONTROLS_HELP}</div>
-    <div id="perf-panel"></div>
+
+    <!-- Main Stats Panel (Top Right) -->
+    <div id="stats-panel" data-version="${version}"></div>
 </div>
 <!-- Pass nonce to script -->
 <script nonce="${nonce}" src="${rendererUri}"></script>

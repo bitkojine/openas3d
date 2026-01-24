@@ -18,9 +18,12 @@ export function activate(context: vscode.ExtensionContext) {
     console.log(`OpenAs3D extension is now active! (Build ${version})`);
 
     // Initialize core managers
-    webviewPanelManager = new WebviewPanelManager(context, version);
-    const codebaseVisualizer = new CodebaseVisualizer(context.extensionPath);
+    // Initialize core managers
+    // We pass perf tracker to WebviewPanelManager for middleware support
     perf = new PerfTracker();
+    PerfTracker.instance = perf; // Set singleton for decorators
+    webviewPanelManager = new WebviewPanelManager(context, perf, version);
+    const codebaseVisualizer = new CodebaseVisualizer(context.extensionPath);
 
     // Initialize services
     signService = new SignService(webviewPanelManager);
@@ -161,6 +164,19 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.showInformationMessage(
         'OpenAs3D extension activated! Use "Explore Dependencies in 3D" to get started.'
     );
+
+    // Start performance update loop (every 2 seconds)
+    const perfInterval = setInterval(() => {
+        if (webviewPanelManager && webviewPanelManager.hasPanel()) {
+            const stats = perf.getStats().slice(0, 5); // Top 5
+            webviewPanelManager.dispatchMessage({
+                type: 'perfStats',
+                data: stats
+            });
+        }
+    }, 2000);
+
+    context.subscriptions.push({ dispose: () => clearInterval(perfInterval) });
 }
 
 export function deactivate() {
