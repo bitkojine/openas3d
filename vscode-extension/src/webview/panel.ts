@@ -196,10 +196,10 @@ export class WebviewPanelManager {
             }
         });
 
-        // Add sign at position - delegate to SignService
-        // Note: SignService will be injected via a callback or we handle it here
-        // For now, we'll need to handle this differently since SignService needs the panel manager
-        // This is a bit of a circular dependency issue - we'll handle it by allowing external registration
+        // TDD: Run All Tests
+        this.messageHandler.register('runAllTests', async () => {
+            await vscode.commands.executeCommand('testing.runAll');
+        });
     }
 
     /**
@@ -209,6 +209,15 @@ export class WebviewPanelManager {
     public registerSignHandler(signService: SignService): void {
         this.messageHandler.register('addSignAtPosition', async (data: { position: { x: number; y: number; z: number } }) => {
             await signService.addSignAtPosition(data.position);
+        });
+    }
+
+    /**
+     * Register a handler for moveObject messages
+     */
+    public registerMoveHandler(handler: (id: string, pos: { x: number; y: number; z: number }) => Promise<void>): void {
+        this.messageHandler.register('moveObject', async (data: { id: string; position: { x: number; y: number; z: number } }) => {
+            await handler(data.id, data.position);
         });
     }
 }

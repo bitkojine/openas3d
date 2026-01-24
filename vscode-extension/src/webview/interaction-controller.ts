@@ -4,10 +4,13 @@ import { SelectionManager } from './selection-manager';
 import { DependencyManager } from './dependency-manager';
 import { WebviewMessage } from '../shared/messages';
 
+import { DraggableObjectController } from './controllers/draggable-controller';
+
 export class InteractionController {
     private raycaster = new THREE.Raycaster();
     private mouse = new THREE.Vector2();
     private crosshair: HTMLDivElement;
+    private draggable: DraggableObjectController;
 
     constructor(
         private camera: THREE.Camera,
@@ -18,12 +21,23 @@ export class InteractionController {
         private vscode: any,
         private character: any // reference to CharacterController
     ) {
+        this.draggable = new DraggableObjectController(
+            objects,
+            camera,
+            (id, pos) => this.postMessage({
+                type: 'moveObject',
+                data: { id, position: { x: pos.x, y: pos.y, z: pos.z } }
+            })
+        );
+
         this.onPointerDown = this.onPointerDown.bind(this);
+        this.onPointerUp = this.onPointerUp.bind(this);
         this.onDoubleClick = this.onDoubleClick.bind(this);
         this.onMouseMove = this.onMouseMove.bind(this);
         this.onPointerLockChange = this.onPointerLockChange.bind(this);
 
         domElement.addEventListener('pointerdown', this.onPointerDown);
+        domElement.addEventListener('pointerup', this.onPointerUp);
         domElement.addEventListener('dblclick', this.onDoubleClick);
         domElement.addEventListener('mousemove', this.onMouseMove);
         document.addEventListener('pointerlockchange', this.onPointerLockChange);
@@ -38,6 +52,7 @@ export class InteractionController {
 
     dispose(): void {
         this.domElement.removeEventListener('pointerdown', this.onPointerDown);
+        this.domElement.removeEventListener('pointerup', this.onPointerUp);
         this.domElement.removeEventListener('dblclick', this.onDoubleClick);
         this.domElement.removeEventListener('mousemove', this.onMouseMove);
         document.removeEventListener(
@@ -52,7 +67,7 @@ export class InteractionController {
     // Pointer + Interaction
     // ────────────────────────────────────────────────
 
-    private onPointerDown(_event: PointerEvent): void {
+    private onPointerDown(event: PointerEvent): void {
         // Acquire pointer lock on first interaction
         if (document.pointerLockElement !== this.domElement) {
             this.domElement.requestPointerLock();
@@ -75,7 +90,7 @@ export class InteractionController {
             return;
         }
 
-        // Raycast at center to select object
+        // Raycast at center
         this.mouse.set(0, 0);
         this.raycaster.setFromCamera(this.mouse, this.camera);
 
@@ -95,6 +110,13 @@ export class InteractionController {
 
         if (!obj) { return; }
 
+        // Start Drag ONLY if Shift is held
+        if (event.shiftKey && this.draggable.startDrag(obj, this.raycaster)) {
+            // If we started dragging, select it too
+            this.selectionManager.selectObject(obj);
+            return;
+        }
+
         // ───────── SELECT AND HIGHLIGHT ─────────
         this.selectionManager.selectObject(obj);
         this.showDependencies(obj.id);
@@ -109,6 +131,12 @@ export class InteractionController {
                 description: obj.description
             }
         });
+    }
+
+    private onPointerUp(_event: PointerEvent): void {
+        if (this.draggable.getIsDragging()) {
+            this.draggable.endDrag();
+        }
     }
 
     private onDoubleClick(): void {
@@ -140,6 +168,11 @@ export class InteractionController {
 
     private onMouseMove(_event: MouseEvent): void {
         // Camera rotation handled elsewhere (CharacterController)
+        if (this.draggable.getIsDragging()) {
+            this.mouse.set(0, 0);
+            this.raycaster.setFromCamera(this.mouse, this.camera);
+            this.draggable.update(this.raycaster);
+        }
     }
 
     // ────────────────────────────────────────────────

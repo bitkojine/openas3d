@@ -138,3 +138,15 @@ export interface EditorConfig {
     fontFamily: string;
     lineHeight: number;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface TestDTO {
+    id: string; // "fileId:Test Name"
+    fileId: string;
+    label: string;
+    line: number;
+    status: 'unknown' | 'passed' | 'failed' | 'running';
+}

@@ -12,6 +12,8 @@ import { SelectionManager } from './selection-manager';
 import { WarningManager } from './warning-manager';
 import { ThemeManager } from './theme-manager';
 import { InteractionController } from './interaction-controller';
+import { TestManager } from './test-manager';
+import { TddUi } from './ui/tdd-ui';
 import { StatsUI } from './stats-ui';
 import { TestBridge } from './test-utils/test-bridge';
 import { DependencyManager } from './dependency-manager';
@@ -24,10 +26,6 @@ import { EditorConfig } from '../shared/types';
 import { MessageRouter } from './message-router';
 import { AddObjectPayload, AddDependencyPayload, UpdatePositionPayload } from '../shared/messages';
 
-/**
- * The World class is the root controller for the 3D environment.
- * It coordinates the Scene, Physical Simulation, User Interaction, and Data Synchronization.
- */
 export class World {
     private sceneManager: SceneManager;
     private character: CharacterController;
@@ -40,6 +38,8 @@ export class World {
     private interaction: InteractionController;
     private ui: StatsUI;
     private warningOverlay: WarningOverlay;
+    private testManager: TestManager;
+    private tddUi: TddUi;
 
     private vscode: any;
 
@@ -71,6 +71,10 @@ export class World {
         this.selectionManager = new SelectionManager(this.sceneManager.scene);
         this.warningManager = new WarningManager();
         this.themeManager = new ThemeManager();
+
+        // Initialize TDD Components
+        this.testManager = new TestManager(this.objects, (msg) => this.vscode.postMessage(msg));
+        this.tddUi = new TddUi((msg) => this.vscode.postMessage(msg));
 
         // Initialize theme
         const initialTheme = this.themeManager.getTheme();
@@ -389,6 +393,15 @@ export class World {
         // Performance
         router.register('perfUpdate', (data: { stats: { label: string; count: number; avg: number; max: number }[] }) => {
             this.currentPerfStats = data.stats;
+        });
+
+        // Test Data
+        router.register('updateTests', (data: any[]) => {
+            // Update Test Manager (Badges)
+            this.testManager.updateTests(data);
+
+            // Update TDD UI (List)
+            this.tddUi.updateTests(data);
         });
     }
 }

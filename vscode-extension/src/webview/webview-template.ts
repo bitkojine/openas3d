@@ -86,6 +86,7 @@ const CONTROLS_HELP = `
     <span style="color:var(--vscode-descriptionForeground)">Double</span> <span>Open File</span>
     <span style="color:var(--vscode-descriptionForeground)">F</span> <span>Toggle Flight</span>
     <span style="color:var(--vscode-descriptionForeground)">E</span> <span>Sign Mode (Click to Place)</span>
+    <span style="color:var(--vscode-descriptionForeground)">Shift+Drag</span> <span>Move Object</span>
     <span style="color:var(--vscode-descriptionForeground)">Esc</span> <span>Release Cursor</span>
 </div>
 `;
