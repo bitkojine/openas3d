@@ -14,6 +14,16 @@ class MockVisualObject extends VisualObject {
     }
     public update(data: any): void { }
     public updateTheme(theme: ThemeColors): void { }
+
+    public toDTO(): any {
+        return {
+            id: this.id,
+            type: this.type,
+            position: this.position,
+            filePath: this.filePath || '',
+            metadata: this.metadata
+        };
+    }
 }
 
 describe('SelectionManager', () => {

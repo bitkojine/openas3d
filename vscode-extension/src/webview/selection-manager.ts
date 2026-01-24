@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { VisualObject } from './objects/visual-object';
-import { CodeEntityDTO } from './types';
+import { RenderableEntity } from './types';
 
 /**
  * Manages selection and focus state of objects in the 3D scene.
@@ -39,7 +39,7 @@ export class SelectionManager {
     /**
      * Get the currently selected object data DTO.
      */
-    public getSelectedObject(): CodeEntityDTO | null {
+    public getSelectedObject(): RenderableEntity | null {
         return this.selectedObject ? this.selectedObject.toCodeEntityDTO() : null;
     }
 
@@ -71,7 +71,7 @@ export class SelectionManager {
     /**
      * Get the currently focused object data DTO.
      */
-    public getFocusedObject(): CodeEntityDTO | null {
+    public getFocusedObject(): RenderableEntity | null {
         return this.focusedObject ? this.focusedObject.toCodeEntityDTO() : null;
     }
 

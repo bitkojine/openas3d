@@ -1,13 +1,13 @@
 /**
  * Abstract base class for all 3D objects in the scene.
  * Enforces a common contract for creation, updates, and lifecycle management.
- * Implements CodeObject interface for compatibility with existing systems.
+ * Implements RenderableEntity interface for compatibility with existing systems.
  */
 import * as THREE from 'three';
-import { CodeEntityDTO } from '../types';
-import { ThemeColors } from '../../shared/types';
+import { RenderableEntity } from '../types';
+import { ThemeColors, CodeEntityDTO } from '../../shared/types';
 
-export abstract class VisualObject implements CodeEntityDTO {
+export abstract class VisualObject implements RenderableEntity {
     public mesh: THREE.Mesh;
     public id: string;
     public type: 'file' | 'module' | 'class' | 'function' | 'sign';
@@ -146,14 +146,23 @@ export abstract class VisualObject implements CodeEntityDTO {
     }
 
     /**
-     * Convert to the CodeObject interface expected by legacy systems/DependencyManager
-     * TODO: Eventually migrate DependencyManager to use VisualObject directly
+     * Convert to the Pure DTO for external use.
+     * Must be implemented by subclasses to provided specific schemas.
      */
-    public toCodeObject(): CodeEntityDTO {
+    public abstract toDTO(): CodeEntityDTO;
+
+    /**
+     * Convert to the CodeObject interface expected by legacy systems/DependencyManager
+     * @deprecated Use `toDTO` for external transfer or `this` (RenderableEntity) for internal renderer usage.
+     */
+    public toCodeObject(): RenderableEntity {
         return this;
     }
 
-    public toCodeEntityDTO(): CodeEntityDTO {
+    /**
+     * @deprecated Use `toDTO` instead.
+     */
+    public toCodeEntityDTO(): RenderableEntity {
         return this;
     }
 }

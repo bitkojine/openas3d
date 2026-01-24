@@ -3,8 +3,8 @@
  * Core responsibilities: object CRUD, selection, and descriptions.
  */
 import * as THREE from 'three';
-import { CodeEntityDTO, DependencyDTO } from './types';
-import { ThemeColors } from '../shared/types';
+import { RenderableEntity, DependencyDTO } from './types';
+import { ThemeColors, CodeEntityDTO } from '../shared/types';
 // DependencyManager removed
 import { VisualObject } from './objects/visual-object';
 import { FileObject } from './objects/file-object';
@@ -243,7 +243,7 @@ export class CodeObjectManager {
     }
 
     /** Get all objects iterator */
-    public getObjects(): IterableIterator<CodeEntityDTO> {
+    public getObjects(): IterableIterator<RenderableEntity> {
         // Yield converted objects for compatibility
         // In future, consumers should use VisualObject
         return function* (objects: Map<string, VisualObject>) {

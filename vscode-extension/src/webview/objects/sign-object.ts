@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ThemeColors } from '../../shared/types';
+import { ThemeColors, CodeEntityDTO, SignEntityDTO } from '../../shared/types';
 import { VisualObject } from './visual-object';
 import { createTextSprite } from '../texture-factory';
 
@@ -93,4 +93,16 @@ export class SignObject extends VisualObject {
 
     // Let's pretend I have the import. I will add it in next step.
 
+    public toDTO(): SignEntityDTO {
+        return {
+            id: this.id,
+            type: 'sign',
+            position: { x: this.position.x, y: this.position.y, z: this.position.z },
+            text: this.metadata.description || 'Sign',
+            metadata: {
+                description: this.description,
+                ...this.metadata
+            }
+        };
+    }
 }
