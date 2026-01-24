@@ -14,11 +14,20 @@ type MessageHandlerFn<T extends WebviewMessageType> = (
 
 export class WebviewMessageHandler {
     private handlers = new Map<WebviewMessageType, (data: any) => void | Promise<void>>();
+    private middleware: ((message: WebviewMessage, next: () => Promise<void>) => Promise<void>)[] = [];
     private messageDispatcher: { notifyMessageReceived(type: string, data?: any): void };
 
     constructor(messageDispatcher: { notifyMessageReceived(type: string, data?: any): void }) {
         this.messageDispatcher = messageDispatcher;
         this.registerDefaultHandlers();
+    }
+
+    /**
+     * Add middleware to the pipeline.
+     * Middleware runs before the handler.
+     */
+    public use(middleware: (message: WebviewMessage, next: () => Promise<void>) => Promise<void>): void {
+        this.middleware.push(middleware);
     }
 
     /**
@@ -44,17 +53,23 @@ export class WebviewMessageHandler {
             return;
         }
 
-        // Find and call handler
-        const handler = this.handlers.get(message.type);
-        if (!handler) {
-            console.log('Unknown message from webview:', message.type);
-            return;
-        }
+        const runMiddleware = async (index: number): Promise<void> => {
+            if (index < this.middleware.length) {
+                const mw = this.middleware[index];
+                await mw(message, () => runMiddleware(index + 1));
+            } else {
+                // Final step: execute handler
+                const handler = this.handlers.get(message.type);
+                if (!handler) {
+                    console.log('Unknown message from webview:', message.type);
+                    return;
+                }
+                await handler(data);
+            }
+        };
 
         try {
-            // Type safety is ensured at registration time via the register() method
-            // Runtime data is validated by the handler implementation
-            await handler(data);
+            await runMiddleware(0);
         } catch (error) {
             console.error(`[WebviewMessageHandler] Error handling ${message.type}:`, error);
             vscode.window.showErrorMessage(

@@ -28,7 +28,7 @@ export class WebviewPanelManager {
     private messageHandler: WebviewMessageHandler;
     private context: vscode.ExtensionContext;
 
-    constructor(context: vscode.ExtensionContext, version: string = '0.0.0') {
+    constructor(context: vscode.ExtensionContext, perf: any, version: string = '0.0.0') {
         this.context = context;
 
         // Initialize panel manager
@@ -43,6 +43,17 @@ export class WebviewPanelManager {
 
         // Initialize message handler
         this.messageHandler = new WebviewMessageHandler(this.messageDispatcher);
+
+        // Register Performance Middleware
+        this.messageHandler.use(async (msg, next) => {
+            const label = `Message: ${msg.type}`;
+            const start = perf.start(label);
+            try {
+                await next();
+            } finally {
+                perf.stop(label, start);
+            }
+        });
 
         // Register webview message handlers
         this.registerWebviewHandlers();
@@ -105,6 +116,13 @@ export class WebviewPanelManager {
     public dispose(): void {
         this.descriptionSync.stopWatching();
         this.panelManager.dispose();
+    }
+
+    /**
+     * Check if panel exists
+     */
+    public hasPanel(): boolean {
+        return this.panelManager.hasPanel();
     }
 
     /**

@@ -3,6 +3,7 @@ import * as path from 'path';
 // fs removed
 import { CodeFile, DependencyEdge } from '../core/domain/code-file';
 import { getLanguageFromExtension, isCodeLanguage } from '../utils/languageRegistry';
+import { profile } from '../utils/profiling';
 
 /** Maximum number of lines to send to the webview for textures */
 const MAX_CONTENT_LINES = 150;
@@ -159,6 +160,7 @@ export class CodebaseAnalyzer {
     /**
      * Analyze a single file and extract its metadata
      */
+    @profile('CodebaseAnalyzer.analyzeFile')
     public async analyzeFile(filePath: string): Promise<CodeFile | null> {
         try {
             const fileUri = vscode.Uri.file(filePath);
@@ -205,6 +207,7 @@ export class CodebaseAnalyzer {
     /**
      * Extract import/require dependencies from file content
      */
+    @profile('CodebaseAnalyzer.extractDependencies')
     public extractDependencies(content: string, language: string): string[] {
         const deps: string[] = [];
         let match;

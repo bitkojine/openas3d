@@ -44,11 +44,12 @@ export class World {
     private vscode: any;
 
     private lastTime: number = 0;
+    private currentPerfStats: { label: string; count: number; avg: number; max: number }[] = [];
 
     constructor(vscodeApi: any) {
         this.vscode = vscodeApi;
         const container = document.getElementById('renderer')!;
-        const statsEl = document.getElementById('stats')!;
+        const statsEl = document.getElementById('stats-panel')!;
         const loadingEl = document.getElementById('loading')!;
 
         this.sceneManager = new SceneManager(container, this.vscode);
@@ -144,7 +145,7 @@ export class World {
         // Pass actual dependency and circular counts to UI
         const depCount = this.dependencyManager.getDependencyCount();
         const circularCount = this.dependencyManager.getCircularCount();
-        this.ui.update(deltaTime, this.objects.getObjectCount(), depCount, circularCount);
+        this.ui.update(deltaTime, this.objects.getObjectCount(), depCount, this.currentPerfStats);
 
         // Update dependency animations (pulsing for circular deps)
         this.dependencyManager.update(deltaTime);
@@ -385,12 +386,9 @@ export class World {
             this.updateConfig(data);
         });
 
-        // Performance (handled in bootstrap, but register for completeness)
-        router.register('perfUpdate', (data: { report: string }) => {
-            const perfPanel = document.getElementById('perf-panel');
-            if (perfPanel) {
-                perfPanel.innerText = data.report.replace(/\s*\|\s*/g, '\n');
-            }
+        // Performance
+        router.register('perfUpdate', (data: { stats: { label: string; count: number; avg: number; max: number }[] }) => {
+            this.currentPerfStats = data.stats;
         });
     }
 }

@@ -1,6 +1,7 @@
 import { CodeFile } from '../core/domain/code-file';
 import { ZoneConfig, Zone, ZoneDTO } from '../core/domain/zone';
 import { ZoneClassifier } from './zone-classifier';
+import { profile } from '../utils/profiling';
 
 export { ZoneConfig, Zone, ZoneDTO };
 
@@ -54,6 +55,7 @@ export class CodebaseLayoutEngine {
     /**
      * Compute positions for all files in the dependency graph
      */
+    @profile('CodebaseLayoutEngine.computePositions')
     public computePositions(files: CodeFile[]): Map<string, { x: number; z: number }> {
         // Reset zones to default
         this.initializeZones();
@@ -94,6 +96,7 @@ export class CodebaseLayoutEngine {
      * Dynamically calculate zone centers based on file counts.
      * Uses a weighted grid approach to pack zones tightly but safely.
      */
+    @profile('CodebaseLayoutEngine.calculateZoneLayout')
     private calculateZoneLayout(counts: { [zone: string]: number }) {
         const PATH_GAP = 24.0; // Wide pathways (approx 6m)
         const SPACING = 5.0;
