@@ -16,6 +16,12 @@ npm install
 npm run build-install-test
 ```
 
+> [!TIP]
+> **Robust One-Liner**: Use this command to build and install correctly, regardless of whether you are in the project root or the `vscode-extension` directory:
+> ```zsh
+> [ "${PWD##*/}" = "vscode-extension" ] || cd vscode-extension && npm run build-install-test
+> ```
+
 3. If VSCode prompts you in the Extensions sidebar, restart extensions using the UI button.
 
 4. Start **OpenAs3D** using the VSCode Command Palette and running:
