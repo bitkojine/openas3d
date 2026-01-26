@@ -24,6 +24,7 @@ describe('PerfTracker', () => {
         // Simulate some work
         const duration = 10;
         perf.stop('testTask', start - duration); // force 10ms
+        perf.reportToUI(true); // force report for test
 
         expect(uiReport).toBeDefined();
         const item = uiReport?.find(s => s.label === 'testTask');
@@ -36,6 +37,7 @@ describe('PerfTracker', () => {
         perf.stop('multiTask', start1 - 5);
         const start2 = perf.start('multiTask');
         perf.stop('multiTask', start2 - 15);
+        perf.reportToUI(true); // force report for test
 
         const item = uiReport?.find(s => s.label === 'multiTask');
         expect(item).toBeDefined();
@@ -47,6 +49,7 @@ describe('PerfTracker', () => {
         const childStart = perf.start('child');
         perf.stop('child', childStart - 10);
         perf.stop('parent', parentStart - 20);
+        perf.reportToUI(true); // force report for test
 
         const parent = uiReport?.find(s => s.label === 'parent');
         const child = uiReport?.find(s => s.label === 'child');
