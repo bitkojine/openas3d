@@ -10,6 +10,46 @@ export function run(): Promise<void> {
         timeout: 60000 // Higher timeout for integration tests
     });
 
+    mocha.suite.on('test', (t: any) => {
+        console.log(`[E2E] RUN ${t.fullTitle()}`);
+        try {
+            const vscode = require('vscode');
+            void vscode.commands.executeCommand('openas3d.test.e2eStatus', {
+                phase: 'run',
+                title: t.fullTitle()
+            });
+        } catch {
+            // ignore (not running in VS Code test host)
+        }
+    });
+
+    mocha.suite.on('pass', (t: any) => {
+        console.log(`[E2E] PASS ${t.fullTitle()}`);
+        try {
+            const vscode = require('vscode');
+            void vscode.commands.executeCommand('openas3d.test.e2eStatus', {
+                phase: 'pass',
+                title: t.fullTitle()
+            });
+        } catch {
+            // ignore
+        }
+    });
+
+    mocha.suite.on('fail', (t: any, err: any) => {
+        console.log(`[E2E] FAIL ${t.fullTitle()} - ${err?.message || err}`);
+        try {
+            const vscode = require('vscode');
+            void vscode.commands.executeCommand('openas3d.test.e2eStatus', {
+                phase: 'fail',
+                title: t.fullTitle(),
+                message: err?.message || String(err)
+            });
+        } catch {
+            // ignore
+        }
+    });
+
     const testsRoot = path.resolve(__dirname);
 
     return new Promise(async (resolve, reject) => {
