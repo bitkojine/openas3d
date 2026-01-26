@@ -16,6 +16,10 @@ export class CharacterController {
     public yaw: number = 0;
     public pitch: number = 0;
 
+    public get isFlightMode(): boolean {
+        return this.controls.flightMode;
+    }
+
     private controls: ControlsState = {
         forward: false,
         backward: false,
@@ -208,5 +212,15 @@ export class CharacterController {
 
     private lerp(start: number, end: number, factor: number): number {
         return start + (end - start) * Math.min(factor, 1);
+    }
+
+    /** Reset position and rotation */
+    public applyTransform(pos: { x: number, y: number, z: number }, yaw: number, pitch: number, flightMode: boolean): void {
+        this.position.set(pos.x, pos.y, pos.z);
+        this.yaw = yaw;
+        this.pitch = pitch;
+        this.controls.flightMode = flightMode;
+        this.velocity.set(0, 0, 0);
+        this.updateCamera();
     }
 }

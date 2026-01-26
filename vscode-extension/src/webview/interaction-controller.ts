@@ -27,10 +27,16 @@ export class InteractionController {
         this.draggable = new DraggableObjectController(
             objects,
             camera,
-            (id, pos) => this.postMessage({
-                type: 'moveObject',
-                data: { id, position: { x: pos.x, y: pos.y, z: pos.z } }
-            })
+            (id, pos) => {
+                // Get the object to extract fileId
+                const object = objects.getObject(id);
+                const fileId = object?.metadata?.fileId || id;
+                console.log('[InteractionController] Moving object, using fileId:', fileId);
+                this.postMessage({
+                    type: 'moveObject',
+                    data: { id: fileId, position: { x: pos.x, y: pos.y, z: pos.z } }
+                });
+            }
         );
 
         this.contextMenu = new ContextMenu();
@@ -165,6 +171,7 @@ export class InteractionController {
         }
 
         // ───────── SELECT AND HIGHLIGHT ─────────
+        console.log(`[InteractionController] Selecting object: ${obj.id}`);
         this.selectionManager.selectObject(obj);
         this.showDependencies(obj.id);
 

@@ -2,7 +2,7 @@ import { WebviewMessage } from '../../shared/messages';
 
 export class LegendUI {
     private container: HTMLElement;
-    private isCollapsed = false;
+    public isCollapsed = false;
 
     constructor(parentElement: HTMLElement) {
         this.container = document.createElement('div');
@@ -96,8 +96,12 @@ export class LegendUI {
         parentElement.appendChild(this.container);
     }
 
-    private toggleCollapse(): void {
-        this.isCollapsed = !this.isCollapsed;
+    public toggleCollapse(): void {
+        this.setCollapsed(!this.isCollapsed);
+    }
+
+    public setCollapsed(collapsed: boolean): void {
+        this.isCollapsed = collapsed;
         this.container.classList.toggle('collapsed', this.isCollapsed);
     }
 }

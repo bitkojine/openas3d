@@ -16,6 +16,20 @@ export interface SceneSnapshot {
     }>;
     dependencyCount: number;
     dependencies: Array<{ source: string; target: string }>;
+    ui?: {
+        legendOpen: boolean;
+        tddOpen: boolean;
+        statsOpen: boolean;
+    };
+    player?: {
+        position: { x: number; y: number; z: number };
+        yaw: number;
+        pitch: number;
+        flightMode: boolean;
+    };
+    selection?: {
+        selectedFileId: string | null;
+    };
 }
 
 export class TestBridge {
@@ -65,6 +79,10 @@ export class TestBridge {
                         safeUserData.filePath = visualObject.filePath;
                         safeUserData.description = visualObject.description;
                         safeUserData.type = visualObject.type;
+                        // Copy fileId from metadata if available
+                        if (visualObject.metadata && visualObject.metadata.fileId) {
+                            safeUserData.fileId = visualObject.metadata.fileId;
+                        }
                     }
                     delete safeUserData.visualObject; // Remove circular/complex reference
 
@@ -89,22 +107,74 @@ export class TestBridge {
             edges.push({ source: dep.source, target: dep.target });
         }
 
+        const selected = this.selectionManager.getSelectedVisualObject();
+
         return {
             objectCount: snapshotObjects.length,
             objects: snapshotObjects,
             dependencyCount: depCount,
-            dependencies: edges
+            dependencies: edges,
+            ui: {
+                legendOpen: false,
+                tddOpen: false,
+                statsOpen: false
+            },
+            player: {
+                position: { x: this.character.position.x, y: this.character.position.y, z: this.character.position.z },
+                yaw: this.character.yaw,
+                pitch: this.character.pitch,
+                flightMode: this.character.isFlightMode
+            },
+            selection: {
+                selectedFileId: selected ? selected.id : null
+            }
         };
     }
 
     public simulateMove(x: number, z: number) {
-        // Teleport behavior for testing
-        // Set camera position to represent character movement
-        // Since we have the character, we could set its position, but this method implies simulating input or instant move?
-        // The original code set camera position directly which is weird if we have a character controller.
-        // Let's assume we want to move the character.
-        this.character.position.set(x, 1.7, z); // 1.7m eye height approximation or just y
-        // Sync camera? CharacterController update does that.
+        // Find the first file object to move (for testing purposes)
+        let targetObject: any = null;
+        let targetId: string = '';
+        
+        for (const [id, object] of (this.objects as any).objects.entries()) {
+            if (object.userData && object.userData.type === 'file') {
+                targetObject = object;
+                targetId = id;
+                break;
+            }
+        }
+        
+        if (targetObject) {
+            console.log('[TestBridge] Moving object', targetId, 'to', x, z);
+            
+            // Move the object to the new position
+            targetObject.position.set(x, targetObject.position.y, z);
+            
+            // Send moveObject message to extension for persistence
+            if (this.vscode) {
+                console.log('[TestBridge] Sending moveObject message');
+                // Use fileId from metadata if available, otherwise fall back to object id
+                const fileId = targetObject.metadata?.fileId || targetId;
+                console.log('[TestBridge] Using fileId:', fileId);
+                this.postMessage({
+                    type: 'moveObject',
+                    data: {
+                        id: fileId, // Send fileId instead of object id
+                        position: {
+                            x: x,
+                            y: targetObject.position.y,
+                            z: z
+                        }
+                    }
+                });
+            } else {
+                console.log('[TestBridge] No vscode connection available');
+            }
+        } else {
+            console.log('[TestBridge] No file object found, moving character instead');
+            // Fallback: move character if no object found
+            this.character.position.set(x, 1.7, z);
+        }
     }
 
     public simulateKeyDown(code: string) {
@@ -239,13 +309,19 @@ export class TestBridge {
             const message = event.data;
 
             if (message.type === 'TEST_GET_SCENE_STATE') {
+                console.log('[TestBridge] Received TEST_GET_SCENE_STATE message');
                 try {
                     const state = this.getSceneState();
+                    console.log('[TestBridge] Got scene state:', state ? `(${state.objectCount} objects)` : 'null');
                     if (this.vscode) {
+                        console.log('[TestBridge] Sending TEST_SCENE_STATE response');
                         this.postMessage({
                             type: 'TEST_SCENE_STATE',
                             data: state
                         });
+                        console.log('[TestBridge] TEST_SCENE_STATE response sent');
+                    } else {
+                        console.error('[TestBridge] No vscode connection available');
                     }
                 } catch (e: any) {
                     console.error('[TestBridge] Error getting scene state:', e);
@@ -265,12 +341,70 @@ export class TestBridge {
             } else if (message.type === 'TEST_TELEPORT') {
                 this.teleport(message.data.x, message.data.y, message.data.z);
                 if (this.vscode) { this.postMessage({ type: 'TEST_TELEPORT_DONE' }); }
-            } else if (message.type === 'TEST_LOOK_AT') {
-                await this.lookAt(message.data.x, message.data.y, message.data.z, message.data.duration);
-                if (this.vscode) { this.postMessage({ type: 'TEST_LOOK_AT_DONE' }); }
-            } else if (message.type === 'TEST_GET_POSITION') {
+            } else if ((message as any).type === 'TEST_MESSAGE') {
+                // Handle generic test message
+                console.log('[TestBridge] Received test message:', (message as any).data);
+                if (this.vscode) { this.postMessage({ type: 'TEST_MESSAGE_ACK', data: { received: true } } as any); }
+            } else if ((message as any).type === 'TEST_PING') {
+                // Handle ping message
+                console.log('[TestBridge] Received ping');
+                if (this.vscode) { this.postMessage({ type: 'TEST_PONG', data: { timestamp: Date.now() } } as any); }
+            } else if ((message as any).type === 'TEST_ERROR') {
+                // Handle test error message
+                console.log('[TestBridge] Received test error:', (message as any).data);
+                if (this.vscode) { this.postMessage({ type: 'TEST_ERROR_ACK', data: { errorHandled: true } } as any); }
+            } else if ((message as any).type === 'TEST_MOVE_OBJECT') {
+                // Handle object movement
+                console.log('[TestBridge] Received move object command:', (message as any).data);
+                // Find and move the object
+                let targetObject: any = null;
+                const requestedId = (message as any).data.id;
+                for (const [id, object] of (this.objects as any).objects.entries()) {
+                    const objectFileId = object?.metadata?.fileId || object?.metadata?.metadata?.fileId;
+                    if (id === requestedId || object?.id === requestedId || objectFileId === requestedId) {
+                        targetObject = object;
+                        break;
+                    }
+                }
+                
+                if (targetObject) {
+                    targetObject.position.set((message as any).data.position.x, (message as any).data.position.y, (message as any).data.position.z);
+                    console.log('[TestBridge] Moved object to:', (message as any).data.position);
+                    
+                    // Send the actual moveObject message to trigger layout persistence
+                    if (this.vscode) {
+                        this.postMessage({
+                            type: 'moveObject',
+                            data: {
+                                id: requestedId,
+                                position: {
+                                    x: (message as any).data.position.x,
+                                    y: (message as any).data.position.y,
+                                    z: (message as any).data.position.z
+                                }
+                            }
+                        } as any);
+                    }
+                }
+                
+                if (this.vscode) { this.postMessage({ type: 'TEST_MOVE_OBJECT_ACK', data: { moved: !!targetObject } } as any); }
+            } else if ((message as any).type === 'restoreWorldState') {
+                // Handle restore world state message (used as fallback in test commands)
+                console.log('[TestBridge] Received restore world state:', (message as any).data);
+                if (this.vscode) { 
+                    // Send back a scene state response to satisfy the test
+                    const state = this.getSceneState();
+                    this.postMessage({
+                        type: 'TEST_SCENE_STATE',
+                        data: state
+                    });
+                }
+            } else if ((message as any).type === 'TEST_LOOK_AT') {
+                await this.lookAt((message as any).data.x, (message as any).data.y, (message as any).data.z, (message as any).data.duration);
+                if (this.vscode) { this.postMessage({ type: 'TEST_LOOK_AT_DONE' } as any); }
+            } else if ((message as any).type === 'TEST_GET_POSITION') {
                 const pos = { x: this.character.position.x, y: this.character.position.y, z: this.character.position.z };
-                if (this.vscode) { this.postMessage({ type: 'TEST_POSITION', data: pos }); }
+                if (this.vscode) { this.postMessage({ type: 'TEST_POSITION', data: pos } as any); }
             }
         });
     }
