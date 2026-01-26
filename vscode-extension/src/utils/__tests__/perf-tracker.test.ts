@@ -15,6 +15,7 @@ describe('PerfTracker', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         perf = new PerfTracker();
+        perf.throttleMs = 0;
         uiReport = null;
         perf.setUICallback(stats => uiReport = stats);
     });

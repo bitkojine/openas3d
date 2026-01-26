@@ -20,6 +20,7 @@ export class PerfTracker {
     private uiCallback?: (stats: { label: string; count: number; avg: number; max: number }[]) => void;
     private activeStack: string[] = [];
     private _lastReportTime: number = 0;
+    public throttleMs: number = 500;
 
     constructor() {
         this.events = new CircularBuffer(PerfTracker.BUFFER_SIZE);
@@ -128,7 +129,7 @@ export class PerfTracker {
         if (!this.uiCallback) { return; }
 
         const nowMs = Date.now();
-        if (!force && nowMs - this._lastReportTime <= 500) {
+        if (!force && nowMs - this._lastReportTime < this.throttleMs) {
             return;
         }
 
