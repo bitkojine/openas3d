@@ -14,6 +14,11 @@ release/
 *.vsix
 vscode-extension/out/
 vscode-extension/node_modules/
+vscode-extension/.vscode-test-extensions/
+vscode-extension/.vscode-test-user-data/
+vscode-extension/.test-results.json
+vscode-extension/src/**/*.js
+vscode-extension/src/**/*.js.map
 
 # Environment and config
 .env

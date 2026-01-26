@@ -2,7 +2,7 @@
   "name": "openas3d-vscode",
   "displayName": "OpenAs3D - 3D Codebase Explorer",
   "description": "Visualize codebase dependencies and architecture in navigable 3D worlds",
-  "version": "0.1.397",
+  "version": "0.1.30",
   "publisher": "openas3d",
   "repository": {
     "type": "git",
@@ -23,7 +23,10 @@
     "codebase",
     "explorer"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished",
+    "onWebviewPanel:openas3d-world"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -35,6 +38,11 @@
       {
         "command": "openas3d.openAs3DWorld",
         "title": "Open as 3D World",
+        "category": "OpenAs3D"
+      },
+      {
+        "command": "openas3d.dev.toggleHotReload",
+        "title": "Development: Toggle Hot Reload",
         "category": "OpenAs3D"
       }
     ],
@@ -59,20 +67,30 @@
   "scripts": {
     "prebuild": "npm version patch --no-git-tag-version",
     "build": "npm run compile && npm run package",
-    "vscode:prepublish": "npm run compile",
+    "build:prod": "npm run compile && npm run package",
+    "vscode:prepublish": "echo 'Skipping compile - already handled by build script'",
     "compile": "webpack --mode production",
+    "compile:test": "tsc -p tsconfig.test.json",
     "watch": "webpack --mode development --watch",
     "watch-tests": "tsc -watch -p tsconfig.json",
     "dev": "webpack --mode development",
-    "test": "jest",
-    "test:integration": "node ./out/test/runTest.js",
+    "test:integration": "npm run compile && npm run compile:test && node ./out/test/runTest.js",
     "test:coverage": "jest --coverage",
     "test:coveragehtml": "jest --coverage --coverageReporters=html",
     "package": "vsce package",
     "publish": "vsce publish",
-    "build-install-test": "npm run build && VSIX=$(node -p \"require('./package.json').version\") && code --install-extension ./openas3d-vscode-$VSIX.vsix --force && code --reload-window && npm run test"
+    "release": "semantic-release",
+    "release:dry": "semantic-release --dry-run",
+    "build-install-test": "npm run build && VSIX=$(node -p \"require('./package.json').version\") && code --install-extension ./openas3d-vscode-$VSIX.vsix --force && code --reload-window && npm run test:unit",
+    "build-install-e2e": "npm run build && VSIX=$(node -p \"require('./package.json').version\") && code --install-extension ./openas3d-vscode-$VSIX.vsix --force && code --reload-window && npm run test:e2e",
+    "build-install-all": "npm run build && VSIX=$(node -p \"require('./package.json').version\") && code --install-extension ./openas3d-vscode-$VSIX.vsix --force && code --reload-window && npm run test:unit && npm run test:e2e",
+    "test": "jest",
+    "test:unit": "jest",
+    "test:e2e": "npm run test:integration"
   },
   "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
     "@types/cross-spawn": "^6.0.6",
     "@types/glob": "^8.1.0",
     "@types/jest": "^30.0.0",
@@ -82,10 +100,12 @@
     "@typescript-eslint/eslint-plugin": "^5.45.0",
     "@typescript-eslint/parser": "^5.45.0",
     "@vscode/test-electron": "^2.2.0",
+    "conventional-changelog-conventionalcommits": "^8.0.0",
     "eslint": "^8.28.0",
     "glob": "^13.0.0",
     "jest": "^30.2.0",
     "mocha": "^11.7.5",
+    "semantic-release": "^24.0.0",
     "ts-jest": "^29.4.6",
     "ts-loader": "^9.4.2",
     "typescript": "^4.9.4",

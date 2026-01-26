@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+        cache: 'npm'
+        cache-dependency-path: vscode-extension/package-lock.json
+
+    - name: Install dependencies
+      run: npm install
+      working-directory: vscode-extension
+
+    - name: Run tests
+      run: npm test
+      working-directory: vscode-extension
+
+    - name: Build extension
+      run: npm run build:prod
+      working-directory: vscode-extension
+
+    - name: Semantic Release
+      run: npm run release
+      working-directory: vscode-extension
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VSCE_PAT: ${{ secrets.VSCE_PAT }}
