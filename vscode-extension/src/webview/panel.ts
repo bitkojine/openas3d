@@ -20,16 +20,26 @@ import { WebviewMessageHandler } from './webview-message-handler';
 import { ExtensionMessage, WebviewMessage } from '../shared/messages';
 import { SignService } from '../services/sign-service';
 
-export class WebviewPanelManager {
+// New architecture imports
+import { WebviewCoordinator } from '../core/webview-coordinator';
+import { LifecycleCoordinator } from '../core/lifecycle-coordinator';
+
+export class WebviewPanelManager implements vscode.WebviewPanelSerializer {
     private panelManager: PanelManager;
     private messageDispatcher: MessageDispatcher;
     private descriptionSync: DescriptionSyncService;
     private editorConfig: EditorConfigService;
     private messageHandler: WebviewMessageHandler;
     private context: vscode.ExtensionContext;
+    private webviewCoordinator?: WebviewCoordinator;
 
-    constructor(context: vscode.ExtensionContext, perf: any, version: string = '0.0.0') {
+    constructor(context: vscode.ExtensionContext, perf: any, version: string = '0.0.0', coordinator?: LifecycleCoordinator) {
         this.context = context;
+
+        // Initialize webview coordinator if provided
+        if (coordinator) {
+            this.webviewCoordinator = new WebviewCoordinator(coordinator);
+        }
 
         // Initialize panel manager
         this.panelManager = new PanelManager(context, version);
@@ -59,11 +69,27 @@ export class WebviewPanelManager {
         this.registerWebviewHandlers();
     }
 
-    /**
-     * Create or show the webview panel
-     */
     public async createOrShowPanel(): Promise<vscode.WebviewPanel> {
-        const panel = await this.panelManager.createOrShowPanel();
+        const { panel, created } = await this.panelManager.createOrShowPanel();
+
+        // Setup MUST happen before setting HTML to avoid losing the 'ready' message
+        this.setupPanel(panel);
+
+        if (created) {
+            panel.webview.html = this.panelManager.getWebviewContent();
+        }
+
+        return panel;
+    }
+
+    /**
+     * Factor out common panel setup logic (listeners, services, ready state)
+     */
+    private setupPanel(panel: vscode.WebviewPanel): void {
+        // Register with webview coordinator if available
+        if (this.webviewCoordinator) {
+            this.webviewCoordinator.registerWebview(panel);
+        }
 
         // Set up message listener
         panel.webview.onDidReceiveMessage(
@@ -78,22 +104,54 @@ export class WebviewPanelManager {
 
         // Reset ready state when panel is recreated
         this.messageDispatcher.resetReady();
-
-        return panel;
     }
 
     /**
-     * Send a message to the webview
+     * Implementation of WebviewPanelSerializer
+     */
+    public async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, _state: any) {
+        // Delegate actual panel restoration to panelManager (handles assignment)
+        await this.panelManager.deserializeWebviewPanel(webviewPanel, _state);
+
+        // Setup listener first!
+        this.setupPanel(webviewPanel);
+
+        // Then set HTML (triggers load)
+        webviewPanel.webview.html = this.panelManager.getWebviewContent();
+    }
+
+    /**
+     * Send a message to the webview with coordination
      */
     public sendMessage(message: ExtensionMessage): void {
-        this.messageDispatcher.sendMessage(message);
+        if (this.webviewCoordinator && this.panelManager.getPanel()) {
+            // Use webview coordinator with the panel's ID
+            const panel = this.panelManager.getPanel();
+            if (panel) {
+                const webviewId = panel.viewType;
+                this.webviewCoordinator.sendMessage(webviewId, message);
+            }
+        } else {
+            // Fallback to direct message sending
+            this.messageDispatcher.sendMessage(message);
+        }
     }
 
     /**
      * Dispatch a message (alias for sendMessage)
      */
     public dispatchMessage(message: ExtensionMessage): void {
-        this.messageDispatcher.dispatchMessage(message);
+        if (this.webviewCoordinator && this.panelManager.getPanel()) {
+            // Use webview coordinator with the panel's ID
+            const panel = this.panelManager.getPanel();
+            if (panel) {
+                const webviewId = panel.viewType;
+                this.webviewCoordinator.sendMessage(webviewId, message);
+            }
+        } else {
+            // Fallback to direct message sending
+            this.messageDispatcher.dispatchMessage(message);
+        }
     }
 
     /**
@@ -200,6 +258,16 @@ export class WebviewPanelManager {
         this.messageHandler.register('runAllTests', async () => {
             await vscode.commands.executeCommand('testing.runAll');
         });
+    }
+
+    /**
+     * Register a handler for a specific webview message type
+     */
+    public register<T extends import('../shared/messages').WebviewMessageType>(
+        type: T,
+        handler: (data: import('../shared/messages').WebviewMessageData<T>) => void | Promise<void>
+    ): void {
+        this.messageHandler.register(type, handler);
     }
 
     /**
