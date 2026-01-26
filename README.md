@@ -124,3 +124,51 @@ The core logic resides in `vscode-extension/`, which contains the source code, t
       - **Limit memory usage**: Switch to circular buffers so we only keep recent data instead of everything.
       - **Better visualization**: Add flame graphs to visually see which functions are slowing things down.
       - **Save data**: Add persistent export so you can save performance logs to a file for later analysis.
+
+## TDD Feedback Loop
+
+OpenAs3D provides real-time visual feedback for your TDD cycle. When tests fail, the corresponding file objects in the 3D world will pulse red and shoot a laser beam into the sky.
+
+### Trying it Out
+
+You can verify the TDD loop using the `ZoneClassifier Priority` test suite, which ensures that core business logic (Services/Domain) is prioritized over generic utilities (Lib) in the 3D layout.
+
+#### 1. Break the Implementation
+1. Open `vscode-extension/src/visualizers/zone-classifier.ts`.
+2. Swap the priority of the **CORE** (Section 7) and **UTILITIES** (Section 8) blocks.
+3. Run the TDD tool in the 3D world (bottom-left panel).
+4. Notice the `src/services/user-util-service.ts` object turns red in 3D because the test now fails (it's misclassified as `lib`).
+
+#### 2. Break the Test
+1. Open `vscode-extension/src/visualizers/__tests__/zone-classifier-priority.test.ts`.
+2. Change the expected value in the first test from `'core'` to `'lib'`.
+3. The test will fail because the implementation correctly classifies it as `core`.
+4. Observe the failure alert in the 3D environment.
+
+#### 3. Fix and Verify
+1. Revert your changes to see the 3D alerts disappear and the status return to "Passed".
+
+## Hyper-Fast Extension Development (Hot Reload)
+
+If you are developing OpenAs3D itself, you can enable **Hot Reload** to see your changes reflected instantly without manual packaging.
+
+### 1. Setup Symlink
+To avoid packaging a `.vsix` for every change, symlink your project folder directly into the VS Code extensions directory:
+
+```zsh
+# Run from the root of the repository
+ln -s "$(pwd)/vscode-extension" ~/.vscode/extensions/openas3d-dev
+```
+
+### 2. Enable Hot Reload
+1. Open the **OpenAs3D** repository in VS Code.
+2. Open the Command Palette (`Cmd+Shift+P`) and run:
+   ```
+   >OpenAs3D: Development: Toggle Hot Reload
+   ```
+3. Start the build watcher in your terminal:
+   ```zsh
+   cd vscode-extension && npm run watch
+   ```
+
+Now, whenever you save a change to the extension source code, Webpack will recompile `extension.js`, and the extension will automatically reload the VS Code window for you.
