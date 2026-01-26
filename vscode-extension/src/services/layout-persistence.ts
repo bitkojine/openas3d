@@ -49,12 +49,15 @@ export class LayoutPersistenceService {
      * @param z Z Coordinate
      */
     public async savePosition(fileId: string, x: number, z: number): Promise<void> {
+        console.log('[LayoutPersistence] Saving position:', { fileId, x, z });
         // precision normalization: keep 3 decimal places
         const normalizedX = Number(x.toFixed(3));
         const normalizedZ = Number(z.toFixed(3));
 
         this.overrides.set(fileId, { x: normalizedX, z: normalizedZ });
+        console.log('[LayoutPersistence] Overrides set:', Array.from(this.overrides.entries()));
         await this.persist();
+        console.log('[LayoutPersistence] Persist completed');
     }
 
     /**
@@ -85,14 +88,19 @@ export class LayoutPersistenceService {
      * Write to disk with normalization
      */
     private async persist() {
-        if (!this.workspaceRoot) return;
+        if (!this.workspaceRoot) {
+            console.log('[LayoutPersistence] No workspace root, skipping persistence');
+            return;
+        }
 
         const dirPath = path.join(this.workspaceRoot, this.DIR_NAME);
         const filePath = path.join(dirPath, this.FILE_NAME);
+        console.log('[LayoutPersistence] Persisting to:', filePath);
 
         // Ensure directory exists
         if (!fs.existsSync(dirPath)) {
             fs.mkdirSync(dirPath, { recursive: true });
+            console.log('[LayoutPersistence] Created directory:', dirPath);
         }
 
         // Sort keys for deterministic output
@@ -108,7 +116,10 @@ export class LayoutPersistenceService {
             overrides: sortedOverrides
         };
 
+        console.log('[LayoutPersistence] Writing file data:', JSON.stringify(fileData, null, 2));
+        
         // Write with generic pretty-print
         fs.writeFileSync(filePath, JSON.stringify(fileData, null, 2), 'utf8');
+        console.log('[LayoutPersistence] File written successfully');
     }
 }

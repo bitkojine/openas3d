@@ -8,6 +8,15 @@ import { SignService } from './services/sign-service';
 
 import { LayoutPersistenceService } from './services/layout-persistence';
 import { TestDiscoveryService } from './services/test-discovery-service';
+import { TestManager } from './services/test-manager';
+import { DevManagerV2 } from './services/dev-manager-v2';
+import { AnalysisCacheService } from './services/analysis-cache';
+
+// New architecture imports
+import { LifecycleCoordinator } from './core/lifecycle-coordinator';
+import { StateManager } from './core/state-manager';
+import { WebviewCoordinator } from './core/webview-coordinator';
+import { ErrorRecoverySystem } from './core/error-recovery';
 
 let webviewPanelManager: WebviewPanelManager;
 let perf: PerfTracker;
@@ -16,25 +25,52 @@ let exploreService: ExploreDependenciesService;
 let signService: SignService;
 let layoutPersistence: LayoutPersistenceService;
 let testDiscovery: TestDiscoveryService;
+let testManager: TestManager;
+let devManager: DevManagerV2;
+let analysisCache: AnalysisCacheService;
+
+// New architecture components
+let coordinator: LifecycleCoordinator;
+let stateManager: StateManager;
+let webviewCoordinator: WebviewCoordinator;
+let errorRecovery: ErrorRecoverySystem;
 
 export function activate(context: vscode.ExtensionContext) {
     const extension = vscode.extensions.getExtension('openas3d.openas3d-vscode');
     const version = extension?.packageJSON?.version || '0.0.0';
     console.log(`OpenAs3D extension is now active! (Build ${version})`);
 
+    // Initialize new architecture components first
+    coordinator = new LifecycleCoordinator();
+    stateManager = new StateManager(context, coordinator);
+    webviewCoordinator = new WebviewCoordinator(coordinator);
+    errorRecovery = new ErrorRecoverySystem(coordinator);
+
     // Initialize core managers
     // We pass perf tracker to WebviewPanelManager for middleware support
     perf = new PerfTracker();
     PerfTracker.instance = perf; // Set singleton for decorators
-    webviewPanelManager = new WebviewPanelManager(context, perf, version);
+    webviewPanelManager = new WebviewPanelManager(context, perf, version, coordinator);
 
     // Initialize Backend Services
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    console.log('[Extension] Workspace root:', workspaceRoot);
     layoutPersistence = new LayoutPersistenceService(workspaceRoot);
     testDiscovery = new TestDiscoveryService();
 
+    // Initialize Dev Manager V2 (new race-free implementation)
+    devManager = new DevManagerV2(context, coordinator, stateManager);
+    devManager.initialize();
+
+    // Initialize Test Manager
+    testManager = new TestManager(context, testDiscovery, webviewPanelManager, coordinator, devManager);
+    testManager.initialize();
+
+    // Initialize Analysis Cache
+    analysisCache = new AnalysisCacheService(context);
+
     // Inject persistence into Visualizer -> LayoutEngine
-    const codebaseVisualizer = new CodebaseVisualizer(context.extensionPath, layoutPersistence);
+    const codebaseVisualizer = new CodebaseVisualizer(context.extensionPath, layoutPersistence, analysisCache);
 
     // Initialize services
     signService = new SignService(webviewPanelManager);
@@ -42,39 +78,21 @@ export function activate(context: vscode.ExtensionContext) {
         webviewPanelManager,
         codebaseVisualizer,
         perf,
-        signService // inject SignService here
+        signService, // inject SignService here
+        context,
+        stateManager // inject StateManager for race-free state persistence
     );
-
-    // Register TDD Commands
-    context.subscriptions.push(
-        vscode.commands.registerCommand('openas3d.tdd.runAll', () => {
-            vscode.commands.executeCommand('testing.runAll');
-        }),
-        vscode.commands.registerCommand('openas3d.tdd.runFailed', () => {
-            vscode.commands.executeCommand('testing.runFailed');
-        }),
-        vscode.commands.registerCommand('openas3d.tdd.toggleWatch', () => {
-            // Toggle watch mode logic (future)
-            vscode.window.showInformationMessage('TDD Watch Mode toggled (Simulated)');
-        })
-    );
-
-    // Wire up Test Discovery to Webview
-    testDiscovery.onDidChangeTests(() => {
-        const testsMap = testDiscovery.getTests();
-        const allTests: any[] = [];
-        testsMap.forEach((tests) => allTests.push(...tests));
-
-        webviewPanelManager.dispatchMessage({
-            type: 'updateTests',
-            data: allTests
-        });
-    });
 
     // Register Move Handler for persistence
     webviewPanelManager.registerMoveHandler(async (id, pos) => {
+        console.log('[Extension] Move handler called:', { id, pos });
+        // The id is now the fileId directly from the webview
         await layoutPersistence.savePosition(id, pos.x, pos.z);
+        console.log('[Extension] Layout persistence completed');
     });
+
+    // Register Webview Serializer for restoration across reloads
+    vscode.window.registerWebviewPanelSerializer('openas3d-world', webviewPanelManager);
 
     // Register commands
     const exploreDependenciesCommand = vscode.commands.registerCommand(
@@ -105,108 +123,6 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(exploreDependenciesCommand, openAs3DWorldCommand);
 
-    // Register test commands only in Test mode
-    if (context.extensionMode === vscode.ExtensionMode.Test) {
-        const testGetSceneStateCommand = vscode.commands.registerCommand(
-            'openas3d.test.getSceneState',
-            async () => {
-                if (!webviewPanelManager) {
-                    throw new Error('WebviewPanelManager not initialized');
-                }
-                // Send request
-                webviewPanelManager.dispatchMessage({ type: 'TEST_GET_SCENE_STATE' });
-
-                // Wait for response with 5s timeout
-                const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout waiting for scene state')), 5000));
-                const response = webviewPanelManager.waitForMessage('TEST_SCENE_STATE');
-                return Promise.race([response, timeout]);
-            }
-        );
-
-        const testSimulateSelectionCommand = vscode.commands.registerCommand(
-            'openas3d.test.simulateSelection',
-            async (id: string) => {
-                if (!webviewPanelManager) {
-                    throw new Error('WebviewPanelManager not initialized');
-                }
-                webviewPanelManager.dispatchMessage({ type: 'TEST_SIMULATE_SELECTION', data: { id } });
-                // Wait for ack
-                const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout waiting for selection ack')), 5000));
-                const response = webviewPanelManager.waitForMessage('TEST_SELECTION_DONE');
-                return Promise.race([response, timeout]);
-            }
-        );
-
-        const testSimulateMoveCommand = vscode.commands.registerCommand(
-            'openas3d.test.simulateMove',
-            async (x: number, z: number) => {
-                if (!webviewPanelManager) {
-                    throw new Error('WebviewPanelManager not initialized');
-                }
-                webviewPanelManager.dispatchMessage({ type: 'TEST_SIMULATE_MOVE', data: { x, z } });
-                // Wait for ack
-                const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout waiting for move ack')), 5000));
-                const response = webviewPanelManager.waitForMessage('TEST_MOVE_DONE');
-                return Promise.race([response, timeout]);
-            }
-        );
-
-        const testSimulateInputCommand = vscode.commands.registerCommand(
-            'openas3d.test.simulateInput',
-            async (kind: string, code?: string) => {
-                if (!webviewPanelManager) {
-                    throw new Error('WebviewPanelManager not initialized');
-                }
-                webviewPanelManager.dispatchMessage({ type: 'TEST_SIMULATE_INPUT', data: { kind, code } });
-                const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout waiting for input ack')), 5000));
-                const response = webviewPanelManager.waitForMessage('TEST_INPUT_DONE');
-                return Promise.race([response, timeout]);
-            }
-        );
-
-        const testTeleportCommand = vscode.commands.registerCommand(
-            'openas3d.test.teleport',
-            async (x: number, y: number, z: number) => {
-                if (!webviewPanelManager) { throw new Error('WebviewPanelManager not initialized'); }
-                webviewPanelManager.dispatchMessage({ type: 'TEST_TELEPORT', data: { x, y, z } });
-                const response = webviewPanelManager.waitForMessage('TEST_TELEPORT_DONE');
-                return Promise.race([response, new Promise((_, r) => setTimeout(() => r(new Error('Timeout')), 5000))]);
-            }
-        );
-
-        const testLookAtCommand = vscode.commands.registerCommand(
-            'openas3d.test.lookAt',
-            async (x: number, y: number, z: number, duration?: number) => {
-                if (!webviewPanelManager) { throw new Error('WebviewPanelManager not initialized'); }
-                webviewPanelManager.dispatchMessage({ type: 'TEST_LOOK_AT', data: { x, y, z, duration } });
-                const response = webviewPanelManager.waitForMessage('TEST_LOOK_AT_DONE');
-                // Increase timeout for animations
-                const waitTime = duration ? duration + 2000 : 5000;
-                return Promise.race([response, new Promise((_, r) => setTimeout(() => r(new Error('Timeout')), waitTime))]);
-            }
-        );
-
-        const testGetPositionCommand = vscode.commands.registerCommand(
-            'openas3d.test.getPosition',
-            async () => {
-                if (!webviewPanelManager) { throw new Error('WebviewPanelManager not initialized'); }
-                webviewPanelManager.dispatchMessage({ type: 'TEST_GET_POSITION' });
-                const response = webviewPanelManager.waitForMessage('TEST_POSITION');
-                return Promise.race([response, new Promise((_, r) => setTimeout(() => r(new Error('Timeout')), 5000))]);
-            }
-        );
-
-        context.subscriptions.push(
-            testGetSceneStateCommand,
-            testSimulateSelectionCommand,
-            testSimulateMoveCommand,
-            testSimulateInputCommand,
-            testTeleportCommand,
-            testLookAtCommand,
-            testGetPositionCommand
-        );
-    }
-
     vscode.window.showInformationMessage(
         'OpenAs3D extension activated! Use "Explore Dependencies in 3D" to get started.'
     );
@@ -226,6 +142,12 @@ export function activate(context: vscode.ExtensionContext) {
         { dispose: () => clearInterval(perfInterval) },
         { dispose: () => testDiscovery.dispose() }
     );
+
+    // Restore 3D World if it was open before reload
+    // Add delay to ensure workbench is stable
+    setTimeout(() => {
+        exploreService.restore();
+    }, 3000);
 }
 
 export function deactivate() {

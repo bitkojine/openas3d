@@ -158,7 +158,26 @@ export class ZoneClassifier {
         }
 
         // ========================================
-        // 7. UTILITIES - helpers, shared code
+        // 7. CORE - business logic, services, domain
+        // ========================================
+        if (lowerPath.includes('/services/') ||
+            lowerPath.includes('/service/') ||
+            lowerPath.includes('/domain/') ||
+            lowerPath.includes('/core/') ||
+            lowerPath.includes('/business/') ||
+            lowerPath.includes('/logic/') ||
+            lowerPath.includes('/managers/') ||
+            lowerPath.includes('/providers/') ||
+            basename.includes('service') ||
+            basename.includes('manager') ||
+            basename.includes('provider') ||
+            basename.includes('use-case') ||
+            basename.includes('usecase')) {
+            return 'core';
+        }
+
+        // ========================================
+        // 8. UTILITIES - helpers, shared code
         // ========================================
         if (lowerPath.includes('/utils/') ||
             lowerPath.includes('/util/') ||
@@ -177,25 +196,6 @@ export class ZoneClassifier {
             basename.includes('config') ||
             ['.json', '.yaml', '.yml', '.toml', '.ini', '.env'].includes(ext)) {
             return 'lib';
-        }
-
-        // ========================================
-        // 8. CORE - business logic, services, domain
-        // ========================================
-        if (lowerPath.includes('/services/') ||
-            lowerPath.includes('/service/') ||
-            lowerPath.includes('/domain/') ||
-            lowerPath.includes('/core/') ||
-            lowerPath.includes('/business/') ||
-            lowerPath.includes('/logic/') ||
-            lowerPath.includes('/managers/') ||
-            lowerPath.includes('/providers/') ||
-            basename.includes('service') ||
-            basename.includes('manager') ||
-            basename.includes('provider') ||
-            basename.includes('use-case') ||
-            basename.includes('usecase')) {
-            return 'core';
         }
 
         // ========================================
