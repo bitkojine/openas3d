@@ -41,4 +41,3 @@ jobs:
       working-directory: vscode-extension
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        VSCE_PAT: ${{ secrets.VSCE_PAT }}

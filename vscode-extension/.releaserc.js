@@ -10,8 +10,24 @@ module.exports = {
     '@semantic-release/commit-analyzer',
     '@semantic-release/release-notes-generator',
     '@semantic-release/changelog',
-    '@semantic-release/npm',
-    '@semantic-release/github',
+    [
+      '@semantic-release/npm',
+      {
+        npmPublish: false,
+        tarballDir: 'dist'
+      }
+    ],
+    [
+      '@semantic-release/github',
+      {
+        assets: [
+          {
+            path: 'vscode-extension/*.vsix',
+            label: 'VSIX Extension'
+          }
+        ]
+      }
+    ],
     [
       '@semantic-release/git',
       {
