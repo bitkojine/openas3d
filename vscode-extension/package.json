@@ -2,7 +2,7 @@
   "name": "openas3d-vscode",
   "displayName": "OpenAs3D - 3D Codebase Explorer",
   "description": "Visualize codebase dependencies and architecture in navigable 3D worlds",
-  "version": "0.2.2",
+  "version": "0.2.0",
   "publisher": "openas3d",
   "repository": {
     "type": "git",
@@ -66,7 +66,7 @@
     }
   },
   "scripts": {
-    "prebuild": "if [ -z \"$CI\" ]; then npm version patch --no-git-tag-version; fi",
+    "prebuild": "npm run version:local && npm run update-readme",
     "build": "npm run compile && npm run package",
     "build:prod": "npm run compile && npm run package",
     "postversion": "npm run package",
@@ -83,6 +83,8 @@
     "publish": "vsce publish",
     "release": "semantic-release",
     "release:dry": "semantic-release --dry-run",
+    "version:local": "node scripts/version-local.js",
+    "update-readme": "node scripts/update-readme.js",
     "build-install-test": "npm run build && VSIX=$(node -p \"require('./package.json').version\") && code --install-extension ./openas3d-vscode-$VSIX.vsix --force && code --reload-window && npm run test:unit",
     "build-install-e2e": "npm run build && VSIX=$(node -p \"require('./package.json').version\") && code --install-extension ./openas3d-vscode-$VSIX.vsix --force && code --reload-window && npm run test:e2e",
     "build-install-all": "npm run build && VSIX=$(node -p \"require('./package.json').version\") && code --install-extension ./openas3d-vscode-$VSIX.vsix --force && code --reload-window && npm run test:unit && npm run test:e2e",
@@ -91,6 +93,7 @@
     "test:e2e": "npm run test:integration"
   },
   "devDependencies": {
+    "@semantic-release/git": "^10.0.1",
     "@types/cross-spawn": "^6.0.6",
     "@types/glob": "^8.1.0",
     "@types/jest": "^30.0.0",
@@ -104,12 +107,12 @@
     "eslint": "^8.28.0",
     "glob": "^13.0.0",
     "jest": "^30.2.0",
-    "mocha": "^11.7.5",
-    "semantic-release": "^24.0.0",
+    "mocha": "^11.3.0",
+    "semantic-release": "^25.0.2",
     "ts-jest": "^29.4.6",
     "ts-loader": "^9.4.2",
     "typescript": "^4.9.4",
-    "vsce": "^2.15.0",
+    "vsce": "^1.97.0",
     "webpack": "^5.75.0",
     "webpack-cli": "^5.0.1"
   },
