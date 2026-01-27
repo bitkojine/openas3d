@@ -40,4 +40,4 @@ jobs:
       run: npm run release
       working-directory: vscode-extension
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
