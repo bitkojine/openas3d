@@ -21,7 +21,7 @@ module.exports = {
           { type: 'test', release: 'patch' },
           { type: 'minor', release: 'minor' },
           { type: 'patch', release: 'patch' },
-          // Default all other types to patch
+          { breaking: true, release: 'minor' }, // Map breaking changes to minor for pre-1.0
           { release: 'patch' }
         ],
         parserOpts: {
@@ -62,7 +62,7 @@ module.exports = {
     (pluginConfig, context) => {
       const { nextRelease } = context;
       if (nextRelease && !nextRelease.version.startsWith('0.')) {
-        throw new Error(`Only pre-launch versions (0.x.y) are allowed for automatic release. Version ${nextRelease.version} is blocked.`);
+        throw new Error(`Only pre-launch versions (0.x.y) are allowed for automatic release. Version ${nextRelease.version} is blocked and must be manually released as 1.0.0 when ready.`);
       }
     }
   ],
