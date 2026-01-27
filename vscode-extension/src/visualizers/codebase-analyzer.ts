@@ -16,8 +16,17 @@ export class CodebaseAnalyzer {
     private workspaceRoot: string;
 
     constructor(rootPath: string) {
+        // PRIORITIZE rootPath if provided, otherwise fallback to workspace folder
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        this.workspaceRoot = workspaceFolder?.uri.fsPath || rootPath;
+        let root = rootPath || workspaceFolder?.uri.fsPath || '';
+
+        // Normalize: Remove trailing separator
+        if (root.endsWith(path.sep) && root.length > 1) {
+            root = root.slice(0, -1);
+        }
+
+        this.workspaceRoot = root;
+        console.log(`[CodebaseAnalyzer] Initialized with workspaceRoot: ${this.workspaceRoot}`);
     }
 
     /**
@@ -33,23 +42,32 @@ export class CodebaseAnalyzer {
         // Use setImmediate to not block the event loop
         const yieldToEventLoop = () => new Promise(resolve => setImmediate(resolve));
 
+        let discoveredCount = 0;
         const processDirectory = async (dirPath: string): Promise<void> => {
-            // console.log('[Analyzer] Processing dir:', dirPath);
+            console.log(`[CodebaseAnalyzer] Scanning directory: ${dirPath}`);
             try {
                 const dirUri = vscode.Uri.file(dirPath);
-                // vscode.workspace.fs.readDirectory returns [name, type][]
                 const entries = await vscode.workspace.fs.readDirectory(dirUri);
+                console.log(`[CodebaseAnalyzer] Found ${entries.length} entries in ${dirPath}`);
 
                 for (const [name, type] of entries) {
                     const fullPath = path.join(dirPath, name);
 
                     if (type === vscode.FileType.Directory) {
-                        if (!['node_modules', '.git', 'dist', 'build', 'out', '.vscode', '.3d-descriptions', '.vscode-test', 'bin', 'obj'].includes(name)) {
+                        const skipDirs = [
+                            'node_modules', '.git', 'dist', 'build', 'out', '.vscode',
+                            '.3d-descriptions', '.vscode-test', 'bin', 'obj',
+                            'coverage', '.nyc_output', 'tmp', 'temp', 'logs',
+                            'venv', 'env', '.venv', '.env', 'target',
+                            '.next', '.nuxt', '.cache', 'public'
+                        ];
+                        if (!skipDirs.includes(name.toLowerCase())) {
                             await processDirectory(fullPath);
                         }
                     } else if (type === vscode.FileType.File) {
                         const fileInfo = await this.analyzeFile(fullPath);
                         if (fileInfo) {
+                            discoveredCount++;
                             files.set(fileInfo.id, fileInfo);
                             onFile(fileInfo); // Stream file immediately
                         }
@@ -60,11 +78,12 @@ export class CodebaseAnalyzer {
                     }
                 }
             } catch (error) {
-                console.warn(`Failed to scan directory ${dirPath}:`, error);
+                console.warn(`[CodebaseAnalyzer] Failed to scan directory ${dirPath}:`, error);
             }
         };
 
         await processDirectory(this.workspaceRoot);
+        console.log(`[CodebaseAnalyzer] Discovery complete. Total files found: ${discoveredCount}`);
 
         // Build dependency edges after all files are loaded
 
@@ -163,18 +182,25 @@ export class CodebaseAnalyzer {
     @profile('CodebaseAnalyzer.analyzeFile')
     public async analyzeFile(filePath: string): Promise<CodeFile | null> {
         try {
+            const ext = path.extname(filePath);
+            const language = getLanguageFromExtension(ext);
+
+            // OPTIMIZATION: Check language FIRST. Skip noise files (.DS_Store, etc.)
+            if (language === 'other') {
+                return null;
+            }
+
             const fileUri = vscode.Uri.file(filePath);
+            const stats = await vscode.workspace.fs.stat(fileUri);
+            const relativePath = path.relative(this.workspaceRoot, filePath);
+            // console.log(`[CodebaseAnalyzer] Analyzing: ${relativePath} (root: ${this.workspaceRoot})`);
+
+            // OPTIMIZATION: Only read content if it's a known language
             const uint8Array = await vscode.workspace.fs.readFile(fileUri);
             const content = new TextDecoder().decode(uint8Array);
 
-            // Cache the line split to avoid duplicate operations
             const allLines = content.split('\n');
             const truncatedContent = allLines.slice(0, MAX_CONTENT_LINES).join('\n');
-
-            const stats = await vscode.workspace.fs.stat(fileUri);
-            const relativePath = path.relative(this.workspaceRoot, filePath);
-            const ext = path.extname(filePath);
-            const language = getLanguageFromExtension(ext);
 
             // Only search first 50 lines for imports (they're typically at top)
             const importSection = allLines.slice(0, 50).join('\n');

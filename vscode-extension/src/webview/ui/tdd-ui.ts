@@ -3,7 +3,7 @@ import { WebviewMessage } from '../../shared/messages';
 export class TddUi {
     private container: HTMLElement;
     private list: HTMLElement;
-    private isCollapsed = false;
+    public isCollapsed = false;
 
     constructor(private postMessage: (msg: WebviewMessage) => void) {
         this.container = document.createElement('div');
@@ -102,7 +102,11 @@ export class TddUi {
     }
 
     private toggleCollapse(): void {
-        this.isCollapsed = !this.isCollapsed;
+        this.setCollapsed(!this.isCollapsed);
+    }
+
+    public setCollapsed(collapsed: boolean): void {
+        this.isCollapsed = collapsed;
         this.container.classList.toggle('collapsed', this.isCollapsed);
     }
 

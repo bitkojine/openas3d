@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { CodebaseAnalyzer } from './codebase-analyzer';
 import { CodebaseLayoutEngine } from './codebase-layout';
+import { MONUMENT_CONFIG } from './monument-config';
 import { CodeFile, DependencyEdge } from '../core/domain/code-file';
 import { FileWithZone } from '../core/analysis/types';
 import { analyzeArchitecture } from '../core/analysis/architecture-analyzer';
@@ -9,6 +10,7 @@ import { ExtensionMessage } from '../shared/messages';
 
 // Re-export types for backward compatibility within the module if needed
 import { LayoutPersistenceService } from '../services/layout-persistence';
+import { AnalysisCacheService } from '../services/analysis-cache';
 
 export { CodeFile, DependencyEdge };
 /**
@@ -23,10 +25,12 @@ export class CodebaseVisualizer {
     private fileZoneCounts: { [zone: string]: number } = {};
     private filesWithZones: FileWithZone[] = [];
     private extensionPath: string;
+    private cacheService?: AnalysisCacheService;
 
-    constructor(extensionPath: string, persistenceService?: LayoutPersistenceService) {
+    constructor(extensionPath: string, persistenceService?: LayoutPersistenceService, cacheService?: AnalysisCacheService) {
         this.extensionPath = extensionPath;
         this.layout = new CodebaseLayoutEngine(persistenceService);
+        this.cacheService = cacheService;
     }
 
     private postMessage(message: ExtensionMessage): void {
@@ -42,66 +46,46 @@ export class CodebaseVisualizer {
         // Clear immediately - UI shows instantly
         this.postMessage({ type: 'clear' });
 
+        const initStart = Date.now();
+        console.time('[CodebaseVisualizer] Initialization');
+
+        // Initialize Hot Reload Monument
+        this.postMessage({
+            type: 'updateMonument',
+            data: MONUMENT_CONFIG
+        });
+
+        // ───── Check Cache ─────
+        const cache = this.cacheService?.getCache(data.targetPath);
+        if (cache) {
+            const cacheStart = Date.now();
+            console.log(`[CodebaseVisualizer] Instant load from cache: ${cache.files.length} files`);
+
+            // Replay files
+            cache.files.forEach(f => this.addFileToScene(f));
+
+            // Finalize layout - await it to keep timers nested correctly
+            await this.finalizeScene(cache.edges, data.targetPath);
+            console.log(`[CodebaseVisualizer] Cached load complete in ${Date.now() - cacheStart}ms`);
+
+            return () => this.cleanup();
+        }
+
+        console.log('[CodebaseVisualizer] No cache found, starting fresh analysis...');
         const analyzer = new CodebaseAnalyzer(data.targetPath);
+        const discoveredFiles: CodeFile[] = [];
 
         // Start streaming - don't await! Files will appear progressively
         analyzer.analyzeStreaming(
-            (file) => this.addFileToScene(file),
+            (file) => {
+                discoveredFiles.push(file);
+                this.addFileToScene(file);
+            },
             (edges) => {
-                this.addEdgesToScene(edges);
+                // Save to cache
+                this.cacheService?.setCache(data.targetPath, discoveredFiles, edges);
 
-                // Compute FINAL layout from accumulated file counts
-                // This ensures zones are sized correctly based on actual content
-                this.layout.computeZoneBoundsFromCounts(this.fileZoneCounts);
-                const zoneBounds = this.layout.computeZoneBoundsFromCounts(this.fileZoneCounts);
-
-                this.postMessage({
-                    type: 'setZoneBounds',
-                    data: zoneBounds
-                });
-
-                // RE-CALCULATE POSITIONS FOR ALL FILES
-                // Now that layout is final, we must update all file positions
-                // because zones may have shifted significantly
-                const zoneIndices: { [zone: string]: number } = {};
-
-                this.filesWithZones.forEach(f => {
-                    const zoneName = f.zone;
-                    const zone = this.layout.getZone(zoneName) || this.layout.getZone('core')!;
-
-                    if (!zoneIndices[zoneName]) zoneIndices[zoneName] = 0;
-                    const index = zoneIndices[zoneName]++;
-
-                    const pos = this.layout.getPositionForZone(zone, index);
-
-                    this.postMessage({
-                        type: 'updateObjectPosition',
-                        data: {
-                            id: f.id,
-                            position: { x: pos.x, y: 0, z: pos.z }
-                        }
-                    });
-                });
-
-                this.postMessage({ type: 'dependenciesComplete' });
-
-                // Analyze architecture and send warnings
-                // Create map of absolute path -> file ID
-                const fileIdMap = new Map<string, string>();
-                this.filesWithZones.forEach(f => fileIdMap.set(f.filePath, f.id));
-
-                analyzeArchitecture(data.targetPath, fileIdMap, { extensionPath: this.extensionPath }).then(warnings => {
-                    this.postMessage({
-                        type: 'setWarnings',
-                        data: warnings
-                    });
-                }).catch(err => {
-                    console.error('[Architecture] Analysis failed:', err);
-                    this.postMessage({
-                        type: 'architectureError',
-                        data: { message: `Architecture analysis failed: ${err.message || err}` }
-                    });
-                });
+                this.finalizeScene(edges, data.targetPath);
             }
         ).catch(err => {
             console.error('Failed during streaming analysis:', err);
@@ -163,6 +147,69 @@ export class CodebaseVisualizer {
                 }
             });
         });
+    }
+
+    private async finalizeScene(edges: DependencyEdge[], targetPath: string): Promise<void> {
+        this.addEdgesToScene(edges);
+
+        // Compute FINAL layout from accumulated file counts
+        // This ensures zones are sized correctly based on actual content
+        const zoneBounds = this.layout.computeZoneBoundsFromCounts(this.fileZoneCounts);
+
+        this.postMessage({
+            type: 'setZoneBounds',
+            data: zoneBounds
+        });
+
+        const zoneIndices: { [zone: string]: number } = {};
+        const positionUpdates: any[] = [];
+
+        this.filesWithZones.forEach(f => {
+            const zoneName = f.zone;
+            const zone = this.layout.getZone(zoneName) || this.layout.getZone('core')!;
+
+            if (!zoneIndices[zoneName]) zoneIndices[zoneName] = 0;
+            const index = zoneIndices[zoneName]++;
+
+            const pos = this.layout.getPositionForZone(zone, index);
+
+            positionUpdates.push({
+                id: f.id,
+                position: { x: pos.x, y: 0, z: pos.z }
+            });
+        });
+
+        if (positionUpdates.length > 0) {
+            this.postMessage({
+                type: 'updateBatch',
+                data: {
+                    type: 'position',
+                    updates: positionUpdates
+                }
+            });
+        }
+
+        this.postMessage({ type: 'dependenciesComplete' });
+        console.timeEnd('[CodebaseVisualizer] Initialization');
+
+        // Analyze architecture and send warnings - AWAIT this to keep PerfTracker happy
+        // Create map of absolute path -> file ID
+        const fileIdMap = new Map<string, string>();
+        this.filesWithZones.forEach(f => fileIdMap.set(f.filePath, f.id));
+
+        try {
+            const warnings = await analyzeArchitecture(targetPath, fileIdMap, { extensionPath: this.extensionPath });
+            this.postMessage({
+                type: 'setWarnings',
+                data: warnings
+            });
+        } catch (err: any) {
+            console.error('[Architecture] Analysis failed:', err);
+            this.postMessage({
+                type: 'architectureError',
+                data: { message: `Architecture analysis failed: ${err.message || err}` }
+            });
+        }
     }
 
     private cleanup() {

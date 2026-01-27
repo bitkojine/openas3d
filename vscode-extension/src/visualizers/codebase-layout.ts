@@ -39,15 +39,16 @@ export class CodebaseLayoutEngine {
     }
 
     private initializeZones() {
+        const GAP = 50.0; // Large initial gap to avoid clipping during streaming
         const configs: ZoneConfig[] = [
-            { name: 'core', displayName: 'Core Logic', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0x9b59b6 },  // Purple
-            { name: 'entry', displayName: 'Entry Points', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0x3498db },  // Blue
-            { name: 'api', displayName: 'API Layer', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0x27ae60 },  // Green
-            { name: 'data', displayName: 'Data Layer', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0xf39c12 },  // Orange
-            { name: 'ui', displayName: 'User Interface', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0xe74c3c },  // Red
-            { name: 'infra', displayName: 'Infrastructure', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0x95a5a6 },  // Gray
-            { name: 'lib', displayName: 'Utilities', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0x00bcd4 },  // Cyan
-            { name: 'test', displayName: 'Tests', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0x2ecc71 }   // Light Green
+            { name: 'core', displayName: 'Core Logic', xCenter: 0, zCenter: 0, spacing: 5.0, color: 0x9b59b6 },
+            { name: 'entry', displayName: 'Entry Points', xCenter: -GAP, zCenter: -GAP, spacing: 5.0, color: 0x3498db },
+            { name: 'api', displayName: 'API Layer', xCenter: GAP, zCenter: -GAP, spacing: 5.0, color: 0x27ae60 },
+            { name: 'data', displayName: 'Data Layer', xCenter: GAP, zCenter: 0, spacing: 5.0, color: 0xf39c12 },
+            { name: 'ui', displayName: 'User Interface', xCenter: 0, zCenter: GAP, spacing: 5.0, color: 0xe74c3c },
+            { name: 'infra', displayName: 'Infrastructure', xCenter: -GAP, zCenter: GAP, spacing: 5.0, color: 0x95a5a6 },
+            { name: 'lib', displayName: 'Utilities', xCenter: -GAP, zCenter: 0, spacing: 5.0, color: 0x00bcd4 },
+            { name: 'test', displayName: 'Tests', xCenter: GAP, zCenter: GAP, spacing: 5.0, color: 0x2ecc71 }
         ];
 
         configs.forEach(config => {

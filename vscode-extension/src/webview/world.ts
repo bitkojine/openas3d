@@ -25,7 +25,9 @@ import { ArchitectureWarning } from '../core/analysis/types';
 import { updateContentConfig } from './texture-factory';
 import { EditorConfig } from '../shared/types';
 import { MessageRouter } from './message-router';
-import { AddObjectPayload, AddDependencyPayload, UpdatePositionPayload } from '../shared/messages';
+import { AddObjectPayload, AddDependencyPayload, UpdatePositionPayload, WorldStatePayload } from '../shared/messages';
+import { HotReloadMonument } from './objects/monument';
+import { MonumentConfig } from '../shared/types';
 
 export class World {
     private sceneManager: SceneManager;
@@ -44,8 +46,13 @@ export class World {
     private tddUi: TddUi;
 
     private vscode: any;
+    private monument: HotReloadMonument | null = null;
+
+    private e2eStatusStrip?: HTMLElement;
 
     private lastTime: number = 0;
+    private lastStateUpdate: number = 0;
+    private isRestoring: boolean = true; // Wait for initial state from extension
     private currentPerfStats: { label: string; count: number; avg: number; max: number }[] = [];
 
     constructor(vscodeApi: any) {
@@ -53,6 +60,8 @@ export class World {
         const container = document.getElementById('renderer')!;
         const statsEl = document.getElementById('stats-panel')!;
         const loadingEl = document.getElementById('loading')!;
+
+        this.e2eStatusStrip = document.getElementById('e2e-status-strip') || undefined;
 
         this.sceneManager = new SceneManager(container, this.vscode);
 
@@ -201,6 +210,17 @@ export class World {
         this.lastTime = currentTime;
 
         this.character.update(deltaTime);
+        if (this.monument) this.monument.animate(deltaTime);
+
+        // Periodically sync state to extension
+        const now = performance.now();
+        if (!this.isRestoring && now - this.lastStateUpdate > 2000) { // Every 2 seconds
+            this.lastStateUpdate = now;
+            this.vscode.postMessage({
+                type: 'updateWorldState',
+                data: this.getWorldState()
+            });
+        }
 
         // Update environment animations (clouds drifting, etc.)
         this.sceneManager.environment.update(deltaTime);
@@ -408,6 +428,24 @@ export class World {
             this.updateObjectPosition(data);
         });
 
+        router.register('updateBatch', (data: { type: string; updates: any[] }) => {
+            if (data.type === 'position') {
+                data.updates.forEach(update => {
+                    this.updateObjectPosition(update);
+                });
+            }
+        });
+
+        // Development/Debug
+        router.register('updateMonument', (config: MonumentConfig) => {
+            if (!this.monument) {
+                this.monument = new HotReloadMonument(config);
+                this.sceneManager.scene.add(this.monument.getObject());
+            } else {
+                this.monument.update(config);
+            }
+        });
+
         // Dependency Management
         router.register('addDependency', (data: AddDependencyPayload) => {
             this.addDependency(data);
@@ -462,5 +500,128 @@ export class World {
             // Update TDD UI (List)
             this.tddUi.updateTests(data);
         });
+
+        // World State Restoration
+        router.register('restoreWorldState', (data: WorldStatePayload) => {
+            this.applyWorldState(data);
+        });
+
+        router.register('e2eStatus', (data: { phase: 'run' | 'pass' | 'fail' | 'info'; title: string; message?: string }) => {
+            this.updateE2EStatus(data);
+        });
+    }
+
+    private updateE2EStatus(data: { phase: 'run' | 'pass' | 'fail' | 'info'; title: string; message?: string }): void {
+        if (!this.e2eStatusStrip) {
+            return;
+        }
+
+        this.e2eStatusStrip.classList.remove('hidden');
+        this.e2eStatusStrip.classList.remove('e2e-run', 'e2e-pass', 'e2e-fail');
+
+        if (data.phase === 'run') {
+            this.e2eStatusStrip.classList.add('e2e-run');
+        } else if (data.phase === 'pass') {
+            this.e2eStatusStrip.classList.add('e2e-pass');
+        } else if (data.phase === 'fail') {
+            this.e2eStatusStrip.classList.add('e2e-fail');
+        }
+
+        const text = data.message ? `${data.title} — ${data.message}` : data.title;
+        this.e2eStatusStrip.textContent = `E2E ${data.phase.toUpperCase()}: ${text}`;
+    }
+
+    private getWorldState(): WorldStatePayload {
+        return {
+            player: {
+                position: {
+                    x: this.character.position.x,
+                    y: this.character.position.y,
+                    z: this.character.position.z
+                },
+                yaw: this.character.yaw,
+                pitch: this.character.pitch,
+                flightMode: this.character.isFlightMode
+            },
+            ui: {
+                legendOpen: !this.legendUi.isCollapsed,
+                tddOpen: !this.tddUi.isCollapsed,
+                statsOpen: !this.ui.isCollapsed
+            },
+            selection: {
+                selectedFileId: this.selectionManager.getSelectedObject()?.id || null
+            }
+        };
+    }
+
+    private applyWorldState(state: WorldStatePayload): void {
+        console.log('[World] Restoring world state...', state);
+
+        if (!state) {
+            console.log('[World] No state to restore, starting fresh.');
+            this.isRestoring = false;
+            this.lastStateUpdate = performance.now();
+            return;
+        }
+
+        // Apply Player Transform
+        if (state.player) {
+            this.character.applyTransform(
+                state.player.position,
+                state.player.yaw,
+                state.player.pitch,
+                state.player.flightMode || false
+            );
+        }
+
+        // Apply UI State
+        if (state.ui) {
+            this.legendUi.setCollapsed(!state.ui.legendOpen);
+            this.tddUi.setCollapsed(!state.ui.tddOpen);
+            this.ui.setCollapsed(!state.ui.statsOpen);
+        }
+
+        // Selection is handled asynchronously as objects load
+        if (state.selection?.selectedFileId) {
+            console.log(`[World] Waiting to restore selection: ${state.selection.selectedFileId}`);
+            const checkSelection = setInterval(() => {
+                const obj = this.objects.getInternalObjectsMap().get(state.selection.selectedFileId!);
+                if (obj) {
+                    console.log(`[World] Selection restored: ${state.selection.selectedFileId}`);
+                    this.selectionManager.selectObject(obj);
+                    this.dependencyManager.showForObject(obj.id); // Trigger dependency visualization
+
+                    // Notify extension to sync UI (Explorer reveal, etc.)
+                    this.vscode.postMessage({
+                        type: 'objectSelected',
+                        data: {
+                            id: obj.id,
+                            type: (obj as any).type,
+                            filePath: (obj as any).filePath,
+                            metadata: (obj as any).metadata,
+                            description: (obj as any).metadata?.description || ''
+                        }
+                    });
+
+                    this.isRestoring = false; // FINALLY done restoring
+                    this.lastStateUpdate = performance.now();
+                    clearInterval(checkSelection);
+                }
+            }, 500);
+
+            // Cleanup timeout after 15 seconds
+            setTimeout(() => {
+                if (this.isRestoring) {
+                    console.warn(`[World] Selection restoration timed out for: ${state.selection.selectedFileId}`);
+                    this.isRestoring = false;
+                    this.lastStateUpdate = performance.now();
+                }
+                clearInterval(checkSelection);
+            }, 15000);
+        } else {
+            // No selection to restore, we are done
+            this.isRestoring = false;
+            this.lastStateUpdate = performance.now();
+        }
     }
 }
