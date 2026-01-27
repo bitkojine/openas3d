@@ -1,5 +1,7 @@
 # OpenAs3D - 3D Codebase Explorer
 
+![GitHub Release](https://img.shields.io/github/v/release/bitkojine/openas3d?label=latest%20release&color=blue)
+
 Visualize your codebase dependencies and architecture in navigable 3D worlds directly within Visual Studio Code.
 
 ## Features
@@ -12,7 +14,8 @@ Visualize your codebase dependencies and architecture in navigable 3D worlds dir
 
 ## Current Version
 
-- **Release Version**: 0.2.0+2026-01-27d.62ce0a3
+- **Latest Release**: [See GitHub Releases](https://github.com/bitkojine/openas3d/releases) (or check the badge above)
+- **Development Version**: 0.2.3+2026-01-27d.
 
 
 ## Usage

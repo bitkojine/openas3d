@@ -2,7 +2,7 @@
   "name": "openas3d-vscode",
   "displayName": "OpenAs3D - 3D Codebase Explorer",
   "description": "Visualize codebase dependencies and architecture in navigable 3D worlds",
-  "version": "0.2.0+2026-01-27d.62ce0a3",
+  "version": "0.2.3",
   "publisher": "openas3d",
   "repository": {
     "type": "git",
@@ -66,7 +66,7 @@
     }
   },
   "scripts": {
-    "prebuild": "npm run version:local && npm run update-readme",
+    "prebuild": "npm run version:sync && npm run version:local && npm run update-readme",
     "build": "npm run compile && npm run package",
     "build:prod": "npm run compile && npm run package",
     "postversion": "npm run package",
@@ -84,6 +84,7 @@
     "release": "semantic-release",
     "release:dry": "semantic-release --dry-run",
     "version:local": "node scripts/version-local.js",
+    "version:sync": "node scripts/version-sync.js",
     "update-readme": "node scripts/update-readme.js",
     "build-install-test": "npm run build && VSIX=$(node -p \"require('./package.json').version\") && code --install-extension ./openas3d-vscode-$VSIX.vsix --force && code --reload-window && npm run test:unit",
     "build-install-e2e": "npm run build && VSIX=$(node -p \"require('./package.json').version\") && code --install-extension ./openas3d-vscode-$VSIX.vsix --force && code --reload-window && npm run test:e2e",

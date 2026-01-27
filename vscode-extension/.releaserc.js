@@ -40,7 +40,7 @@ module.exports = {
     [
       '@semantic-release/exec',
       {
-        prepareCmd: 'npm run update-readme && npm run package'
+        prepareCmd: 'npm run package'
       }
     ],
     [
