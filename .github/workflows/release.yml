@@ -33,7 +33,7 @@ jobs:
       working-directory: vscode-extension
 
     - name: Build extension
-      run: npm run build:prod
+      run: npm run compile
       working-directory: vscode-extension
 
     - name: Semantic Release

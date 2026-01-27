@@ -21,7 +21,7 @@ module.exports = {
       {
         assets: [
           {
-            path: 'vscode-extension/*.vsix',
+            path: '*.vsix',
             label: 'VSIX Extension'
           }
         ]

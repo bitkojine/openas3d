@@ -66,9 +66,10 @@
     }
   },
   "scripts": {
-    "prebuild": "npm version patch --no-git-tag-version",
+    "prebuild": "if [ -z \"$CI\" ]; then npm version patch --no-git-tag-version; fi",
     "build": "npm run compile && npm run package",
     "build:prod": "npm run compile && npm run package",
+    "postversion": "npm run package",
     "vscode:prepublish": "echo 'Skipping compile - already handled by build script'",
     "compile": "webpack --mode production",
     "compile:test": "tsc -p tsconfig.test.json",
