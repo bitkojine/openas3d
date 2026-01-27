@@ -51,7 +51,9 @@ module.exports = {
             path: 'openas3d-vscode-*.vsix',
             label: 'VSIX Extension'
           }
-        ]
+        ],
+        successComment: false,
+        failComment: false
       }
     ]
   ],
