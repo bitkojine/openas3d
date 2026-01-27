@@ -10,7 +10,7 @@
   },
   "engines": {
     "vscode": "^1.74.0",
-    "node": ">=20.0.0"
+    "node": ">=22.14.0"
   },
   "categories": [
     "Visualization",
