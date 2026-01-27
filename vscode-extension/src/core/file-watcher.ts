@@ -9,6 +9,8 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { LifecycleCoordinator, EventType } from './lifecycle-coordinator';
+import { Logger } from './logger';
+import { ErrorRecoverySystem, ErrorCategory, ErrorSeverity } from './error-recovery';
 
 export interface FileWatcherConfig {
     patterns: string[];
@@ -28,17 +30,20 @@ interface FileChangeEvent {
 /**
  * Manages file watching with proper debouncing and coordination
  */
-export class FileWatcher {
+export class FileWatcher implements vscode.Disposable {
     private watchers: fs.FSWatcher[] = [];
     private vscodeWatchers: vscode.FileSystemWatcher[] = [];
     private eventQueue: FileChangeEvent[] = [];
     private debounceTimer: NodeJS.Timeout | null = null;
     private isProcessing = false;
     private disposed = false;
+    private logger = Logger.getInstance();
+    private disposables: vscode.Disposable[] = [];
 
     constructor(
         private config: FileWatcherConfig,
-        private coordinator: LifecycleCoordinator
+        private coordinator: LifecycleCoordinator,
+        private errorRecovery?: ErrorRecoverySystem
     ) {
         this.setupEventListeners();
     }
@@ -64,13 +69,23 @@ export class FileWatcher {
             throw new Error('FileWatcher has been disposed');
         }
 
-        console.log(`[FileWatcher] Starting to watch patterns: ${this.config.patterns.join(', ')}`);
+        this.logger.info(`[FileWatcher] Starting to watch patterns: ${this.config.patterns.join(', ')}`);
 
         // Try to use VSCode's file watcher first (more reliable)
         try {
             await this.startVSCodeWatcher(workspaceRoot);
         } catch (error) {
-            console.warn('[FileWatcher] VSCode watcher failed, falling back to fs.watch:', error);
+            this.logger.warn('[FileWatcher] VSCode watcher failed, falling back to fs.watch', error);
+
+            if (this.errorRecovery) {
+                await this.errorRecovery.reportError(
+                    ErrorCategory.FILE_SYSTEM,
+                    ErrorSeverity.MEDIUM,
+                    'VSCode file watcher failed, falling back to fs.watch',
+                    { workspaceRoot, error }
+                );
+            }
+
             await this.startFSWatcher(workspaceRoot);
         }
     }
@@ -97,9 +112,10 @@ export class FileWatcher {
             });
 
             this.vscodeWatchers.push(watcher);
+            this.disposables.push(watcher);
         }
 
-        console.log(`[FileWatcher] Started ${this.vscodeWatchers.length} VSCode watchers`);
+        this.logger.info(`[FileWatcher] Started ${this.vscodeWatchers.length} VSCode watchers`);
     }
 
     /**
@@ -108,12 +124,12 @@ export class FileWatcher {
     private async startFSWatcher(workspaceRoot: string): Promise<void> {
         for (const pattern of this.config.patterns) {
             const watchPath = path.join(workspaceRoot, pattern);
-            
+
             // Extract directory from pattern
             const dir = path.dirname(watchPath);
-            
+
             if (!fs.existsSync(dir)) {
-                console.warn(`[FileWatcher] Watch directory does not exist: ${dir}`);
+                this.logger.warn(`[FileWatcher] Watch directory does not exist: ${dir}`);
                 continue;
             }
 
@@ -133,14 +149,14 @@ export class FileWatcher {
             this.watchers.push(watcher);
         }
 
-        console.log(`[FileWatcher] Started ${this.watchers.length} fs.watch watchers`);
+        this.logger.info(`[FileWatcher] Started ${this.watchers.length} fs.watch watchers`);
     }
 
     /**
      * Queue file change event with debouncing
      */
     private async queueEvent(event: FileChangeEvent): Promise<void> {
-        if (this.disposed || this.coordinator.isReloading()) {
+        if (this.disposed) {
             return;
         }
 
@@ -167,7 +183,7 @@ export class FileWatcher {
      * Process queued events
      */
     private async processEventQueue(): Promise<void> {
-        if (this.isProcessing || this.eventQueue.length === 0) {
+        if (this.isProcessing || this.eventQueue.length === 0 || this.coordinator.isReloading()) {
             return;
         }
 
@@ -176,11 +192,11 @@ export class FileWatcher {
         try {
             // Group events by file and keep only the latest event per file
             const latestEvents = new Map<string, FileChangeEvent>();
-            
+
             for (const event of this.eventQueue) {
                 const key = event.uri.fsPath;
                 const existing = latestEvents.get(key);
-                
+
                 if (!existing || event.timestamp > existing.timestamp) {
                     latestEvents.set(key, event);
                 }
@@ -195,7 +211,16 @@ export class FileWatcher {
             this.eventQueue = [];
 
         } catch (error) {
-            console.error('[FileWatcher] Error processing event queue:', error);
+            this.logger.error('[FileWatcher] Error processing event queue', error);
+
+            if (this.errorRecovery) {
+                await this.errorRecovery.reportError(
+                    ErrorCategory.LIFECYCLE,
+                    ErrorSeverity.MEDIUM,
+                    'Error processing file watcher event queue',
+                    error
+                );
+            }
         } finally {
             this.isProcessing = false;
         }
@@ -205,7 +230,7 @@ export class FileWatcher {
      * Process individual event
      */
     private async processEvent(event: FileChangeEvent): Promise<void> {
-        console.log(`[FileWatcher] Processing ${event.type} event: ${event.uri.fsPath}`);
+        this.logger.debug(`[FileWatcher] Processing ${event.type} event: ${event.uri.fsPath}`);
 
         try {
             // Check if file still exists for delete events
@@ -245,7 +270,7 @@ export class FileWatcher {
             }
 
         } catch (error) {
-            console.error(`[FileWatcher] Error processing event for ${event.uri.fsPath}:`, error);
+            this.logger.error(`[FileWatcher] Error processing event for ${event.uri.fsPath}`, error);
         }
     }
 
@@ -254,14 +279,14 @@ export class FileWatcher {
      */
     private matchesPattern(filePath: string, workspaceRoot: string): boolean {
         const relativePath = path.relative(workspaceRoot, filePath);
-        
+
         for (const pattern of this.config.patterns) {
             // Simple glob matching (could be enhanced with minimatch)
             if (this.simpleGlobMatch(relativePath, pattern)) {
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -273,7 +298,7 @@ export class FileWatcher {
             .replace(/\*\*/g, '.*')
             .replace(/\*/g, '[^/]*')
             .replace(/\?/g, '[^/]');
-        
+
         const regex = new RegExp(`^${regexPattern}$`);
         return regex.test(str);
     }
@@ -299,8 +324,8 @@ export class FileWatcher {
      * Pause watching (during reload)
      */
     public async pause(): Promise<void> {
-        console.log('[FileWatcher] Pausing file watching...');
-        
+        this.logger.info('[FileWatcher] Pausing file watching...');
+
         if (this.debounceTimer) {
             clearTimeout(this.debounceTimer);
             this.debounceTimer = null;
@@ -311,8 +336,8 @@ export class FileWatcher {
      * Resume watching (after reload)
      */
     public async resume(): Promise<void> {
-        console.log('[FileWatcher] Resuming file watching...');
-        
+        this.logger.info('[FileWatcher] Resuming file watching...');
+
         // Process any queued events that occurred during pause
         if (this.eventQueue.length > 0) {
             await this.processEventQueue();
@@ -323,7 +348,7 @@ export class FileWatcher {
      * Dispose all watchers
      */
     public dispose(): void {
-        console.log('[FileWatcher] Disposing...');
+        this.logger.info('[FileWatcher] Disposing file watcher...');
 
         this.disposed = true;
 

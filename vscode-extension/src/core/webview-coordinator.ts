@@ -8,6 +8,8 @@
 import * as vscode from 'vscode';
 import { LifecycleCoordinator, EventType } from './lifecycle-coordinator';
 import { ExtensionMessage, WebviewMessage } from '../shared/messages';
+import { Logger } from './logger';
+import { ErrorRecoverySystem, ErrorCategory, ErrorSeverity } from './error-recovery';
 
 export interface WebviewState {
     id: string;
@@ -22,11 +24,16 @@ export interface WebviewState {
 /**
  * Coordinates webview operations with proper lifecycle management
  */
-export class WebviewCoordinator {
+export class WebviewCoordinator implements vscode.Disposable {
     private webviews: Map<string, WebviewState> = new Map();
     private messageHandlers: Map<string, (data: any) => void> = new Map();
+    private logger = Logger.getInstance();
+    private disposables: vscode.Disposable[] = [];
 
-    constructor(private coordinator: LifecycleCoordinator) {
+    constructor(
+        private coordinator: LifecycleCoordinator,
+        private errorRecovery?: ErrorRecoverySystem
+    ) {
         this.setupEventListeners();
     }
 
@@ -55,7 +62,7 @@ export class WebviewCoordinator {
 
         // Check if webview already exists
         if (this.webviews.has(webviewId)) {
-            console.warn(`[WebviewCoordinator] Webview ${webviewId} already registered`);
+            this.logger.warn(`[WebviewCoordinator] Webview ${webviewId} already registered`);
             return;
         }
 
@@ -96,8 +103,8 @@ export class WebviewCoordinator {
         options?: vscode.WebviewOptions & vscode.WebviewPanelOptions
     ): Promise<vscode.WebviewPanel> {
         const webviewId = `${viewType}_${Date.now()}`;
-        
-        console.log(`[WebviewCoordinator] Creating webview: ${webviewId}`);
+
+        this.logger.info(`[WebviewCoordinator] Creating webview: ${webviewId}`);
 
         // Create ready promise
         let readyResolver: () => void;
@@ -172,16 +179,16 @@ export class WebviewCoordinator {
      * Handle incoming webview messages
      */
     private async handleWebviewMessage(webviewState: WebviewState, message: WebviewMessage): Promise<void> {
-        console.log(`[WebviewCoordinator] Received message: ${message.type} from ${webviewState.id}`);
+        this.logger.debug(`[WebviewCoordinator] Received message: ${message.type} from ${webviewState.id}`);
 
         // Handle ready message
         if (message.type === 'ready') {
             webviewState.isReady = true;
             webviewState.readyResolver();
-            
+
             // Flush queued messages
             await this.flushMessageQueue(webviewState);
-            
+
             // Emit ready event
             await this.coordinator.emitEvent(EventType.WEBVIEW_READY, { webviewId: webviewState.id }, 'webview_coordinator');
             return;
@@ -195,7 +202,7 @@ export class WebviewCoordinator {
                 const data = 'data' in message ? message.data : undefined;
                 await handler(data);
             } catch (error) {
-                console.error(`[WebviewCoordinator] Error handling message ${message.type}:`, error);
+                this.logger.error(`[WebviewCoordinator] Error handling message ${message.type}`, error);
             }
         }
     }
@@ -204,7 +211,7 @@ export class WebviewCoordinator {
      * Handle webview disposal
      */
     private async handleWebviewDispose(webviewState: WebviewState): Promise<void> {
-        console.log(`[WebviewCoordinator] Webview disposed: ${webviewState.id}`);
+        this.logger.info(`[WebviewCoordinator] Webview disposed: ${webviewState.id}`);
 
         // Dispose all listeners
         webviewState.disposables.forEach(d => d.dispose());
@@ -223,7 +230,7 @@ export class WebviewCoordinator {
     private async handleVisibilityChange(webviewState: WebviewState, event: vscode.WebviewPanelOnDidChangeViewStateEvent): Promise<void> {
         if (event.webviewPanel.visible && !webviewState.isReady) {
             // Webview became visible but not ready - might need to resend ready signal
-            console.log(`[WebviewCoordinator] Webview became visible: ${webviewState.id}`);
+            this.logger.debug(`[WebviewCoordinator] Webview became visible: ${webviewState.id}`);
         }
     }
 
@@ -232,9 +239,9 @@ export class WebviewCoordinator {
      */
     public async sendMessage(webviewId: string, message: ExtensionMessage): Promise<void> {
         const webviewState = this.webviews.get(webviewId);
-        
+
         if (!webviewState) {
-            console.warn(`[WebviewCoordinator] Attempted to send message to unknown webview: ${webviewId}`);
+            this.logger.warn(`[WebviewCoordinator] Attempted to send message to unknown webview: ${webviewId}`);
             return;
         }
 
@@ -243,7 +250,7 @@ export class WebviewCoordinator {
             this.doSendMessage(webviewState, message);
         } else {
             // Queue message if not ready
-            console.log(`[WebviewCoordinator] Queuing message for ${webviewId}: ${message.type}`);
+            this.logger.debug(`[WebviewCoordinator] Queuing message for ${webviewId}: ${message.type}`);
             webviewState.messageQueue.push(message);
         }
     }
@@ -252,10 +259,10 @@ export class WebviewCoordinator {
      * Send message to all webviews
      */
     public async broadcastMessage(message: ExtensionMessage): Promise<void> {
-        const promises = Array.from(this.webviews.keys()).map(webviewId => 
+        const promises = Array.from(this.webviews.keys()).map(webviewId =>
             this.sendMessage(webviewId, message)
         );
-        
+
         await Promise.all(promises);
     }
 
@@ -264,7 +271,7 @@ export class WebviewCoordinator {
      */
     public async waitForReady(webviewId: string, timeoutMs = 10000): Promise<void> {
         const webviewState = this.webviews.get(webviewId);
-        
+
         if (!webviewState) {
             throw new Error(`Webview not found: ${webviewId}`);
         }
@@ -313,30 +320,40 @@ export class WebviewCoordinator {
      * Dispose all webviews
      */
     public async disposeAllWebviews(): Promise<void> {
-        console.log(`[WebviewCoordinator] Disposing ${this.webviews.size} webviews...`);
-        
-        const disposePromises = Array.from(this.webviews.values()).map(webviewState => 
+        this.logger.info(`[WebviewCoordinator] Disposing ${this.webviews.size} webviews...`);
+
+        const disposePromises = Array.from(this.webviews.values()).map(webviewState =>
             webviewState.panel.dispose()
         );
-        
+
         await Promise.all(disposePromises);
         this.webviews.clear();
     }
 
     // Private helper methods
     private async handleWebviewCreated(data: any): Promise<void> {
-        console.log(`[WebviewCoordinator] Webview created event: ${data.webviewId}`);
+        this.logger.debug(`[WebviewCoordinator] Webview created event: ${data.webviewId}`);
     }
 
     private async handleWebviewDisposed(data: any): Promise<void> {
-        console.log(`[WebviewCoordinator] Webview disposed event: ${data.webviewId}`);
+        this.logger.debug(`[WebviewCoordinator] Webview disposed event: ${data.webviewId}`);
     }
 
-    private doSendMessage(webviewState: WebviewState, message: ExtensionMessage): void {
+    private async doSendMessage(webviewState: WebviewState, message: ExtensionMessage): Promise<void> {
         try {
-            webviewState.panel.webview.postMessage(message);
+            await webviewState.panel.webview.postMessage(message);
         } catch (error) {
-            console.error(`[WebviewCoordinator] Failed to send message to ${webviewState.id}:`, error);
+            this.logger.error(`[WebviewCoordinator] Failed to send message to ${webviewState.id}`, error);
+
+            if (this.errorRecovery) {
+                // Background report, but keep awaitable for tests if needed
+                await this.errorRecovery.reportError(
+                    ErrorCategory.COMMUNICATION,
+                    ErrorSeverity.HIGH,
+                    `Failed to send message to webview: ${webviewState.id}`,
+                    { message, error }
+                );
+            }
         }
     }
 
@@ -345,7 +362,7 @@ export class WebviewCoordinator {
             return;
         }
 
-        console.log(`[WebviewCoordinator] Flushing ${webviewState.messageQueue.length} queued messages for ${webviewState.id}`);
+        this.logger.info(`[WebviewCoordinator] Flushing ${webviewState.messageQueue.length} queued messages for ${webviewState.id}`);
 
         const messages = [...webviewState.messageQueue];
         webviewState.messageQueue = [];
@@ -353,5 +370,14 @@ export class WebviewCoordinator {
         for (const message of messages) {
             this.doSendMessage(webviewState, message);
         }
+    }
+
+    public dispose(): void {
+        this.logger.info('[WebviewCoordinator] Disposing webview coordinator...');
+        this.disposeAllWebviews().catch(e => this.logger.error('Error disposing webviews', e));
+        this.disposables.forEach(d => d.dispose());
+        this.disposables = [];
+        this.webviews.clear();
+        this.messageHandlers.clear();
     }
 }

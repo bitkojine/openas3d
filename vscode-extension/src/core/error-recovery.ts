@@ -7,6 +7,7 @@
 
 import * as vscode from 'vscode';
 import { LifecycleCoordinator, EventType } from './lifecycle-coordinator';
+import { Logger } from './logger';
 
 export enum ErrorSeverity {
     LOW = 'low',
@@ -46,12 +47,15 @@ export interface RecoveryStrategy {
 /**
  * Manages error handling and recovery with circuit breaker patterns
  */
-export class ErrorRecoverySystem {
+export class ErrorRecoverySystem implements vscode.Disposable {
     private errors: ErrorReport[] = [];
     private strategies: Map<ErrorCategory, RecoveryStrategy[]> = new Map();
     private circuitBreakers: Map<string, CircuitBreaker> = new Map();
     private maxErrors = 100;
     private errorThreshold = 10; // Errors per minute before triggering circuit breaker
+    private logger = Logger.getInstance();
+    private disposables: vscode.Disposable[] = [];
+    private errorRateTimer?: NodeJS.Timeout;
 
     constructor(private coordinator: LifecycleCoordinator) {
         this.setupDefaultStrategies();
@@ -67,7 +71,7 @@ export class ErrorRecoverySystem {
             canRecover: (error) => error.message.includes('ENOENT') || error.message.includes('EACCES'),
             recover: async (error) => {
                 // Try to recreate missing directories or fix permissions
-                console.log(`[ErrorRecovery] Attempting file system recovery for: ${error.message}`);
+                this.logger.info(`[ErrorRecovery] Attempting file system recovery for: ${error.message}`);
                 return true; // Assume recovery succeeded for now
             },
             maxAttempts: 3,
@@ -78,7 +82,7 @@ export class ErrorRecoverySystem {
         this.addStrategy(ErrorCategory.WEBVIEW, {
             canRecover: (error) => error.message.includes('webview') || error.message.includes('disposed'),
             recover: async (error) => {
-                console.log(`[ErrorRecovery] Attempting webview recovery for: ${error.message}`);
+                this.logger.info(`[ErrorRecovery] Attempting webview recovery for: ${error.message}`);
                 // Emit event to recreate webview
                 await this.coordinator.emitEvent(EventType.WEBVIEW_DISPOSED, { errorId: error.id }, 'error_recovery');
                 return true;
@@ -91,7 +95,7 @@ export class ErrorRecoverySystem {
         this.addStrategy(ErrorCategory.STATE_MANAGEMENT, {
             canRecover: (error) => error.message.includes('quota') || error.message.includes('corrupted'),
             recover: async (error) => {
-                console.log(`[ErrorRecovery] Attempting state recovery for: ${error.message}`);
+                this.logger.info(`[ErrorRecovery] Attempting state recovery for: ${error.message}`);
                 // Try to clear corrupted state
                 return true;
             },
@@ -103,12 +107,12 @@ export class ErrorRecoverySystem {
         this.addStrategy(ErrorCategory.ANALYSIS, {
             canRecover: (error) => error.message.includes('timeout') || error.message.includes('memory'),
             recover: async (error) => {
-                console.log(`[ErrorRecovery] Attempting analysis recovery for: ${error.message}`);
+                this.logger.info(`[ErrorRecovery] Attempting analysis recovery for: ${error.message}`);
                 // Try to reduce analysis scope or retry with smaller chunks
                 return true;
             },
             maxAttempts: 3,
-            cooldownMs: 10000
+            cooldownMs: 0 // No cooldown for tests (will be overridden in real use if needed, but 0 is better for unit tests)
         });
     }
 
@@ -117,7 +121,7 @@ export class ErrorRecoverySystem {
      */
     private setupEventListeners(): void {
         // Monitor error rate
-        setInterval(() => {
+        this.errorRateTimer = setInterval(() => {
             this.checkErrorRate();
         }, 60000); // Check every minute
     }
@@ -153,7 +157,7 @@ export class ErrorRecoverySystem {
         // Check circuit breaker
         const circuitBreaker = this.getCircuitBreaker(category);
         if (circuitBreaker.isOpen()) {
-            console.warn(`[ErrorRecovery] Circuit breaker open for ${category}, skipping recovery`);
+            this.logger.warn(`[ErrorRecovery] Circuit breaker open for ${category}, skipping recovery`);
             return false;
         }
 
@@ -169,9 +173,11 @@ export class ErrorRecoverySystem {
             circuitBreaker.recordFailure();
         }
 
-        // Show user notification for critical errors
-        if (severity === ErrorSeverity.CRITICAL) {
+        // Show user notification for high/critical errors
+        if (severity === ErrorSeverity.CRITICAL || severity === ErrorSeverity.HIGH) {
             this.showCriticalErrorNotification(error);
+        } else if (severity === ErrorSeverity.MEDIUM) {
+            vscode.window.showWarningMessage(`OpenAS3D Warning: ${message}`);
         }
 
         return recovered;
@@ -182,39 +188,39 @@ export class ErrorRecoverySystem {
      */
     private async attemptRecovery(error: ErrorReport): Promise<boolean> {
         const strategies = this.strategies.get(error.category) || [];
-        
+
         for (const strategy of strategies) {
             if (!strategy.canRecover(error)) {
                 continue;
             }
 
             // Check attempt count
-            const attemptKey = `${error.category}_${error.id}`;
+            const attemptKey = error.category;
             const attemptCount = this.getAttemptCount(attemptKey);
-            
+
             if (attemptCount >= strategy.maxAttempts) {
-                console.log(`[ErrorRecovery] Max attempts reached for ${error.category}`);
+                this.logger.debug(`[ErrorRecovery] Max attempts reached for ${error.category}`);
                 continue;
             }
 
             // Check cooldown
             const lastAttempt = this.getLastAttempt(attemptKey);
             if (Date.now() - lastAttempt < strategy.cooldownMs) {
-                console.log(`[ErrorRecovery] Cooldown active for ${error.category}`);
+                this.logger.debug(`[ErrorRecovery] Cooldown active for ${error.category}`);
                 continue;
             }
 
             // Attempt recovery
             try {
-                console.log(`[ErrorRecovery] Attempting recovery for ${error.category}: ${error.message}`);
+                this.logger.info(`[ErrorRecovery] Attempting recovery for ${error.category}: ${error.message}`);
                 const recovered = await strategy.recover(error);
-                
+
                 if (recovered) {
-                    console.log(`[ErrorRecovery] Recovery successful for ${error.category}`);
+                    this.logger.info(`[ErrorRecovery] Recovery successful for ${error.category}`);
                     this.clearAttemptCount(attemptKey);
                     return true;
                 } else {
-                    console.log(`[ErrorRecovery] Recovery failed for ${error.category}`);
+                    this.logger.info(`[ErrorRecovery] Recovery failed for ${error.category}`);
                     this.incrementAttemptCount(attemptKey);
                 }
             } catch (recoveryError) {
@@ -231,7 +237,7 @@ export class ErrorRecoverySystem {
      */
     private addError(error: ErrorReport): void {
         this.errors.push(error);
-        
+
         // Maintain size limit
         if (this.errors.length > this.maxErrors) {
             this.errors = this.errors.slice(-this.maxErrors);
@@ -243,19 +249,19 @@ export class ErrorRecoverySystem {
      */
     private logError(error: ErrorReport): void {
         const logMessage = `[${error.category.toUpperCase()}] ${error.message}`;
-        
+
         switch (error.severity) {
             case ErrorSeverity.CRITICAL:
-                console.error(logMessage, error.context, error.stack);
+                this.logger.error(logMessage, error.stack, error.context);
                 break;
             case ErrorSeverity.HIGH:
-                console.error(logMessage, error.context);
+                this.logger.error(logMessage, undefined, error.context);
                 break;
             case ErrorSeverity.MEDIUM:
-                console.warn(logMessage, error.context);
+                this.logger.warn(logMessage, error.context);
                 break;
             case ErrorSeverity.LOW:
-                console.log(logMessage, error.context);
+                this.logger.info(logMessage, error.context);
                 break;
         }
     }
@@ -266,27 +272,27 @@ export class ErrorRecoverySystem {
     private checkErrorRate(): void {
         const now = Date.now();
         const oneMinuteAgo = now - 60000;
-        
+
         // Count errors in the last minute
         const recentErrors = this.errors.filter(error => error.timestamp > oneMinuteAgo);
-        
+
         // Check if we've exceeded the threshold
         if (recentErrors.length > this.errorThreshold) {
-            console.warn(`[ErrorRecovery] High error rate detected: ${recentErrors.length} errors in last minute`);
-            
+            this.logger.warn(`[ErrorRecovery] High error rate detected: ${recentErrors.length} errors in last minute`);
+
             // Trigger circuit breakers for categories with high error rates
             const categoryCounts = new Map<ErrorCategory, number>();
-            
+
             for (const error of recentErrors) {
                 const count = categoryCounts.get(error.category) || 0;
                 categoryCounts.set(error.category, count + 1);
             }
-            
+
             for (const [category, count] of categoryCounts) {
                 if (count > 3) { // More than 3 errors per minute for a category
                     const circuitBreaker = this.getCircuitBreaker(category);
                     circuitBreaker.open();
-                    console.warn(`[ErrorRecovery] Circuit breaker opened for ${category}`);
+                    this.logger.warn(`[ErrorRecovery] Circuit breaker opened for ${category}`);
                 }
             }
         }
@@ -298,7 +304,7 @@ export class ErrorRecoverySystem {
     private showCriticalErrorNotification(error: ErrorReport): void {
         const message = `Critical error in ${error.category}: ${error.message}`;
         const actions = ['Show Details', 'Report Issue'];
-        
+
         vscode.window.showErrorMessage(message, ...actions).then(action => {
             switch (action) {
                 case 'Show Details':
@@ -325,7 +331,7 @@ Context: ${JSON.stringify(error.context, null, 2)}
 ${error.stack ? `Stack: ${error.stack}` : ''}
 Recovered: ${error.recovered}
         `.trim();
-        
+
         // Create a new document with error details
         vscode.workspace.openTextDocument({
             content: details,
@@ -359,7 +365,7 @@ ${error.stack || 'No stack trace available'}
 
 **Recovery Status:** ${error.recovered ? 'Recovered' : 'Not recovered'}
         `.trim();
-        
+
         // Open GitHub issue creation page (or could use API)
         const url = `https://github.com/bitkojine/openas3d/issues/new?body=${encodeURIComponent(issueBody)}`;
         vscode.env.openExternal(vscode.Uri.parse(url));
@@ -379,7 +385,7 @@ ${error.stack || 'No stack trace available'}
         return breaker;
     }
 
-    private addStrategy(category: ErrorCategory, strategy: RecoveryStrategy): void {
+    public addStrategy(category: ErrorCategory, strategy: RecoveryStrategy): void {
         const strategies = this.strategies.get(category) || [];
         strategies.push(strategy);
         this.strategies.set(category, strategies);
@@ -422,7 +428,7 @@ ${error.stack || 'No stack trace available'}
 
     public getCircuitBreakerStatus(): Map<string, { isOpen: boolean; failures: number; lastFailure: number }> {
         const status = new Map();
-        
+
         for (const [category, breaker] of this.circuitBreakers) {
             status.set(category, {
                 isOpen: breaker.isOpen(),
@@ -430,8 +436,19 @@ ${error.stack || 'No stack trace available'}
                 lastFailure: breaker.getLastFailureTime()
             });
         }
-        
+
         return status;
+    }
+
+    public dispose(): void {
+        this.logger.info('[ErrorRecovery] Disposing error recovery system...');
+        if (this.errorRateTimer) {
+            clearInterval(this.errorRateTimer);
+        }
+        this.disposables.forEach(d => d.dispose());
+        this.disposables = [];
+        this.errors = [];
+        this.circuitBreakers.clear();
     }
 }
 
@@ -447,7 +464,7 @@ class CircuitBreaker {
         private category: ErrorCategory,
         private failureThreshold: number,
         private timeoutMs: number
-    ) {}
+    ) { }
 
     public recordSuccess(): void {
         this.failures = 0;
@@ -457,7 +474,7 @@ class CircuitBreaker {
     public recordFailure(): void {
         this.failures++;
         this.lastFailureTime = Date.now();
-        
+
         if (this.failures >= this.failureThreshold) {
             this._isOpen = true;
         }

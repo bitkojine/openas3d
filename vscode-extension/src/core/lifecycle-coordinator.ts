@@ -7,10 +7,11 @@
 
 import * as vscode from 'vscode';
 import { EventEmitter } from 'events';
+import { Logger } from './logger';
 
 export enum ExtensionState {
     INITIALIZING = 'initializing',
-    READY = 'ready', 
+    READY = 'ready',
     BUSY = 'busy',
     RELOADING = 'reloading',
     SHUTTING_DOWN = 'shutting_down'
@@ -23,18 +24,18 @@ export enum EventType {
     RELOAD_REQUESTED = 'reload_requested',
     RELOAD_STARTED = 'reload_started',
     RELOAD_COMPLETED = 'reload_completed',
-    
+
     // Webview events
     WEBVIEW_CREATED = 'webview_created',
     WEBVIEW_READY = 'webview_ready',
     WEBVIEW_DISPOSED = 'webview_disposed',
-    
+
     // State events
     STATE_SAVING = 'state_saving',
     STATE_SAVED = 'state_saved',
     STATE_LOADING = 'state_loading',
     STATE_LOADED = 'state_loaded',
-    
+
     // File system events
     FILE_CHANGED = 'file_changed',
     ANALYSIS_STARTED = 'analysis_started',
@@ -58,12 +59,14 @@ interface StateTransition {
 /**
  * Central coordinator that manages all extension lifecycle events
  */
-export class LifecycleCoordinator extends EventEmitter {
+export class LifecycleCoordinator extends EventEmitter implements vscode.Disposable {
     private currentState: ExtensionState = ExtensionState.INITIALIZING;
     private eventQueue: LifecycleEvent[] = [];
     private isProcessing = false;
     private transitions: Map<string, StateTransition> = new Map();
-    
+    private logger = Logger.getInstance();
+    private disposables: vscode.Disposable[] = [];
+
     // Promise-based coordination
     private pendingOperations: Map<string, Promise<any>> = new Map();
     private operationCounter = 0;
@@ -121,9 +124,9 @@ export class LifecycleCoordinator extends EventEmitter {
      * Add a state transition
      */
     private addTransition(
-        from: ExtensionState, 
-        to: ExtensionState, 
-        event: EventType, 
+        from: ExtensionState,
+        to: ExtensionState,
+        event: EventType,
         handler: () => Promise<void>
     ): void {
         const key = `${from}->${to}:${event}`;
@@ -135,7 +138,7 @@ export class LifecycleCoordinator extends EventEmitter {
      */
     private setupErrorHandling(): void {
         this.on('error', (error) => {
-            console.error('[LifecycleCoordinator] Unhandled error:', error);
+            this.logger.error('[LifecycleCoordinator] Unhandled error', error);
             // Attempt recovery by returning to ready state if possible
             if (this.canTransitionTo(ExtensionState.READY)) {
                 this.currentState = ExtensionState.READY;
@@ -155,7 +158,7 @@ export class LifecycleCoordinator extends EventEmitter {
         };
 
         this.eventQueue.push(event);
-        
+
         if (!this.isProcessing) {
             await this.processEventQueue();
         }
@@ -166,7 +169,7 @@ export class LifecycleCoordinator extends EventEmitter {
      */
     private async processEventQueue(): Promise<void> {
         if (this.isProcessing) return;
-        
+
         this.isProcessing = true;
 
         try {
@@ -176,7 +179,7 @@ export class LifecycleCoordinator extends EventEmitter {
             }
         } catch (error) {
             this.emit('error', error);
-            // Don't re-throw, just continue processing
+            throw error; // Re-throw to caller of emitEvent
         } finally {
             this.isProcessing = false;
         }
@@ -186,12 +189,12 @@ export class LifecycleCoordinator extends EventEmitter {
      * Handle individual event with state machine logic
      */
     private async handleEvent(event: LifecycleEvent): Promise<void> {
-        console.log(`[LifecycleCoordinator] Processing event: ${event.type} from ${event.source}`);
+        this.logger.debug(`[LifecycleCoordinator] Processing event: ${event.type} from ${event.source}`);
 
         // Find matching transition
         for (const [key, transition] of this.transitions) {
             if (transition.from === this.currentState && transition.event === event.type) {
-                console.log(`[LifecycleCoordinator] State transition: ${this.currentState} -> ${transition.to}`);
+                this.logger.info(`[LifecycleCoordinator] State transition: ${this.currentState} -> ${transition.to}`);
                 await this.setState(transition.to);
                 await transition.handler();
                 // Also emit the event for listeners
@@ -200,8 +203,27 @@ export class LifecycleCoordinator extends EventEmitter {
             }
         }
 
+        // No transition found - check if it SHOULD have been a transition
+        if (this.isTransitionEvent(event.type)) {
+            throw new Error(`Invalid state transition: ${this.currentState} does not handle ${event.type}`);
+        }
+
         // No transition found - emit as regular event
         this.emit(event.type, event.data);
+    }
+
+    /**
+     * Check if an event type is intended to trigger a state transition
+     */
+    private isTransitionEvent(type: EventType): boolean {
+        const transitionEvents = [
+            EventType.EXTENSION_READY,
+            EventType.RELOAD_REQUESTED,
+            EventType.RELOAD_COMPLETED,
+            EventType.ANALYSIS_STARTED,
+            EventType.ANALYSIS_COMPLETED
+        ];
+        return transitionEvents.includes(type);
     }
 
     /**
@@ -211,7 +233,7 @@ export class LifecycleCoordinator extends EventEmitter {
         if (!this.canTransitionTo(newState)) {
             throw new Error(`Invalid state transition: ${this.currentState} -> ${newState}`);
         }
-        
+
         const oldState = this.currentState;
         this.currentState = newState;
         this.emit('stateChanged', { oldState, newState });
@@ -241,15 +263,15 @@ export class LifecycleCoordinator extends EventEmitter {
         operationType: string
     ): Promise<T> {
         const operationId = `${operationType}_${++this.operationCounter}`;
-        
+
         try {
             // Register operation
             const promise = operation();
             this.pendingOperations.set(operationId, promise);
-            
+
             // Wait for completion
             const result = await promise;
-            
+
             return result;
         } finally {
             // Clean up
@@ -267,50 +289,50 @@ export class LifecycleCoordinator extends EventEmitter {
 
     // State handlers
     private async handleExtensionReady(): Promise<void> {
-        console.log('[LifecycleCoordinator] Extension is ready');
+        this.logger.info('[LifecycleCoordinator] Extension is ready');
         // Extension is fully initialized and ready for operations
     }
 
     private async handleReloadRequested(): Promise<void> {
-        console.log('[LifecycleCoordinator] Reload requested, saving state...');
-        
+        this.logger.info('[LifecycleCoordinator] Reload requested, saving state...');
+
         // Emit state saving event
         await this.emitEvent(EventType.STATE_SAVING, undefined, 'reload_handler');
-        
+
         // Wait for all pending operations
         await this.waitForPendingOperations();
-        
+
         // Set reload flag
         await this.setReloadFlag(true);
-        
+
         // Don't actually trigger reload in tests - just emit the event
-        console.log('[LifecycleCoordinator] Reload would be triggered here');
+        this.logger.info('[LifecycleCoordinator] Reload would be triggered here');
         await this.emitEvent(EventType.RELOAD_STARTED, undefined, 'reload_handler');
     }
 
     private async handleReloadCompleted(): Promise<void> {
-        console.log('[LifecycleCoordinator] Reload completed');
-        
+        this.logger.info('[LifecycleCoordinator] Reload completed');
+
         // Clear reload flag
         await this.setReloadFlag(false);
-        
+
         // Restore state
         await this.emitEvent(EventType.STATE_LOADING, undefined, 'reload_handler');
     }
 
     private async handleAnalysisStarted(): Promise<void> {
-        console.log('[LifecycleCoordinator] Analysis started');
+        this.logger.info('[LifecycleCoordinator] Analysis started');
         // Extension is busy with analysis
     }
 
     private async handleAnalysisCompleted(): Promise<void> {
-        console.log('[LifecycleCoordinator] Analysis completed');
+        this.logger.info('[LifecycleCoordinator] Analysis completed');
         // Extension is ready again
     }
 
     private async setReloadFlag(isReloading: boolean): Promise<void> {
         // This would be injected or passed in
-        console.log(`[LifecycleCoordinator] Setting reload flag: ${isReloading}`);
+        this.logger.debug(`[LifecycleCoordinator] Setting reload flag: ${isReloading}`);
         // Don't actually execute VSCode commands in tests
         if (typeof vscode !== 'undefined' && vscode.commands && vscode.commands.executeCommand) {
             try {
@@ -319,9 +341,16 @@ export class LifecycleCoordinator extends EventEmitter {
                     await vscode.commands.executeCommand('workbench.action.reloadWindow');
                 }
             } catch (error) {
-                console.warn('[LifecycleCoordinator] Could not execute reload command:', error);
+                this.logger.warn('[LifecycleCoordinator] Could not execute reload command', error);
             }
         }
+    }
+
+    public dispose(): void {
+        this.logger.info('[LifecycleCoordinator] Disposing lifecycle coordinator...');
+        this.disposables.forEach(d => d.dispose());
+        this.disposables = [];
+        this.removeAllListeners();
     }
 
     // Public API

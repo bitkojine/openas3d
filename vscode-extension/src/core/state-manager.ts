@@ -7,6 +7,8 @@
 
 import * as vscode from 'vscode';
 import { LifecycleCoordinator, EventType } from './lifecycle-coordinator';
+import { Logger } from './logger';
+import { ErrorRecoverySystem, ErrorCategory, ErrorSeverity } from './error-recovery';
 
 export interface StateSnapshot {
     version: string;
@@ -25,14 +27,17 @@ export interface StateConfig {
 /**
  * Manages state persistence with proper lifecycle coordination
  */
-export class StateManager {
+export class StateManager implements vscode.Disposable {
     private snapshots: Map<string, StateSnapshot> = new Map();
     private saveQueue: Map<string, Promise<void>> = new Map();
     private isReloading = false;
+    private logger = Logger.getInstance();
+    private disposables: vscode.Disposable[] = [];
 
     constructor(
         private context: vscode.ExtensionContext,
-        private coordinator: LifecycleCoordinator
+        private coordinator: LifecycleCoordinator,
+        private errorRecovery?: ErrorRecoverySystem
     ) {
         this.setupEventListeners();
     }
@@ -65,18 +70,21 @@ export class StateManager {
      * Save state with proper coordination and deduplication
      */
     public async saveState(config: StateConfig, data: any): Promise<void> {
-        if (this.isReloading) {
-            console.log(`[StateManager] Skipping save during reload for key: ${config.key}`);
+        if (this.coordinator.isReloading()) {
+            this.logger.debug(`[StateManager] Skipping save during reload for key: ${config.key}`);
             return;
         }
 
         // Check if already saving this key
         if (this.saveQueue.has(config.key)) {
-            console.log(`[StateManager] Save already in progress for key: ${config.key}`);
+            this.logger.debug(`[StateManager] Save already in progress for key: ${config.key}`);
             return;
         }
 
-        const savePromise = this.performSave(config, data);
+        const savePromise = this.coordinator.executeOperation(
+            () => this.performSave(config, data),
+            `save_state:${config.key}`
+        );
         this.saveQueue.set(config.key, savePromise);
 
         try {
@@ -109,16 +117,25 @@ export class StateManager {
             this.snapshots.set(config.key, snapshot);
 
             // Persist to VSCode storage
-            const storage = config.scope === 'global' 
-                ? this.context.globalState 
+            const storage = config.scope === 'global'
+                ? this.context.globalState
                 : this.context.workspaceState;
 
             await storage.update(config.key, snapshot);
 
-            console.log(`[StateManager] Saved state for key: ${config.key} (${serialized.length} bytes)`);
+            this.logger.debug(`[StateManager] Saved state for key: ${config.key} (${serialized.length} bytes)`);
 
         } catch (error) {
-            console.error(`[StateManager] Failed to save state for key: ${config.key}`, error);
+            this.logger.error(`[StateManager] Failed to save state for key: ${config.key}`, error);
+
+            if (this.errorRecovery) {
+                await this.errorRecovery.reportError(
+                    ErrorCategory.STATE_MANAGEMENT,
+                    ErrorSeverity.MEDIUM,
+                    `Failed to save state for key: ${config.key}`,
+                    { config, error }
+                );
+            }
             throw error;
         }
     }
@@ -128,29 +145,34 @@ export class StateManager {
      */
     public async loadState<T>(config: StateConfig): Promise<T | undefined> {
         try {
-            const storage = config.scope === 'global' 
-                ? this.context.globalState 
+            // Check in-memory cache first
+            if (this.snapshots.has(config.key)) {
+                return this.snapshots.get(config.key)!.data as T;
+            }
+
+            const storage = config.scope === 'global'
+                ? this.context.globalState
                 : this.context.workspaceState;
 
             const snapshot = storage.get<StateSnapshot>(config.key);
 
             if (!snapshot) {
-                console.log(`[StateManager] No saved state found for key: ${config.key}`);
+                this.logger.debug(`[StateManager] No saved state found for key: ${config.key}`);
                 return undefined;
             }
 
             // Validate snapshot
             if (!this.validateSnapshot(snapshot, config)) {
-                console.warn(`[StateManager] Invalid snapshot for key: ${config.key}, clearing...`);
+                this.logger.warn(`[StateManager] Invalid snapshot for key: ${config.key}, clearing...`);
                 await this.clearState(config);
                 return undefined;
             }
 
-            console.log(`[StateManager] Loaded state for key: ${config.key}`);
+            this.logger.debug(`[StateManager] Loaded state for key: ${config.key}`);
             return snapshot.data as T;
 
         } catch (error) {
-            console.error(`[StateManager] Failed to load state for key: ${config.key}`, error);
+            this.logger.error(`[StateManager] Failed to load state for key: ${config.key}`, error);
             return undefined;
         }
     }
@@ -160,17 +182,17 @@ export class StateManager {
      */
     public async clearState(config: StateConfig): Promise<void> {
         try {
-            const storage = config.scope === 'global' 
-                ? this.context.globalState 
+            const storage = config.scope === 'global'
+                ? this.context.globalState
                 : this.context.workspaceState;
 
             await storage.update(config.key, undefined);
             this.snapshots.delete(config.key);
 
-            console.log(`[StateManager] Cleared state for key: ${config.key}`);
+            this.logger.info(`[StateManager] Cleared state for key: ${config.key}`);
 
         } catch (error) {
-            console.error(`[StateManager] Failed to clear state for key: ${config.key}`, error);
+            this.logger.error(`[StateManager] Failed to clear state for key: ${config.key}`, error);
         }
     }
 
@@ -178,8 +200,8 @@ export class StateManager {
      * Create a complete snapshot of all state
      */
     private async createSnapshot(): Promise<void> {
-        console.log('[StateManager] Creating complete state snapshot...');
-        
+        this.logger.info('[StateManager] Creating complete state snapshot...');
+
         // This would be called during reload to ensure all state is saved
         const snapshot = {
             timestamp: Date.now(),
@@ -194,10 +216,10 @@ export class StateManager {
      * Restore from complete snapshot
      */
     private async restoreFromSnapshot(): Promise<void> {
-        console.log('[StateManager] Restoring from complete snapshot...');
-        
+        this.logger.info('[StateManager] Restoring from complete snapshot...');
+
         const snapshot = await this.context.globalState.get<any>('openas3d.completeSnapshot');
-        
+
         if (snapshot) {
             // Restore individual snapshots
             this.snapshots.clear();
@@ -205,7 +227,7 @@ export class StateManager {
                 this.snapshots.set(key, snap);
             });
 
-            console.log('[StateManager] Restored complete snapshot');
+            this.logger.info('[StateManager] Restored complete snapshot');
         }
     }
 
@@ -215,7 +237,7 @@ export class StateManager {
     private async flushAllPendingSaves(): Promise<void> {
         const pendingSaves = Array.from(this.saveQueue.values());
         if (pendingSaves.length > 0) {
-            console.log(`[StateManager] Waiting for ${pendingSaves.length} pending saves...`);
+            this.logger.info(`[StateManager] Waiting for ${pendingSaves.length} pending saves...`);
             await Promise.all(pendingSaves);
         }
     }
@@ -226,7 +248,7 @@ export class StateManager {
     private validateSnapshot(snapshot: StateSnapshot, config: StateConfig): boolean {
         // Check TTL
         if (config.ttl && Date.now() - snapshot.timestamp > config.ttl) {
-            console.log(`[StateManager] Snapshot expired for key: ${config.key}`);
+            this.logger.debug(`[StateManager] Snapshot expired for key: ${config.key}`);
             return false;
         }
 
@@ -235,7 +257,7 @@ export class StateManager {
             const serialized = JSON.stringify(snapshot.data);
             const currentChecksum = this.calculateChecksum(serialized);
             if (currentChecksum !== snapshot.checksum) {
-                console.log(`[StateManager] Checksum mismatch for key: ${config.key}`);
+                this.logger.warn(`[StateManager] Checksum mismatch for key: ${config.key}`);
                 return false;
             }
         }
@@ -271,5 +293,13 @@ export class StateManager {
             totalSize,
             pendingSaves: this.saveQueue.size
         };
+    }
+
+    public dispose(): void {
+        this.logger.info('[StateManager] Disposing state manager...');
+        this.disposables.forEach(d => d.dispose());
+        this.disposables = [];
+        this.snapshots.clear();
+        this.saveQueue.clear();
     }
 }
