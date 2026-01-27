@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const pkgPath = path.resolve(__dirname, '../package.json');
 const readmePath = path.resolve(__dirname, '../README.md');
@@ -7,10 +8,20 @@ const readmePath = path.resolve(__dirname, '../README.md');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 let readme = fs.readFileSync(readmePath, 'utf8');
 
-const version = pkg.version;
-// For README, we might want to show the canonical version or the full local one
-// Spec says local builds preserve SemVer ordering and provide traceability.
-// We'll update the "Release Version" in README.
+let version = pkg.version;
+
+// If version doesn't have metadata (e.g. canonical SemVer from semantic-release), 
+// append timestamp and hash for README traceability.
+if (!version.includes('+')) {
+    const timestamp = new Date().toISOString().split('T')[0];
+    let gitHash = 'unknown';
+    try {
+        gitHash = execSync('git rev-parse --short HEAD').toString().trim();
+    } catch (e) {
+        // Ignore git errors
+    }
+    version = `${version}+${timestamp}d.${gitHash}`;
+}
 
 const updated = readme
     .replace(/- \*\*Release Version\*\*: .+/g, `- **Release Version**: ${version}`)

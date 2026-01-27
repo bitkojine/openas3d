@@ -11,7 +11,7 @@ if (process.env.CI) {
   process.exit(0);
 }
 
-const timestamp = new Date().toISOString().replace(/[-:T]/g, '').split('.')[0];
+const timestamp = new Date().toISOString().split('T')[0];
 let gitHash = 'unknown';
 try {
   gitHash = execSync('git rev-parse --short HEAD').toString().trim();
@@ -19,9 +19,9 @@ try {
   // Ignore git errors
 }
 
-// Format: 0.2.0+local.202301271744.a1b2c3
+// Format: 0.2.0+2023-01-27.a1b2c3
 const cleanVersion = pkg.version.split('+')[0];
-const localVersion = `${cleanVersion}+local.${timestamp}.${gitHash}`;
+const localVersion = `${cleanVersion}+${timestamp}d.${gitHash}`;
 
 pkg.version = localVersion;
 fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
