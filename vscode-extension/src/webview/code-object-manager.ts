@@ -3,13 +3,12 @@
  * Core responsibilities: object CRUD, selection, and descriptions.
  */
 import * as THREE from 'three';
-import { RenderableEntity, DependencyDTO } from './types';
-import { ThemeColors, CodeEntityDTO } from '../shared/types';
-// DependencyManager removed
+import { RenderableEntity } from './types';
+import { ThemeColors } from '../shared/types';
 import { VisualObject } from './objects/visual-object';
 import { FileObject } from './objects/file-object';
 import { SignObject } from './objects/sign-object';
-import { ArchitectureWarning, getWarningsByFile } from '../core/analysis';
+import { InstanceManager } from './instance-manager';
 
 /** Data for adding a new object */
 export interface AddObjectData {
@@ -26,13 +25,23 @@ export interface AddObjectData {
 }
 
 export class CodeObjectManager {
-    // Store VisualObjects instead of raw interfaces
     private objects: Map<string, VisualObject> = new Map();
-    // private dependencyManager: DependencyManager; // Removed
+    private instanceManager: InstanceManager;
+    private _objectsArrayCache: RenderableEntity[] | null = null;
 
-    /**
-     * Get the internal objects map (Internal use for other managers)
-     */
+    // Proximity threshold for "active" objects (high detail)
+    private readonly PROMOTION_DISTANCE = 40;
+    private readonly GROUND_Y = 0;
+    private readonly EYE_LEVEL_Y = 3.9;
+
+    private currentTheme?: ThemeColors;
+    private updateQueue: VisualObject[] = [];
+    private isProcessingQueue = false;
+
+    constructor(private scene: THREE.Scene) {
+        this.instanceManager = new InstanceManager(scene);
+    }
+
     public getInternalObjectsMap(): Map<string, VisualObject> {
         return this.objects;
     }
@@ -41,37 +50,19 @@ export class CodeObjectManager {
         return this.objects.get(id);
     }
 
-    private readonly GAP = 0.5;
-
-    private readonly GROUND_Y = 0;
-
-    constructor(private scene: THREE.Scene) {
-        // this.dependencyManager = new DependencyManager(scene); // Removed
-    }
-
     public addObject(data: AddObjectData): void {
         const position = new THREE.Vector3(data.position.x, data.position.y, data.position.z);
         let visualObject: VisualObject;
 
-        // Factory logic
         if (data.type === 'sign') {
-            // Ensure filePath is passed if available
-            // Also ensure description is passed!
-            const signData = {
-                ...data.metadata,
-                filePath: data.filePath,
-                description: data.description
-            };
+            const signData = { ...data.metadata, filePath: data.filePath, description: data.description };
             visualObject = new SignObject(data.id, data.type, position, signData);
         } else {
-            // Pass everything needed for file object
-            // We nest data.metadata under 'metadata' key because FileObject expects it there
-            // (to distinguish between visual size and file size, and to access content)
             const fileData = {
                 metadata: data.metadata,
                 filePath: data.filePath,
                 color: data.color,
-                size: data.size, // Visual size (dimensions)
+                size: data.size,
                 description: data.description,
                 descriptionStatus: data.descriptionStatus,
                 descriptionLastUpdated: data.descriptionLastUpdated
@@ -79,32 +70,22 @@ export class CodeObjectManager {
             visualObject = new FileObject(data.id, data.type, position, fileData);
         }
 
-        // Adjust Y position based on height
-        // Adjust Y position based on height
+        // Adjust Y position based on height (even for instanced boxes)
         const meshHeight = visualObject.getHeight();
-
-        // All objects float at eye level (center of object at camera height)
-        // Camera Y = groundHeight(0.5) + characterHeight(1.8) + characterHeight*0.9(1.62) ≈ 3.92
-        const EYE_LEVEL_Y = 3.9;
-
-        // Prevent tall objects from clipping into ground
-        // Bottom of object = centerY - height/2, must be >= GROUND_Y
         const minY = this.GROUND_Y + meshHeight / 2;
-        visualObject.mesh.position.setY(Math.max(EYE_LEVEL_Y, minY));
+        visualObject.position.setY(Math.max(this.EYE_LEVEL_Y, minY));
 
-        // Sync position back to object state
-        visualObject.position.copy(visualObject.mesh.position);
+        // Add to instance manager for distant rendering
+        this.instanceManager.addInstance(
+            data.id,
+            visualObject.position,
+            meshHeight,
+            data.color ?? 0x333333
+        );
 
-        this.scene.add(visualObject.mesh);
         this.objects.set(data.id, visualObject);
+        this._objectsArrayCache = null;
 
-        // Post-creation initialization (labels, etc)
-        // All VisualObjects that support labels should implement this
-        if (typeof (visualObject as any).initializeLabel === 'function') {
-            (visualObject as any).initializeLabel(this.scene);
-        }
-
-        // Apply current theme if one exists
         if (this.currentTheme) {
             visualObject.updateTheme(this.currentTheme);
         }
@@ -112,36 +93,16 @@ export class CodeObjectManager {
 
     public applyDescription(filePath: string, description: { summary: string; status: string; lastUpdated?: string }): void {
         const obj = [...this.objects.values()].find(o => o.metadata.filePath === filePath);
-
-        // Allow any object that supports label updates to receive them
         if (obj && typeof (obj as any).updateLabel === 'function') {
             (obj as any).updateLabel(this.scene, description.summary);
-
-            // Update metadata to persist status
             obj.metadata.descriptionStatus = description.status;
             obj.metadata.descriptionLastUpdated = description.lastUpdated;
         }
     }
 
-    private updateQueue: VisualObject[] = [];
-    private isProcessingQueue = false;
-    private currentTheme?: ThemeColors;
-
     public updateTheme(theme: ThemeColors): void {
         this.currentTheme = theme;
-        // Clear existing queue to avoid double work
-        this.updateQueue = [];
-        this.objects.forEach(obj => {
-            // IMMEDIATE update for lightweight things (frames, labels)
-            // But texture generation (heavy) should be deferred?
-            // Current FileObject.updateTheme does both.
-            // Let's call updateTheme immediately for structural color changes,
-            // BUT FileObject needs to know to DEFER texture generation.
-            // Actually, let's just stagger the whole call. Frame color changes are cheap but 
-            // having them ripple is fine visually.
-            this.updateQueue.push(obj);
-        });
-
+        this.updateQueue = [...this.objects.values()];
         if (!this.isProcessingQueue) {
             this.processUpdateQueue();
         }
@@ -155,38 +116,29 @@ export class CodeObjectManager {
 
         this.isProcessingQueue = true;
         const startTime = performance.now();
-        const FRAME_BUDGET_MS = 10; // Target ~10ms per frame to leave room for rendering
+        const FRAME_BUDGET_MS = 8; // Leave room for rendering
 
         while (this.updateQueue.length > 0) {
-            // Check budget
             if (performance.now() - startTime > FRAME_BUDGET_MS) {
-                // Yield to next frame if budget exceeded
                 requestAnimationFrame(() => this.processUpdateQueue());
                 return;
             }
 
             const obj = this.updateQueue.shift();
-            if (obj && obj.mesh.parent && this.currentTheme) {
+            if (obj && this.currentTheme) {
                 obj.updateTheme(this.currentTheme);
             }
         }
-
-        // Queue finished
         this.isProcessingQueue = false;
     }
 
     public removeObject(id: string): void {
         const obj = this.objects.get(id);
         if (obj) {
-            this.scene.remove(obj.mesh);
-            obj.dispose();
-
-            // Clean up label if it's a file object
-            if (obj instanceof FileObject && obj.descriptionMesh) {
-                this.scene.remove(obj.descriptionMesh);
-            }
-
+            if (obj.isPromoted) obj.demote(this.scene);
+            this.instanceManager.setVisibility(id, false);
             this.objects.delete(id);
+            this._objectsArrayCache = null;
         }
     }
 
@@ -194,42 +146,34 @@ export class CodeObjectManager {
         const obj = this.objects.get(id);
         if (!obj) return;
 
-        // Update stored position
         obj.position.set(position.x, position.y, position.z);
-
-        // Update mesh position (handling floating height)
         const meshHeight = obj.getHeight();
-        const EYE_LEVEL_Y = 3.9;
         const minY = this.GROUND_Y + meshHeight / 2;
+        const y = Math.max(this.EYE_LEVEL_Y, minY);
+        obj.position.setY(y);
 
-        // Code objects float; we ignore the incoming Y usually (it's often just 0 or passed from generic layout)
-        // Unless we want to support true 3D layout later. For now, enforce floating logic.
-        const y = Math.max(EYE_LEVEL_Y, minY);
+        if (obj.isPromoted && obj.mesh) {
+            obj.mesh.position.copy(obj.position);
+        } else {
+            this.instanceManager.updateInstance(id, obj.position, meshHeight);
+        }
+    }
 
-        obj.mesh.position.set(position.x, y, position.z);
+    public updateObjectPositions(updates: { id: string; position: { x: number; y: number; z: number } }[]): void {
+        updates.forEach(u => this.updateObjectPosition(u.id, u.position));
     }
 
     public clear(): void {
         this.objects.forEach(obj => {
-            this.scene.remove(obj.mesh);
-            obj.dispose();
-            if (obj instanceof FileObject && obj.descriptionMesh) {
-                this.scene.remove(obj.descriptionMesh);
-            }
+            if (obj.isPromoted) obj.demote(this.scene);
         });
+        this.instanceManager.dispose();
+        this.instanceManager = new InstanceManager(this.scene);
         this.objects.clear();
-        // this.dependencyManager.clear(); // Handled externally
+        this._objectsArrayCache = null;
     }
 
-    // Dependency delegation
-
-
-
-
-
-    // Queries
     public findByMesh(mesh: THREE.Mesh): VisualObject | undefined {
-        // Direct lookup via userData if available (optimization)
         if (mesh.userData.visualObject) {
             return mesh.userData.visualObject as VisualObject;
         }
@@ -237,43 +181,57 @@ export class CodeObjectManager {
     }
 
     public getObjectMeshes(): THREE.Object3D[] {
-        return [...this.objects.values()].map(o => o.mesh);
+        return [...this.objects.values()]
+            .map(o => o.mesh)
+            .filter((m): m is THREE.Mesh => m !== undefined);
     }
 
-
-    /** Get the number of objects */
     public getObjectCount(): number {
         return this.objects.size;
     }
 
-    /** Get all objects iterator */
-    public getObjects(): IterableIterator<RenderableEntity> {
-        // Yield converted objects for compatibility
-        // In future, consumers should use VisualObject
-        return function* (objects: Map<string, VisualObject>) {
-            for (const obj of objects.values()) {
-                yield obj.toCodeObject();
-            }
-        }(this.objects);
+    public getObjects(): RenderableEntity[] {
+        if (!this._objectsArrayCache) {
+            this._objectsArrayCache = [...this.objects.values()].map(obj => obj.toCodeObject());
+        }
+        return this._objectsArrayCache;
     }
 
-    public updateDescriptions(camera: THREE.Camera): void {
+    private lastLODCheck = 0;
+    private readonly LOD_CHECK_INTERVAL = 200; // ms, faster check
+
+    public updateLOD(camera: THREE.Camera): void {
+        const now = performance.now();
+        if (now - this.lastLODCheck < this.LOD_CHECK_INTERVAL) return;
+        this.lastLODCheck = now;
+
+        const cameraPos = camera.position;
+
         this.objects.forEach(obj => {
-            if (obj.descriptionMesh) {
-                if (obj.descriptionMesh) {
-                    obj.updateLabelPosition(camera);
+            const distance = obj.position.distanceTo(cameraPos);
+
+            if (distance < this.PROMOTION_DISTANCE) {
+                if (!obj.isPromoted) {
+                    obj.promote(this.scene);
+                    this.instanceManager.setVisibility(obj.id, false);
+                }
+                obj.updateLabelPosition(camera);
+            } else {
+                if (obj.isPromoted) {
+                    obj.demote(this.scene);
+                    this.instanceManager.setVisibility(obj.id, true);
+                    // Ensure instance is up to date since it was hidden
+                    this.instanceManager.updateInstance(obj.id, obj.position, obj.getHeight());
                 }
             }
-
-            // Animate objects
-            // Use a fixed delta or calculate it if possible, but updateDescriptions is called in render loop
-            // We can approximate or just pass a time
-            const now = performance.now() / 1000;
-            obj.animate(now, 0.016); // Approx 60fps delta, or pass real delta if available
         });
     }
 
-
-
+    public updateAnimations(now: number, deltaTime: number): void {
+        this.objects.forEach(obj => {
+            if (obj.isPromoted) {
+                obj.animate(now, deltaTime);
+            }
+        });
+    }
 }
-

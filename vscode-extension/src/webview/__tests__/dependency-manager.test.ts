@@ -50,7 +50,10 @@ describe('DependencyManager', () => {
             position: mesh.position, // Important for shared ref
             type: 'file',
             filePath: id,
-            dispose: jest.fn()
+            dispose: jest.fn(),
+            getHeight: jest.fn().mockReturnValue(1.0),
+            promote: jest.fn(),
+            demote: jest.fn()
         } as unknown as VisualObject;
 
         return obj;
@@ -176,8 +179,8 @@ describe('DependencyManager', () => {
         }, objects);
 
         // Move object A
-        objA.mesh.position.set(5, 5, 5);
-        objA.position.copy(objA.mesh.position);
+        objA.position.set(5, 5, 5);
+        if (objA.mesh) objA.mesh.position.copy(objA.position);
 
         // Update dependencies
         manager.updateObjectPosition('a', objects);

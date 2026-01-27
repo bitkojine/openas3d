@@ -215,59 +215,9 @@ export class World {
 
         this.interaction.update();
 
-        // Rotate all code objects slowly
-        const rotationSpeed = 0.5; // radians per second
-        const focusedObject = this.selectionManager.getFocusedObject(); // Use hover focus for rotation
-
-        for (const obj of this.objects.getObjects()) {
-            // If this is the focused object, face the camera
-            if (focusedObject && obj.id === focusedObject.id) {
-                // Calculate angle from object to camera
-                const angleToCamera = Math.atan2(
-                    this.sceneManager.camera.position.x - obj.position.x, // Use obj.position from DTO
-                    this.sceneManager.camera.position.z - obj.position.z
-                );
-
-                // We need access to the MESH to rotate it.
-                // The DTO iterator returns DTOs which have `mesh` property in `CodeEntityDTO`?
-                // `CodeEntityDTO` has `mesh: THREE.Mesh`.
-                // Let's check `toCodeObject`... yes it returns `this` which IS a VisualObject which has `mesh`.
-
-                const currentRotation = obj.mesh.rotation.y;
-
-                // Option 1: Face the camera with front side
-                let diffFront = angleToCamera - currentRotation;
-                while (diffFront > Math.PI) { diffFront -= Math.PI * 2; }
-                while (diffFront < -Math.PI) { diffFront += Math.PI * 2; }
-
-                // Option 2: Face the camera with back side (rotate PI more)
-                let diffBack = (angleToCamera + Math.PI) - currentRotation;
-                while (diffBack > Math.PI) { diffBack -= Math.PI * 2; }
-                while (diffBack < -Math.PI) { diffBack += Math.PI * 2; }
-
-                // Pick the option that requires less rotation
-                const rotDiff = Math.abs(diffFront) <= Math.abs(diffBack) ? diffFront : diffBack;
-
-                // Smooth lerp towards target
-                obj.mesh.rotation.y += rotDiff * 5.0 * deltaTime;
-
-            } else {
-                // Ambient rotation
-                obj.mesh.rotation.y += rotationSpeed * deltaTime;
-            }
-
-            // Keep description sprite scale consistent with content
-            if (obj.descriptionMesh && obj.descriptionMesh.userData.width && obj.descriptionMesh.userData.height) {
-                obj.descriptionMesh.scale.set(
-                    obj.descriptionMesh.userData.width,
-                    obj.descriptionMesh.userData.height,
-                    1
-                );
-            }
-        }
-
-        // Update description labels to face the camera
-        this.objects.updateDescriptions(this.sceneManager.camera);
+        // LOD and Animations (100k Support)
+        this.objects.updateLOD(this.sceneManager.camera);
+        this.objects.updateAnimations(currentTime / 1000, deltaTime);
 
         this.sceneManager.renderer.render(this.sceneManager.scene, this.sceneManager.camera);
     }
@@ -277,6 +227,10 @@ export class World {
         this.objects.addObject(data);
     }
 
+    public addObjects(objects: any[]): void {
+        objects.forEach(obj => this.addCodeObject(obj));
+    }
+
     public removeCodeObject(id: string): void {
         this.objects.removeObject(id);
     }
@@ -284,6 +238,14 @@ export class World {
     public addDependency(data: any): void {
         // We need to pass the map of objects to the dependency manager
         this.dependencyManager.add(data, this.objects.getInternalObjectsMap());
+    }
+
+    public addDependencies(dependencies: any[]): void {
+        dependencies.forEach(dep => this.addDependency(dep));
+    }
+
+    public updateObjectPositions(updates: { id: string; position: { x: number; y: number; z: number } }[]): void {
+        updates.forEach(update => this.updateObjectPosition(update));
     }
 
     public removeDependency(id: string): void {
@@ -373,6 +335,18 @@ export class World {
         // Force refresh all objects with current theme
         // This will trigger re-rendering of code textures with new font settings
         const currentTheme = this.themeManager.getTheme();
+        // Update log level if present in config
+        if (config.logging?.level) {
+            const levels: Record<string, number> = {
+                'debug': 0, 'info': 1, 'warn': 2, 'error': 3, 'none': 4
+            };
+            const level = levels[config.logging.level];
+            if (level !== undefined) {
+                const { logger } = require('./bootstrap');
+                if (logger) logger.setLevel(level);
+            }
+        }
+
         this.objects.updateTheme(currentTheme);
     }
 
@@ -400,6 +374,10 @@ export class World {
             }
         });
 
+        router.register('addObjects', (data: AddObjectPayload[]) => {
+            this.addObjects(data);
+        });
+
         router.register('removeObject', (data: { id: string }) => {
             this.removeCodeObject(data.id);
         });
@@ -408,9 +386,17 @@ export class World {
             this.updateObjectPosition(data);
         });
 
+        router.register('updateObjectPositions', (data: UpdatePositionPayload[]) => {
+            this.updateObjectPositions(data);
+        });
+
         // Dependency Management
         router.register('addDependency', (data: AddDependencyPayload) => {
             this.addDependency(data);
+        });
+
+        router.register('addDependencies', (data: AddDependencyPayload[]) => {
+            this.addDependencies(data);
         });
 
         router.register('removeDependency', (data: { id: string }) => {

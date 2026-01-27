@@ -12,6 +12,22 @@ class MockVisualObject extends VisualObject {
             new THREE.MeshLambertMaterial()
         );
     }
+    public promote(scene: THREE.Scene): void {
+        if (this.isPromoted) return;
+        this.isPromoted = true;
+        this.mesh = this.createMesh();
+        scene.add(this.mesh);
+    }
+
+    public demote(scene: THREE.Scene): void {
+        if (!this.isPromoted) return;
+        this.isPromoted = false;
+        if (this.mesh) {
+            scene.remove(this.mesh);
+            this.mesh = undefined;
+        }
+    }
+
     public update(data: any): void { }
     public updateTheme(theme: ThemeColors): void { }
 

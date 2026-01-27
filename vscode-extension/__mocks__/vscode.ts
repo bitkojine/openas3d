@@ -18,6 +18,14 @@ export const window = {
     showQuickPick: jest.fn(),
     showInputBox: jest.fn(),
     showTextDocument: jest.fn(async (doc: any) => doc),
+    createOutputChannel: jest.fn(() => ({
+        append: jest.fn(),
+        appendLine: jest.fn(),
+        clear: jest.fn(),
+        show: jest.fn(),
+        hide: jest.fn(),
+        dispose: jest.fn(),
+    })),
 };
 
 export const commands = {

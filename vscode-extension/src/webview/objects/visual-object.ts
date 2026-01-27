@@ -8,11 +8,12 @@ import { RenderableEntity } from '../types';
 import { ThemeColors, CodeEntityDTO } from '../../shared/types';
 
 export abstract class VisualObject implements RenderableEntity {
-    public mesh: THREE.Mesh;
+    public mesh?: THREE.Mesh;
     public id: string;
     public type: 'file' | 'module' | 'class' | 'function' | 'sign';
     public position: THREE.Vector3;
     public metadata: any;
+    public isPromoted = false;
 
     // CodeObject compatibility
     public filePath: string;
@@ -20,17 +21,12 @@ export abstract class VisualObject implements RenderableEntity {
     public descriptionStatus?: 'missing' | 'generated' | 'reconciled';
     public descriptionLastUpdated?: string;
     public descriptionMesh?: THREE.Sprite;
-
-    /**
-     * Initialize label for this object.
-     * Optional implementation for objects that support labels.
-     */
-    public initializeLabel?(scene: THREE.Scene): void;
+    protected _cachedHeight?: number;
 
     constructor(id: string, type: string, position: THREE.Vector3, metadata: any = {}) {
         this.id = id;
         this.type = type as any;
-        this.position = position;
+        this.position = position.clone();
         this.metadata = metadata;
         this.filePath = metadata.filePath || '';
         this.description = metadata.description || 'No description';
@@ -38,13 +34,13 @@ export abstract class VisualObject implements RenderableEntity {
         // Initialize description state from metadata if present
         if (metadata.descriptionStatus) { this.descriptionStatus = metadata.descriptionStatus; }
         if (metadata.descriptionLastUpdated) { this.descriptionLastUpdated = metadata.descriptionLastUpdated; }
-
-        this.mesh = this.createMesh(); // Template method
-        this.mesh.position.copy(position);
-
-        // Link back to this object for raycasting/interaction identification
-        this.mesh.userData.visualObject = this;
     }
+
+    /** Promotes the object to high-detail mode (creates mesh) */
+    public abstract promote(scene: THREE.Scene): void;
+
+    /** Demotes the object to instanced mode (disposes mesh) */
+    public abstract demote(scene: THREE.Scene): void;
 
     /**
      * Create the THREE.Mesh for this object.
@@ -66,7 +62,11 @@ export abstract class VisualObject implements RenderableEntity {
      * Animate the object (called per frame)
      */
     public animate(time: number, deltaTime: number): void {
-        // Optional override
+        if (!this.mesh) return;
+
+        // Default rotation for all code objects
+        const rotationSpeed = 0.5; // radians per second
+        this.mesh.rotation.y += rotationSpeed * deltaTime;
     }
 
 
@@ -79,10 +79,14 @@ export abstract class VisualObject implements RenderableEntity {
             this.descriptionMesh.lookAt(camera.position);
             const labelHeight = this.descriptionMesh.userData.height || 1;
             const GAP = 0.5; // Default gap
+            const x = this.mesh ? this.mesh.position.x : this.position.x;
+            const y = this.mesh ? this.mesh.position.y : this.position.y;
+            const z = this.mesh ? this.mesh.position.z : this.position.z;
+
             this.descriptionMesh.position.set(
-                this.mesh.position.x,
-                this.mesh.position.y + meshHeight / 2 + GAP + labelHeight / 2,
-                this.mesh.position.z
+                x,
+                y + meshHeight / 2 + GAP + labelHeight / 2,
+                z
             );
         }
     }
@@ -108,16 +112,27 @@ export abstract class VisualObject implements RenderableEntity {
     }
 
     public getHeight(): number {
+        if (this._cachedHeight !== undefined) {
+            return this._cachedHeight;
+        }
+        if (!this.mesh) {
+            // Fallback to metadata size height or default
+            return this.metadata?.size?.height ?? 1.0;
+        }
+
         this.mesh.geometry.computeBoundingBox();
-        return this.mesh.geometry.boundingBox
+        this._cachedHeight = this.mesh.geometry.boundingBox
             ? this.mesh.geometry.boundingBox.max.y - this.mesh.geometry.boundingBox.min.y
-            : 1;
+            : 1.0;
+        return this._cachedHeight;
     }
 
     /**
      * Clean up resources (geometries, materials)
      */
     public dispose(): void {
+        if (!this.mesh) return;
+
         if (this.mesh.geometry) { this.mesh.geometry.dispose(); }
 
         const materials = Array.isArray(this.mesh.material)
@@ -130,6 +145,7 @@ export abstract class VisualObject implements RenderableEntity {
     }
 
     protected setEmissive(colorHex: number): void {
+        if (!this.mesh) return;
         const materials = Array.isArray(this.mesh.material) ? this.mesh.material : [this.mesh.material];
         materials.forEach(mat => {
             if ((mat as THREE.MeshLambertMaterial).emissive) {

@@ -2,7 +2,7 @@
   "name": "openas3d-vscode",
   "displayName": "OpenAs3D - 3D Codebase Explorer",
   "description": "Visualize codebase dependencies and architecture in navigable 3D worlds",
-  "version": "0.2.3",
+  "version": "0.2.4+2026-01-27d",
   "publisher": "openas3d",
   "repository": {
     "type": "git",
@@ -63,6 +63,33 @@
           "command": "openas3d.openAs3DWorld"
         }
       ]
+    },
+    "configuration": {
+      "title": "OpenAs3D",
+      "properties": {
+        "openas3d.logging.level": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error",
+            "none"
+          ],
+          "default": "info",
+          "description": "Set logging level for the extension"
+        },
+        "openas3d.logging.performanceThreshold": {
+          "type": "number",
+          "default": 100,
+          "description": "Performance threshold in ms for warnings"
+        },
+        "openas3d.logging.webviewBatchSize": {
+          "type": "number",
+          "default": 10,
+          "description": "Number of log messages to batch from webview"
+        }
+      }
     }
   },
   "scripts": {
@@ -91,7 +118,8 @@
     "build-install-all": "npm run build && VSIX=$(node -p \"require('./package.json').version\") && code --install-extension ./openas3d-vscode-$VSIX.vsix --force && code --reload-window && npm run test:unit && npm run test:e2e",
     "test": "jest",
     "test:unit": "jest",
-    "test:e2e": "npm run test:integration"
+    "test:e2e": "npm run test:integration",
+    "test:perf": "jest --config jest.perf.config.js"
   },
   "devDependencies": {
     "@semantic-release/exec": "^7.1.0",

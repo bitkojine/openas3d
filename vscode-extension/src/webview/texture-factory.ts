@@ -141,6 +141,7 @@ export function createContentTexture(
     meshWidth: number = 1,
     meshHeight: number = 1
 ): { texture: THREE.Texture; lines: WrappedLine[] } {
+    const start = performance.now();
     const colors = getSyntaxColors(theme);
     const { maxLines, padding, fontSize, lineHeight, lineNumberWidth, canvasWidth } = CONTENT_CONFIG;
     const font = getFontString();
@@ -272,6 +273,16 @@ export function createContentTexture(
     texture.magFilter = THREE.LinearFilter;
     texture.anisotropy = 16;
 
+    const duration = performance.now() - start;
+    if (duration > 2000) {
+        console.warn(`[Watchdog] PERFORMANCE VIOLATION: "createContentTexture" took ${duration.toFixed(2)}ms (Max: 2000ms)`, {
+            fileContentLen: fileContent.length,
+            meshWidth,
+            meshHeight,
+            wrappedLines: wrappedLines.length
+        });
+    }
+
     return { texture, lines: wrappedLines };
 }
 
@@ -317,6 +328,7 @@ function renderLabel(
     deps?: LabelDependencyStats,
     theme?: ThemeColors
 ): THREE.Sprite {
+    const start = performance.now();
     const { canvasWidth, padding, fontSize, lineHeight, font } = SPRITE_CONFIG;
 
     const tempCanvas = document.createElement('canvas');
@@ -466,6 +478,14 @@ function renderLabel(
     sprite.userData.width = canvasWidth / 200;
     sprite.userData.height = canvasHeight / 200;
     sprite.scale.set(sprite.userData.width, sprite.userData.height, 1);
+
+    const duration = performance.now() - start;
+    if (duration > 2000) {
+        console.warn(`[Watchdog] PERFORMANCE VIOLATION: "renderLabel" took ${duration.toFixed(2)}ms (Max: 2000ms)`, {
+            messageLen: message.length,
+            hasDeps: !!deps
+        });
+    }
 
     return sprite;
 }

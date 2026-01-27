@@ -13,7 +13,10 @@
 import type { ICruiseResult, IModule } from 'dependency-cruiser';
 import * as path from 'path';
 import { ArchitectureWarning, WarningSeverity, WarningType, FileWithZone, ArchitectureDependency } from './types';
-import { PerfTracker } from '../../utils/perf-tracker';
+import { getLogger } from '../../utils/logger';
+import { Watchdog } from '../../utils/watchdog';
+
+const logger = getLogger().createChild('Architecture');
 
 export { ArchitectureWarning, WarningSeverity, WarningType, FileWithZone, ArchitectureDependency };
 
@@ -25,8 +28,11 @@ export async function analyzeArchitecture(
     fileIdMap: Map<string, string>, // Map absolute path -> file ID,
     options: { cruiseOptions?: any, tsConfigPath?: string, cruiseFn?: any, extensionPath?: string } = {}
 ): Promise<ArchitectureWarning[]> {
-    const perfLabel = 'ArchitectureAnalyzer.analyzeArchitecture';
-    const perfStart = PerfTracker.instance?.start(perfLabel);
+    const dog = new Watchdog({ label: 'analyzeArchitecture', thresholdMs: 5000 });
+    dog.addMetadata({ rootPath });
+
+    const perfLabel = 'analyzeArchitecture';
+    const perfStart = performance.now();
 
     try {
         const warnings: ArchitectureWarning[] = [];
@@ -48,7 +54,7 @@ export async function analyzeArchitecture(
         if (configPath) {
             // config found
         } else {
-            console.warn('[Architecture] No .dependency-cruiser.cjs found');
+            logger.warn('No .dependency-cruiser.cjs found');
         }
 
         // Find tsconfig.json
@@ -98,24 +104,22 @@ export async function analyzeArchitecture(
                     tsConfigPath ? { tsConfig: { fileName: tsConfigPath } } : undefined
                 );
             } catch (e) {
-                console.error('[Architecture] Injected cruiseFn failed:', e);
+                logger.error('Injected cruiseFn failed', e);
             }
         } else {
             // CLI Spawn Mode
             if (!options.extensionPath) {
-                // Fallback for dev/test without extensionPath? 
-                // Logic: failed if we can't find binary.
-                console.error('[Architecture] extensionPath not provided, cannot find dependency-cruiser CLI');
+                logger.error('extensionPath not provided, cannot find dependency-cruiser CLI');
                 return [];
             }
 
             const cliPath = path.join(options.extensionPath, 'node_modules', 'dependency-cruiser', 'bin', 'dependency-cruise.mjs');
             if (!fs.existsSync(cliPath)) {
-                console.error('[Architecture] dependency-cruiser CLI not found at:', cliPath);
+                logger.error('dependency-cruiser CLI not found', undefined, { cliPath });
                 return [];
             }
 
-            const args = ['--output-type', 'json'];
+            const args = ['--output-type', 'json', '--cache', '.openas3d/.dependency-cruiser-cache'];
             if (configPath) {
                 args.push('--config', configPath);
             }
@@ -157,26 +161,25 @@ export async function analyzeArchitecture(
                 const errorStr = Buffer.concat(stderr).toString('utf8');
 
                 if (errorStr && !outputStr) {
-                    console.error('[Architecture] CLI Stderr:', errorStr);
+                    logger.error('CLI Stderr', undefined, { errorStr });
                 }
 
                 if (outputStr) {
                     try {
                         result = JSON.parse(outputStr);
                     } catch (e) {
-                        console.error('[Architecture] Failed to parse JSON output:', e);
-                        console.error('Output snippet:', outputStr.slice(0, 200));
+                        logger.error('Failed to parse JSON output', e, { snippet: outputStr.slice(0, 200) });
                     }
                 }
 
             } catch (e) {
-                console.error('[Architecture] CLI Execution failed:', e);
+                logger.error('CLI Execution failed', e);
                 throw e;
             }
         }
 
         if (!result || result.outputType === 'err') {
-            console.error('Dependency-cruiser failed or returned no result:', result);
+            logger.error('Dependency-cruiser failed or returned no result', undefined, { result });
             return [];
         }
 
@@ -184,7 +187,7 @@ export async function analyzeArchitecture(
         // ... (Mapping logic remains same)
 
         if (result.outputType === 'err') {
-            console.error('Dependency-cruiser failed:', result);
+            logger.error('Dependency-cruiser failed', undefined, { result });
             return [];
         }
 
@@ -340,8 +343,9 @@ export async function analyzeArchitecture(
 
         return warnings;
     } finally {
+        dog.stop();
         if (perfStart !== undefined) {
-            PerfTracker.instance?.stop(perfLabel, perfStart);
+            logger.performance(perfLabel, performance.now() - perfStart);
         }
     }
 }

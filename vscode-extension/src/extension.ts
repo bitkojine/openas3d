@@ -8,6 +8,9 @@ import { SignService } from './services/sign-service';
 
 import { LayoutPersistenceService } from './services/layout-persistence';
 import { TestDiscoveryService } from './services/test-discovery-service';
+import { getLogger, LogLevel } from './utils/logger';
+import { ExtensionWebviewLogger } from './utils/webview-logger';
+import { Watchdog } from './utils/watchdog';
 
 let webviewPanelManager: WebviewPanelManager;
 let perf: PerfTracker;
@@ -18,15 +21,29 @@ let layoutPersistence: LayoutPersistenceService;
 let testDiscovery: TestDiscoveryService;
 
 export function activate(context: vscode.ExtensionContext) {
+    const logger = getLogger();
+    logger.info('Activating OpenAs3D extension...');
+    const activationDog = new Watchdog({ label: 'extension.activate', thresholdMs: 5000 });
+    const webviewLogger = new ExtensionWebviewLogger(logger);
+
     const extension = vscode.extensions.getExtension('openas3d.openas3d-vscode');
     const version = extension?.packageJSON?.version || '0.0.0';
-    console.log(`OpenAs3D extension is now active! (Version ${version})`);
+    logger.info(`OpenAs3D extension is now active!`, { version });
 
     // Initialize core managers
     // We pass perf tracker to WebviewPanelManager for middleware support
     perf = new PerfTracker();
     PerfTracker.instance = perf; // Set singleton for decorators
     webviewPanelManager = new WebviewPanelManager(context, perf, version);
+
+    // Register webview log handler
+    webviewPanelManager.onMessage((message) => {
+        if (message.type === 'log') {
+            webviewLogger.handleSingleLog(message.data.level, message.data.message, message.data.context);
+        } else if (message.type === 'logBatch') {
+            webviewLogger.handleBatch(message.data);
+        }
+    });
 
     // Initialize Backend Services
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -75,6 +92,39 @@ export function activate(context: vscode.ExtensionContext) {
     webviewPanelManager.registerMoveHandler(async (id, pos) => {
         await layoutPersistence.savePosition(id, pos.x, pos.z);
     });
+
+    // Configuration Synchronization
+    const updateLogLevels = () => {
+        const config = vscode.workspace.getConfiguration('openas3d');
+        const levelStr = config.get<string>('logging.level', 'info');
+        const levels: Record<string, LogLevel> = {
+            'debug': LogLevel.DEBUG,
+            'info': LogLevel.INFO,
+            'warn': LogLevel.WARN,
+            'error': LogLevel.ERROR,
+            'none': LogLevel.NONE
+        };
+        const level = levels[levelStr] ?? LogLevel.INFO;
+        logger.setLevel(level);
+
+        // Update webview level via message
+        webviewPanelManager.dispatchMessage({
+            type: 'updateConfig',
+            data: {
+                ...vscode.workspace.getConfiguration('openas3d'),
+                logging: { level: levelStr }
+            } as any
+        });
+    };
+
+    context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('openas3d.logging')) {
+            updateLogLevels();
+        }
+    }));
+
+    // Initial sync
+    updateLogLevels();
 
     // Register commands
     const exploreDependenciesCommand = vscode.commands.registerCommand(
@@ -226,10 +276,12 @@ export function activate(context: vscode.ExtensionContext) {
         { dispose: () => clearInterval(perfInterval) },
         { dispose: () => testDiscovery.dispose() }
     );
+
+    activationDog.stop();
 }
 
 export function deactivate() {
-    console.log('OpenAs3D extension is being deactivated');
+    getLogger().info('OpenAs3D extension is being deactivated');
 
     if (webviewPanelManager) { webviewPanelManager.dispose(); }
     // CodebaseVisualizer doesn't have a dispose method currently, cleanup happens via initialize return fn

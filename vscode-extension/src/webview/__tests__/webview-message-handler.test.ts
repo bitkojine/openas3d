@@ -218,7 +218,7 @@ describe('WebviewMessageHandler', () => {
         it('should have default handler for log', async () => {
             const message: WebviewMessage = {
                 type: 'log',
-                data: { message: 'test log' }
+                data: { level: 1, message: 'test log' }
             };
 
             // Should not throw (handler is no-op)

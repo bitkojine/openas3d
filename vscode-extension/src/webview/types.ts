@@ -16,9 +16,9 @@ export interface RenderableEntity extends Omit<CodeEntity, 'position'> {
     position: THREE.Vector3;
 
     /**
-     * Three.js mesh representing this object
+     * Three.js mesh representing this object (optional if instanced)
      */
-    mesh: THREE.Mesh;
+    mesh?: THREE.Mesh;
 
     /**
      * Three.js sprite for the floating description label

@@ -90,12 +90,15 @@ export type ExtensionMessage =
 
     // Object Management
     | { type: 'addObject'; data: AddObjectPayload }
+    | { type: 'addObjects'; data: AddObjectPayload[] }
     | { type: 'removeObject'; data: { id: string } }
     | { type: 'updateObjectPosition'; data: UpdatePositionPayload }
+    | { type: 'updateObjectPositions'; data: UpdatePositionPayload[] }
     | { type: 'updateObjectDescription'; data: UpdateDescriptionPayload }
 
     // Dependency Management
     | { type: 'addDependency'; data: AddDependencyPayload }
+    | { type: 'addDependencies'; data: AddDependencyPayload[] }
     | { type: 'removeDependency'; data: { id: string } }
     | { type: 'showDependencies' }
     | { type: 'hideDependencies' }
@@ -140,7 +143,8 @@ export type WebviewMessage =
     | { type: 'ready' }
 
     // Logging
-    | { type: 'log'; data: { message: string } }
+    | { type: 'log'; data: { level: number; message: string; context?: any } }
+    | { type: 'logBatch'; data: { logs: any[] } }
     | { type: 'error'; data: { message: string } }
 
     // User Interaction

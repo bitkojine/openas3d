@@ -1,6 +1,8 @@
-import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { promises as fsp } from 'fs';
+
+import { watchdog } from '../utils/watchdog';
 
 interface LayoutOverride {
     x: number;
@@ -21,6 +23,7 @@ export class LayoutPersistenceService {
     private readonly FILE_NAME = 'layout.json';
     private overrides: Map<string, LayoutOverride> = new Map();
     private workspaceRoot: string | undefined;
+    private persistTimeout: NodeJS.Timeout | null = null;
 
     constructor(workspaceRoot?: string) {
         this.workspaceRoot = workspaceRoot;
@@ -60,6 +63,7 @@ export class LayoutPersistenceService {
     /**
      * Load from disk
      */
+    @watchdog(500)
     private load() {
         if (!this.workspaceRoot) return;
 
@@ -68,7 +72,7 @@ export class LayoutPersistenceService {
             try {
                 const content = fs.readFileSync(layoutPath, 'utf8');
                 const data = JSON.parse(content) as LayoutFile;
-                
+
                 this.overrides.clear();
                 if (data.overrides) {
                     Object.entries(data.overrides).forEach(([key, val]) => {
@@ -82,9 +86,21 @@ export class LayoutPersistenceService {
     }
 
     /**
-     * Write to disk with normalization
+     * Write to disk with normalization (Debounced & Async)
      */
+    @watchdog(500)
     private async persist() {
+        if (this.persistTimeout) {
+            clearTimeout(this.persistTimeout);
+        }
+
+        this.persistTimeout = setTimeout(async () => {
+            this.persistTimeout = null;
+            await this.doPersist();
+        }, 1000); // 1s debounce
+    }
+
+    private async doPersist() {
         if (!this.workspaceRoot) return;
 
         const dirPath = path.join(this.workspaceRoot, this.DIR_NAME);
@@ -98,7 +114,7 @@ export class LayoutPersistenceService {
         // Sort keys for deterministic output
         const sortedOverrides: { [key: string]: LayoutOverride } = {};
         const sortedKeys = Array.from(this.overrides.keys()).sort();
-        
+
         sortedKeys.forEach(key => {
             sortedOverrides[key] = this.overrides.get(key)!;
         });
@@ -108,7 +124,10 @@ export class LayoutPersistenceService {
             overrides: sortedOverrides
         };
 
-        // Write with generic pretty-print
-        fs.writeFileSync(filePath, JSON.stringify(fileData, null, 2), 'utf8');
+        try {
+            await fsp.writeFile(filePath, JSON.stringify(fileData, null, 2), 'utf8');
+        } catch (e) {
+            console.error('Failed to persist layout.json', e);
+        }
     }
 }

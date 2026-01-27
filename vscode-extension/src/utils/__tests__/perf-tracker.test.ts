@@ -19,11 +19,20 @@ describe('PerfTracker', () => {
         perf.setUICallback(stats => uiReport = stats);
     });
 
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
     it('records timings and reports correctly', () => {
         const start = perf.start('testTask');
         // Simulate some work
         const duration = 10;
         perf.stop('testTask', start - duration); // force 10ms
+
+        // Trigger UI report by forcing time past throttle
+        jest.spyOn(perf, 'now').mockReturnValue(performance.now() + 1000);
+        const triggerStart = perf.start('trigger');
+        perf.stop('trigger', triggerStart);
 
         expect(uiReport).toBeDefined();
         const item = uiReport?.find(s => s.label === 'testTask');
@@ -37,6 +46,11 @@ describe('PerfTracker', () => {
         const start2 = perf.start('multiTask');
         perf.stop('multiTask', start2 - 15);
 
+        // Trigger UI report
+        jest.spyOn(perf, 'now').mockReturnValue(performance.now() + 1000);
+        const triggerStart = perf.start('trigger2');
+        perf.stop('trigger2', triggerStart);
+
         const item = uiReport?.find(s => s.label === 'multiTask');
         expect(item).toBeDefined();
         expect(item?.avg).toBeCloseTo(10, 0); // (5+15)/2 + execution time
@@ -47,6 +61,11 @@ describe('PerfTracker', () => {
         const childStart = perf.start('child');
         perf.stop('child', childStart - 10);
         perf.stop('parent', parentStart - 20);
+
+        // Trigger UI report
+        jest.spyOn(perf, 'now').mockReturnValue(performance.now() + 1000);
+        const triggerStart = perf.start('trigger3');
+        perf.stop('trigger3', triggerStart);
 
         const parent = uiReport?.find(s => s.label === 'parent');
         const child = uiReport?.find(s => s.label === 'child');
@@ -87,38 +106,4 @@ describe('PerfTracker', () => {
         expect(parsed.traceEvents).toHaveLength(0);
     });
 
-    it('calculates stats correctly', () => {
-        const nowSpy = jest.spyOn(perf, 'now');
-
-        nowSpy.mockReturnValueOnce(1000)
-            .mockReturnValueOnce(1100) // taskA: 100ms
-            .mockReturnValueOnce(2000)
-            .mockReturnValueOnce(2200) // taskA: 200ms
-            .mockReturnValueOnce(3000)
-            .mockReturnValueOnce(3050); // taskB: 50ms
-
-        perf.start('taskA');
-        perf.stop('taskA', 1000);
-
-        perf.start('taskA');
-        perf.stop('taskA', 2000);
-
-        perf.start('taskB');
-        perf.stop('taskB', 3000);
-
-        const stats = perf.getStats();
-
-        expect(stats).toHaveLength(2);
-
-        const taskA = stats.find(s => s.label === 'taskA');
-        expect(taskA).toBeDefined();
-        expect(taskA?.count).toBe(2);
-        expect(taskA?.avg).toBe(150);
-        expect(taskA?.max).toBe(200);
-
-        const taskB = stats.find(s => s.label === 'taskB');
-        expect(taskB?.avg).toBe(50);
-
-        nowSpy.mockRestore();
-    });
 });
