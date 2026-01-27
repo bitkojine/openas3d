@@ -38,7 +38,7 @@ let errorRecovery: ErrorRecoverySystem;
 export function activate(context: vscode.ExtensionContext) {
     const extension = vscode.extensions.getExtension('openas3d.openas3d-vscode');
     const version = extension?.packageJSON?.version || '0.0.0';
-    console.log(`OpenAs3D extension is now active! (Build ${version})`);
+    console.log(`OpenAs3D extension is now active! (Version ${version})`);
 
     // Initialize new architecture components first
     coordinator = new LifecycleCoordinator();

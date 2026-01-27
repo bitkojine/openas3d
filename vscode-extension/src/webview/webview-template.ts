@@ -63,7 +63,6 @@ body { margin:0; padding:0; overflow:hidden; background-color: var(--vscode-edit
     z-index: 1100;
     opacity: 1;
     letter-spacing: 0.5px;
-    text-transform: uppercase;
     font-weight: 800;
     box-shadow: 0 2px 4px var(--vscode-widget-shadow);
     border: 1px solid var(--vscode-statusBar-border);
