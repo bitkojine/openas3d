@@ -182,3 +182,37 @@ ln -s "$(pwd)/vscode-extension" ~/.vscode/extensions/openas3d-dev
    ```
 
 Now, whenever you save a change to the extension source code, Webpack will recompile `extension.js`, and the extension will automatically reload the VS Code window for you.
+
+## CI/CD Pipeline
+
+This project uses GitHub Actions for automated testing and releases with separate pipelines for different purposes:
+
+### **CI Pipeline** (`.github/workflows/ci.yml`)
+- **Triggers**: Pull requests to `main` branch
+- **Scope**: Unit tests and compilation validation
+- **Node.js**: 22.x
+- **Purpose**: Fast feedback on code changes
+
+### **E2E Pipeline** (`.github/workflows/e2e.yml`)
+- **Triggers**: 
+  - Push to `main`/`develop` branches
+  - Pull requests to `main` branch
+  - Daily schedule (2 AM UTC)
+  - Manual dispatch
+- **Scope**: Full end-to-end integration testing
+- **Node.js**: Matrix testing on 20.x and 22.x
+- **Features**:
+  - 30-minute timeout for complex 3D interactions
+  - Artifact upload for debugging failures
+  - Path-based filtering (runs only on code changes)
+
+### **Release Pipeline** (`.github/workflows/release.yml`)
+- **Triggers**: Push to `main` branch
+- **Scope**: Automated versioning and publishing
+- **Features**: Semantic release with GitHub integration
+
+### **Test Scripts**
+- `npm test`: Run unit tests (Jest)
+- `npm run test:e2e`: Run E2E tests locally
+- `npm run test:e2e:ci`: CI-optimized E2E execution
+- `npm run test:integration`: Full integration test suite

@@ -29,7 +29,3 @@ jobs:
     - name: Run tests
       run: npm test
       working-directory: vscode-extension
-
-    - name: Run integration tests
-      run: xvfb-run -a npm run test:integration
-      working-directory: vscode-extension
