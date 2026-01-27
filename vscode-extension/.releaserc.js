@@ -38,20 +38,20 @@ module.exports = {
       }
     ],
     [
+      '@semantic-release/exec',
+      {
+        prepareCmd: 'npm run package'
+      }
+    ],
+    [
       '@semantic-release/github',
       {
         assets: [
           {
-            path: '*.vsix',
+            path: 'openas3d-vscode-*.vsix',
             label: 'VSIX Extension'
           }
         ]
-      }
-    ],
-    [
-      '@semantic-release/git',
-      {
-        assets: ['package.json']
       }
     ]
   ],

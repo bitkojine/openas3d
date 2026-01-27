@@ -93,6 +93,7 @@
     "test:e2e": "npm run test:integration"
   },
   "devDependencies": {
+    "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
     "@types/cross-spawn": "^6.0.6",
     "@types/glob": "^8.1.0",
