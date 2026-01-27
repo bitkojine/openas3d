@@ -10,21 +10,28 @@ let readme = fs.readFileSync(readmePath, 'utf8');
 
 let version = pkg.version;
 
-// If version doesn't have metadata (e.g. canonical SemVer from semantic-release), 
-// append timestamp and hash for README traceability.
+// Try to get the latest tag and proactively bump it for local development
+try {
+    const latestTag = execSync('git describe --tags --abbrev=0').toString().trim().replace(/^v/, '');
+    const parts = latestTag.split('.');
+    if (parts.length === 3) {
+        const nextPatch = parseInt(parts[2]) + 1;
+        const nextVersion = `${parts[0]}.${parts[1]}.${nextPatch}`;
+        // Use the next version as our base for local work
+        version = nextVersion;
+    }
+} catch (e) {
+    // If no tags, stick with package.json version
+}
+
+// Always append timestamp for local traceability.
 if (!version.includes('+')) {
     const timestamp = new Date().toISOString().split('T')[0];
-    let gitHash = 'unknown';
-    try {
-        gitHash = execSync('git rev-parse --short HEAD').toString().trim();
-    } catch (e) {
-        // Ignore git errors
-    }
-    version = `${version}+${timestamp}d.${gitHash}`;
+    version = `${version}+${timestamp}d`;
 }
 
 const updated = readme
-    .replace(/- \*\*Release Version\*\*: .+/g, `- **Release Version**: ${version}`)
+    .replace(/- \*\*Development Version\*\*: .+/g, `- **Development Version**: ${version}`)
     .replace(/- \*\*Build Number\*\*: [\d,]+/g, '') // Remove build number if it exists
     .replace(/\*\*Build [\d,]+\*\*/g, ''); // Remove other build mentions
 
