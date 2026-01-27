@@ -79,6 +79,10 @@ OpenAs3D is not a game—it’s a developer tool and cognitive interface. Its go
 
 OpenAs3D is a greenfield exploration of a “spatial IDE”—built on real developer workflows rather than replacing them. The experience may feel unexpected at first, but it quickly becomes intuitive and revealing.
 
+## Contributing
+
+We welcome contributions from humans and AI agents! Please see our [Contributing Guide](CONTRIBUTING.md) for details on our development workflow and commit message standards.
+
 
 ### Integrated Features
 

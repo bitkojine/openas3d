@@ -90,8 +90,6 @@
     "test:e2e": "npm run test:integration"
   },
   "devDependencies": {
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/git": "^10.0.1",
     "@types/cross-spawn": "^6.0.6",
     "@types/glob": "^8.1.0",
     "@types/jest": "^30.0.0",
