@@ -27,7 +27,7 @@ try {
 // Always append timestamp for local traceability.
 if (!version.includes('+')) {
     const timestamp = new Date().toISOString().split('T')[0];
-    version = `${version}+${timestamp}d.`;
+    version = `${version}+${timestamp}d`;
 }
 
 const updated = readme

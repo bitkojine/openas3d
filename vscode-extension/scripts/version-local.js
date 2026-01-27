@@ -13,9 +13,9 @@ if (process.env.CI) {
 
 const timestamp = new Date().toISOString().split('T')[0];
 
-// Format: 0.2.0+2023-01-27d.
+// Format: 0.2.0+2023-01-27d
 const cleanVersion = pkg.version.split('+')[0];
-const localVersion = `${cleanVersion}+${timestamp}d.`;
+const localVersion = `${cleanVersion}+${timestamp}d`;
 
 pkg.version = localVersion;
 fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
