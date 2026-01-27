@@ -16,8 +16,8 @@ describe('TestManager', () => {
     });
 
     it('should sanitize file IDs to match CodebaseAnalyzer format', () => {
-        const rawId = 'src/test/demo.test.ts:my test';
-        const sanitizedFileId = 'src_test_demo_test_ts';
+        const rawId = 'src/test/example.test.ts:my test';
+        const sanitizedFileId = 'src_test_example_test_ts';
 
         const mockFile = {
             setTestStatus: jest.fn()

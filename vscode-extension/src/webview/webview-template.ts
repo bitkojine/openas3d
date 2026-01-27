@@ -71,6 +71,33 @@ body { margin:0; padding:0; overflow:hidden; background-color: var(--vscode-edit
 #stats-panel th { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--vscode-editorWidget-border); color: var(--vscode-descriptionForeground); font-weight: 600; }
 #stats-panel td { padding: 3px 6px; color: var(--vscode-editor-foreground); }
 
+/* E2E status strip (hidden by default, shown only when tests are running) */
+#e2e-status-strip {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    box-sizing: border-box;
+    z-index: 1200;
+    pointer-events: none;
+    font-size: 11px;
+    font-family: var(--vscode-editor-font-family);
+    background: var(--vscode-statusBar-background);
+    color: var(--vscode-statusBar-foreground);
+    border-top: 1px solid var(--vscode-statusBar-border);
+    opacity: 0.95;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#e2e-status-strip.e2e-pass { color: var(--vscode-testing-iconPassed, #3fb950); }
+#e2e-status-strip.e2e-fail { color: var(--vscode-testing-iconFailed, #f85149); }
+#e2e-status-strip.e2e-run { color: var(--vscode-testing-iconQueued, var(--vscode-statusBar-foreground)); }
+
 /* Theme-specific coloring for performance stats */
 /* Dark Theme (Default) */
 body.vscode-dark .row-slow { color: #ff6b6b; }
@@ -175,6 +202,7 @@ export function generateWebviewHtml(
     
     <!-- Dynamic UI Containers -->
     <div id="stats-panel" data-version="${version}"></div>
+    <div id="e2e-status-strip" class="hidden"></div>
 </div>
 <!-- Pass nonce to script -->
 <script nonce="${nonce}" src="${rendererUri}"></script>

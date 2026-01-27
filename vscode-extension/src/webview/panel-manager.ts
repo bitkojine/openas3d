@@ -1,15 +1,12 @@
 /**
  * PanelManager - Manages webview panel lifecycle only
- * 
- * Single Responsibility: Create, show, and dispose webview panels.
- * Does NOT handle messages, file watching, or any other concerns.
  */
 
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { generateWebviewHtml } from './webview-template';
 
-export class PanelManager {
+export class PanelManager implements vscode.WebviewPanelSerializer {
     private panel: vscode.WebviewPanel | undefined;
     private context: vscode.ExtensionContext;
     private version: string;
@@ -22,14 +19,14 @@ export class PanelManager {
     /**
      * Create a new panel or reveal existing one
      */
-    public async createOrShowPanel(): Promise<vscode.WebviewPanel> {
+    public async createOrShowPanel(): Promise<{ panel: vscode.WebviewPanel, created: boolean }> {
         const columnToShowIn = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
 
         if (this.panel) {
             this.panel.reveal(columnToShowIn);
-            return this.panel;
+            return { panel: this.panel, created: false };
         }
 
         this.panel = vscode.window.createWebviewPanel(
@@ -46,32 +43,31 @@ export class PanelManager {
             }
         );
 
-        this.panel.webview.html = this.getWebviewContent();
-
         this.panel.onDidDispose(() => {
             this.panel = undefined;
         }, null, this.context.subscriptions);
 
-        return this.panel;
+        return { panel: this.panel, created: true };
     }
 
     /**
-     * Get the current panel (if any)
+     * Implementation of WebviewPanelSerializer
      */
+    public async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, _state: any) {
+        this.panel = webviewPanel;
+        this.panel.onDidDispose(() => {
+            this.panel = undefined;
+        }, null, this.context.subscriptions);
+    }
+
     public getPanel(): vscode.WebviewPanel | undefined {
         return this.panel;
     }
 
-    /**
-     * Reveal the panel in the given column
-     */
     public reveal(column?: vscode.ViewColumn, preserveFocus: boolean = false): void {
         this.panel?.reveal(column, preserveFocus);
     }
 
-    /**
-     * Dispose the panel
-     */
     public dispose(): void {
         if (this.panel) {
             this.panel.dispose();
@@ -79,14 +75,11 @@ export class PanelManager {
         }
     }
 
-    /**
-     * Check if panel exists
-     */
     public hasPanel(): boolean {
         return this.panel !== undefined;
     }
 
-    private getWebviewContent(): string {
+    public getWebviewContent(): string {
         if (!this.panel) {
             throw new Error('Panel must be created before getting content');
         }

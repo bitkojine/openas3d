@@ -19,6 +19,7 @@ export class PerfTracker {
     private events: CircularBuffer<TraceEvent>;
     private uiCallback?: (stats: { label: string; count: number; avg: number; max: number }[]) => void;
     private activeStack: string[] = [];
+    private _lastReportTime: number = 0;
 
     constructor() {
         this.events = new CircularBuffer(PerfTracker.BUFFER_SIZE);
@@ -79,7 +80,7 @@ export class PerfTracker {
         };
 
         this.events.push(event);
-        this.reportToUI();
+        this.reportToUI(false);
     }
 
     /**
@@ -123,14 +124,16 @@ export class PerfTracker {
     /**
      * Internal method to report to UI panel if a callback is set
      */
-    private reportToUI() {
+    public reportToUI(force: boolean = false) {
         if (!this.uiCallback) { return; }
 
-        const stats = this.getStats().slice(0, 10); // Top 10 slowest
+        const nowMs = Date.now();
+        if (!force && nowMs - this._lastReportTime <= 500) {
+            return;
+        }
 
-        // Cast to any because the internal type definition of uiCallback might be stale in some contexts
-        // or we are changing it dynamically. 
-        // Ideally we update the property type definition.
+        this._lastReportTime = nowMs;
+        const stats = this.getStats().slice(0, 10); // Top 10 slowest
         (this.uiCallback as any)(stats);
     }
 
@@ -176,10 +179,8 @@ export class PerfTracker {
     public getStats(): { label: string; count: number; avg: number; max: number }[] {
         const events = this.events.getAll();
         const stats = new Map<string, number[]>();
-        console.log('getStats events:', events.length);
 
         for (const event of events) {
-            console.log('Event:', event.name, event.ph, event.dur);
             if (event.ph === 'X' && event.dur !== undefined) {
                 this.addToStats(stats, event.name, event.dur / 1000);
             }
