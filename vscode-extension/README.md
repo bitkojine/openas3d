@@ -12,7 +12,7 @@ Visualize your codebase dependencies and architecture in navigable 3D worlds dir
 
 ## Current Version
 
-- **Release Version**: 0.2.0+local.20260127154717.3e8b6b7
+- **Release Version**: 0.2.0+local.20260127161911.b2bea62
 
 
 ## Usage
