@@ -16,6 +16,12 @@ npm install
 npm run build-install-test
 ```
 
+> [!TIP]
+> **Robust One-Liner**: Use this command to build and install correctly, regardless of whether you are in the project root or the `vscode-extension` directory:
+> ```zsh
+> [ "${PWD##*/}" = "vscode-extension" ] || cd vscode-extension && npm run build-install-test
+> ```
+
 3. If VSCode prompts you in the Extensions sidebar, restart extensions using the UI button.
 
 4. Start **OpenAs3D** using the VSCode Command Palette and running:
@@ -72,6 +78,10 @@ OpenAs3D is not a game—it’s a developer tool and cognitive interface. Its go
 - Worlds are integrated into your IDE workflow.
 
 OpenAs3D is a greenfield exploration of a “spatial IDE”—built on real developer workflows rather than replacing them. The experience may feel unexpected at first, but it quickly becomes intuitive and revealing.
+
+## Contributing
+
+We welcome contributions from humans and AI agents! Please see our [Contributing Guide](CONTRIBUTING.md) for details on our development workflow and commit message standards.
 
 
 ### Integrated Features
