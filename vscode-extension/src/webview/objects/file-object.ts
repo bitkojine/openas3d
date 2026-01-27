@@ -33,6 +33,40 @@ export class FileObject extends VisualObject {
 
 
 
+    public promote(scene: THREE.Scene): void {
+        if (this.isPromoted) return;
+        this.isPromoted = true;
+        this.sceneRef = scene;
+
+        this.mesh = this.createMesh();
+        this.mesh.position.copy(this.position);
+        this.mesh.userData.visualObject = this;
+        scene.add(this.mesh);
+
+        this.initializeLabel(scene);
+
+        // Apply warning badge if any
+        // (Assuming we want to restore warnings on promotion)
+    }
+
+    public demote(scene: THREE.Scene): void {
+        if (!this.isPromoted) return;
+        this.isPromoted = false;
+
+        if (this.mesh) {
+            scene.remove(this.mesh);
+            this.dispose(); // Disposes geometry/materials
+            this.mesh = undefined;
+        }
+
+        if (this.descriptionMesh) {
+            scene.remove(this.descriptionMesh);
+            this.descriptionMesh.geometry.dispose();
+            (this.descriptionMesh.material as THREE.Material).dispose();
+            this.descriptionMesh = undefined;
+        }
+    }
+
     protected createMesh(): THREE.Mesh {
         const bodyHeight = this.metadata.size?.height ?? 1;
         const width = FileObject.STRICT_WIDTH;
@@ -536,6 +570,7 @@ export class FileObject extends VisualObject {
     private lastRenderedFont?: string;
 
     private updateContentTexture(theme: ThemeColors): void {
+        if (!this.mesh) return;
         const screenFront = this.mesh.children.find(c => (c as THREE.Mesh).geometry && (c as THREE.Mesh).geometry.type === 'PlaneGeometry' && c.position.z > 0) as THREE.Mesh;
         if (!screenFront) return;
 
@@ -615,7 +650,10 @@ export class FileObject extends VisualObject {
         }
 
         this.descriptionMesh = sprite;
-        scene.add(sprite);
+        if (this.sceneRef) { // Guard for sceneRef
+            this.sceneRef.add(sprite);
+        }
+
 
         // Update local metadata tracking and base class state
         this.description = text;
@@ -623,7 +661,7 @@ export class FileObject extends VisualObject {
     }
 
     public override updateLabelPosition(camera: THREE.Camera): void {
-        if (this.descriptionMesh) {
+        if (this.descriptionMesh && this.mesh) { // Added guard for this.mesh
             this.descriptionMesh.lookAt(camera.position);
 
             const height = this.metadata.size?.height ?? 1;
@@ -769,7 +807,9 @@ export class FileObject extends VisualObject {
         this.warningBadge.scale.set(0.5, 0.5, 1);
         this.warningBadge.position.set(FileObject.STRICT_WIDTH / 2 + 0.1, height / 2 + 0.1, 0.2);
 
-        this.mesh.add(this.warningBadge);
+        if (this.mesh) { // Added guard for this.mesh
+            this.mesh.add(this.warningBadge);
+        }
     }
 
     /** Set test status visualization. */
@@ -804,6 +844,8 @@ export class FileObject extends VisualObject {
     }
 
     private createStatusBeam(color: number): void {
+        if (!this.mesh) return; // Added guard for this.mesh
+
         const beamHeight = 500;
         const container = new THREE.Group();
 
@@ -843,6 +885,8 @@ export class FileObject extends VisualObject {
     }
 
     private createTestBadge(status: 'passed' | 'running'): void {
+        if (!this.mesh) return; // Added guard for this.mesh
+
         const canvas = document.createElement('canvas');
         canvas.width = 64;
         canvas.height = 64;

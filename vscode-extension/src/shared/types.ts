@@ -137,6 +137,9 @@ export interface EditorConfig {
     fontSize: number;
     fontFamily: string;
     lineHeight: number;
+    logging?: {
+        level: string;
+    };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

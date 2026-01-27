@@ -19,10 +19,13 @@ module.exports = {
     "/node_modules/",
     "<rootDir>/src/test/"
   ],
+  modulePathIgnorePatterns: [
+    "<rootDir>/out/"
+  ],
 
   // Mock vscode for tests
   moduleNameMapper: {
-    '^vscode$': '<rootDir>/src/__mocks__/vscode.ts',
+    '^vscode$': '<rootDir>/__mocks__/vscode.ts',
     '^three$': '<rootDir>/src/__mocks__/three.ts',
     '^dependency-cruiser$': '<rootDir>/src/__mocks__/dependency-cruiser.ts',
   },

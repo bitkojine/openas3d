@@ -162,10 +162,22 @@ export class TestDiscoveryService {
     }
 
     private async initialize() {
-        // Initial scan
+        // Initial scan - batch updates
         const files = await vscode.workspace.findFiles('**/*.{test,spec}.{ts,js}', '**/node_modules/**');
-        for (const file of files) {
-            await this.parseFile(file);
+
+        // Use a temporary flag to suppress events during bulk load
+        let silent = true;
+        const originalFire = this._onDidChangeTests.fire.bind(this._onDidChangeTests);
+        this._onDidChangeTests.fire = () => { if (!silent) originalFire(); };
+
+        try {
+            for (const file of files) {
+                await this.parseFile(file);
+            }
+        } finally {
+            silent = false;
+            this._onDidChangeTests.fire = originalFire;
+            this._onDidChangeTests.fire(); // Single fire at the end
         }
 
         // Watch for changes

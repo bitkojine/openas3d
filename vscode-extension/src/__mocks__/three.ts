@@ -90,6 +90,7 @@ export class Object3D {
     public userData: any = {};
     public name: string = '';
     public visible: boolean = true;
+    public matrix: Matrix4 = new Matrix4();
 
     add(obj: Object3D) {
         this.children.push(obj);
@@ -104,6 +105,8 @@ export class Object3D {
 
     lookAt(v: Vector3) { }
 
+    updateMatrix() { }
+
     traverse(callback: (object: Object3D) => any) {
         callback(this);
         for (const child of this.children) {
@@ -116,6 +119,30 @@ export class Mesh extends Object3D {
     constructor(public geometry?: any, public material?: any) {
         super();
     }
+}
+
+export class InstancedMesh extends Mesh {
+    public instanceMatrix: any;
+    public instanceColor: any;
+    public count: number;
+
+    constructor(geometry: any, material: any, count: number) {
+        super(geometry, material);
+        this.count = count;
+        this.instanceMatrix = {
+            setUsage: (usage: any) => { },
+            array: new Float32Array(count * 16),
+            needsUpdate: false
+        };
+        this.instanceColor = {
+            setUsage: (usage: any) => { },
+            array: new Float32Array(count * 3),
+            needsUpdate: false
+        };
+    }
+
+    setMatrixAt(index: number, matrix: any) { }
+    setColorAt(index: number, color: any) { }
 }
 
 export class Group extends Object3D { }
@@ -237,6 +264,30 @@ export const DoubleSide = 2;
 export const RepeatWrapping = 1000;
 export const AdditiveBlending = 2;
 export const NormalBlending = 1;
+export const DynamicDrawUsage = 35048;
+export const StaticDrawUsage = 35044;
+
+export class Matrix4 {
+    public elements = new Float32Array(16);
+    constructor() {
+        this.identity();
+    }
+    identity() {
+        this.elements.fill(0);
+        this.elements[0] = 1;
+        this.elements[5] = 1;
+        this.elements[10] = 1;
+        this.elements[15] = 1;
+        return this;
+    }
+    copy(m: Matrix4) {
+        this.elements.set(m.elements);
+        return this;
+    }
+    setPosition(x: any, y?: any, z?: any) { return this; }
+    makeScale(x: any, y: any, z: any) { return this; }
+    multiply(m: any) { return this; }
+}
 
 export class Color {
     public r: number = 0;

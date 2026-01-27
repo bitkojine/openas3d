@@ -1,6 +1,7 @@
 import { World } from './world';
 import { ExtensionMessage } from '../shared/messages';
 import { MessageRouter } from './message-router';
+import { WebviewLogger, LogLevel } from './utils/webview-logger';
 
 // Initialize the world when the page loads
 let world: World;
@@ -11,15 +12,14 @@ let vscode: any; // Store vscode API for use in message handler
 declare const acquireVsCodeApi: () => any;
 
 // Helper to log to VSCode
-// We will initialize this in DOMContentLoaded
-let logToExtension: (type: 'log' | 'error', message: string) => void = () => { };
+export let logger: WebviewLogger;
 
 window.addEventListener('DOMContentLoaded', () => {
     try {
         vscode = acquireVsCodeApi();
-        logToExtension = (type, message) => {
-            vscode.postMessage({ type, data: { message } });
-        };
+        logger = new WebviewLogger(vscode);
+        // Expose globally for debugging
+        (window as any).logger = logger;
     } catch (e) {
         console.error('Failed to acquire VSCode API:', e);
         return;
@@ -35,9 +35,7 @@ window.addEventListener('DOMContentLoaded', () => {
         // Add middleware for logging (optional - can be disabled in production)
         router.use((message) => {
             // Log message handling for debugging
-            if (process.env.NODE_ENV === 'development') {
-                console.log(`[MessageRouter] Handling: ${message.type}`);
-            }
+            logger.debug(`[MessageRouter] Handling: ${message.type}`);
             return message;
         });
 
@@ -45,30 +43,23 @@ window.addEventListener('DOMContentLoaded', () => {
         (window as any).world = world;
         (window as any).router = router;
 
-        // Enhance logging by wrapping console methods
-        const originalLog = console.log;
-        console.log = (...args) => {
-            originalLog(...args);
-            const msg = args.map(a => String(a)).join(' ');
-            logToExtension('log', msg);
-        };
-
-        const originalError = console.error;
-        console.error = (...args) => {
-            originalError(...args);
-            const msg = args.map(a => String(a)).join(' ');
-            logToExtension('error', msg);
-        };
+        // Use the new logger instead of wrapping console
+        // We can still keep console.log for local dev tools if desired, 
+        // but the logger will handle the extension communication.
 
         // Notify extension that we are ready
         vscode.postMessage({ type: 'ready' });
 
     } catch (error: any) {
-        console.error('Failed to initialize World:', error);
-        vscode.postMessage({
-            type: 'error',
-            data: { message: `Bootstrap Error: ${error.message || error}` }
-        });
+        if (logger) {
+            logger.error('Failed to initialize World', error);
+        } else {
+            console.error('Failed to initialize World:', error);
+            vscode.postMessage({
+                type: 'error',
+                data: { message: `Bootstrap Error: ${error.message || error}` }
+            });
+        }
     }
 });
 

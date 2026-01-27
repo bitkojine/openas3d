@@ -287,14 +287,8 @@ export class DependencyManager {
         // Source (Outgoing): Right of center (+X)
         // Target (Incoming): Left of center (-X)
 
-        // Measure objects to find top surface height
-        const sourceBox = new THREE.Box3().setFromObject(sourceObj.mesh);
-        const sourceSize = new THREE.Vector3();
-        sourceBox.getSize(sourceSize);
-
-        const targetBox = new THREE.Box3().setFromObject(targetObj.mesh);
-        const targetSize = new THREE.Vector3();
-        targetBox.getSize(targetSize);
+        const sourceHeight = sourceObj.getHeight();
+        const targetHeight = targetObj.getHeight();
 
         // Get indices for distribution
         const sourceStats = this.getStatsForObject(data.source);
@@ -308,15 +302,15 @@ export class DependencyManager {
         const centerOffset = 0.15; // Distance from true center to start of cluster
 
         // Calculate Start Position (Source: Center-Top + Right Offset)
-        const start = sourceObj.mesh.position.clone();
-        start.y += sourceSize.y / 2; // Top surface
+        const start = sourceObj.position.clone();
+        start.y += sourceHeight / 2; // Top surface
         // Offset to Right (+X). Stagger in Z to create a 2-row header if many deps
         start.x += centerOffset + (outIndex % 4) * portSpacing;
         start.z += Math.floor(outIndex / 4) * portSpacing;
 
         // Calculate End Position (Target: Center-Top - Left Offset)
-        const end = targetObj.mesh.position.clone();
-        end.y += targetSize.y / 2; // Top surface
+        const end = targetObj.position.clone();
+        end.y += targetHeight / 2; // Top surface
         // Offset to Left (-X)
         end.x -= centerOffset + (inIndex % 4) * portSpacing;
         end.z += Math.floor(inIndex / 4) * portSpacing;

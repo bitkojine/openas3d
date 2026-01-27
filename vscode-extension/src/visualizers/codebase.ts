@@ -46,13 +46,46 @@ export class CodebaseVisualizer {
 
         // Start streaming - don't await! Files will appear progressively
         analyzer.analyzeStreaming(
-            (file) => this.addFileToScene(file),
-            (edges) => {
-                this.addEdgesToScene(edges);
+            (files) => {
+                files.forEach(file => {
+                    this.fileIndex++;
+                    const zoneName = this.layout.getZoneForFile(file);
+                    this.fileZoneCounts[zoneName] = (this.fileZoneCounts[zoneName] || 0) + 1;
+                    this.filesWithZones.push({ ...file, zone: zoneName });
+                });
+
+                this.postMessage({
+                    type: 'addObjects',
+                    data: files.map(file => ({
+                        id: file.id,
+                        type: 'file',
+                        filePath: file.filePath,
+                        position: { x: (this.fileIndex % 10) * 2, y: 0, z: Math.floor(this.fileIndex / 10) * 2 }, // Temporary placement
+                        size: {
+                            width: Math.min(1 + file.size / 1000, 3),
+                            height: Math.min(0.25 + file.lines * 0.025, 5),
+                            depth: Math.min(1 + file.size / 1000, 3)
+                        },
+                        metadata: file
+                    }))
+                });
+            },
+            async (edges) => {
+                // Batch add dependencies
+                this.postMessage({
+                    type: 'addDependencies',
+                    data: edges.map(edge => ({
+                        id: `${edge.source}-${edge.target}`,
+                        source: edge.source,
+                        target: edge.target,
+                        type: 'import',
+                        weight: edge.weight ?? 1,
+                        isCircular: edge.isCircular ?? false,
+                        importKind: edge.importKind ?? 'value'
+                    }))
+                });
 
                 // Compute FINAL layout from accumulated file counts
-                // This ensures zones are sized correctly based on actual content
-                this.layout.computeZoneBoundsFromCounts(this.fileZoneCounts);
                 const zoneBounds = this.layout.computeZoneBoundsFromCounts(this.fileZoneCounts);
 
                 this.postMessage({
@@ -60,10 +93,9 @@ export class CodebaseVisualizer {
                     data: zoneBounds
                 });
 
-                // RE-CALCULATE POSITIONS FOR ALL FILES
-                // Now that layout is final, we must update all file positions
-                // because zones may have shifted significantly
+                // RE-CALCULATE POSITIONS FOR ALL FILES (BATCHED)
                 const zoneIndices: { [zone: string]: number } = {};
+                const positionUpdates: any[] = [];
 
                 this.filesWithZones.forEach(f => {
                     const zoneName = f.zone;
@@ -73,28 +105,27 @@ export class CodebaseVisualizer {
                     const index = zoneIndices[zoneName]++;
 
                     const pos = this.layout.getPositionForZone(zone, index);
-
-                    this.postMessage({
-                        type: 'updateObjectPosition',
-                        data: {
-                            id: f.id,
-                            position: { x: pos.x, y: 0, z: pos.z }
-                        }
+                    positionUpdates.push({
+                        id: f.id,
+                        position: { x: pos.x, y: 0, z: pos.z }
                     });
                 });
 
+                if (positionUpdates.length > 0) {
+                    this.postMessage({
+                        type: 'updateObjectPositions',
+                        data: positionUpdates
+                    });
+                }
+
                 this.postMessage({ type: 'dependenciesComplete' });
 
-                // Analyze architecture and send warnings
-                // Create map of absolute path -> file ID
+                // Analyze architecture (non-blocking)
                 const fileIdMap = new Map<string, string>();
                 this.filesWithZones.forEach(f => fileIdMap.set(f.filePath, f.id));
 
                 analyzeArchitecture(data.targetPath, fileIdMap, { extensionPath: this.extensionPath }).then(warnings => {
-                    this.postMessage({
-                        type: 'setWarnings',
-                        data: warnings
-                    });
+                    this.postMessage({ type: 'setWarnings', data: warnings });
                 }).catch(err => {
                     console.error('[Architecture] Analysis failed:', err);
                     this.postMessage({
@@ -109,60 +140,6 @@ export class CodebaseVisualizer {
         });
 
         return () => this.cleanup();
-    }
-
-    private addFileToScene(file: CodeFile): void {
-        if (!this.panel) { return; }
-
-        // Compute position based on zone and file count in that zone
-        const zoneName = this.layout.getZoneForFile(file);
-        if (!this.fileZoneCounts[zoneName]) { this.fileZoneCounts[zoneName] = 0; }
-        const indexInZone = this.fileZoneCounts[zoneName]++;
-
-        const zone = this.layout.getZone(zoneName) || this.layout.getZone('core')!;
-        const pos2D = this.layout.getPositionForZone(zone, indexInZone);
-
-        // Track file with zone for architecture analysis
-        this.filesWithZones.push({
-            id: file.id,
-            filePath: file.filePath,
-            zone: zoneName
-        });
-
-        this.postMessage({
-            type: 'addObject',
-            data: {
-                id: file.id,
-                type: 'file',
-                filePath: file.filePath,
-                position: { x: pos2D.x, y: 0, z: pos2D.z },
-                size: {
-                    width: Math.min(1 + file.size / 1000, 3),
-                    height: Math.min(0.25 + file.lines * 0.025, 5),
-                    depth: Math.min(1 + file.size / 1000, 3)
-                },
-                metadata: file
-            }
-        });
-    }
-
-    private addEdgesToScene(edges: DependencyEdge[]): void {
-        if (!this.panel) { return; }
-
-        edges.forEach(edge => {
-            this.postMessage({
-                type: 'addDependency',
-                data: {
-                    id: `${edge.source}-${edge.target}`,
-                    source: edge.source,
-                    target: edge.target,
-                    type: edge.type,
-                    weight: edge.weight ?? 1,
-                    isCircular: edge.isCircular ?? false,
-                    importKind: edge.importKind ?? 'value'
-                }
-            });
-        });
     }
 
     private cleanup() {

@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-// fs removed
+import * as fs from 'fs';
 import { CodeFile, DependencyEdge } from '../core/domain/code-file';
 import { getLanguageFromExtension, isCodeLanguage } from '../utils/languageRegistry';
 import { profile } from '../utils/profiling';
+import { watchdog } from '../utils/watchdog';
 
 /** Maximum number of lines to send to the webview for textures */
 const MAX_CONTENT_LINES = 150;
@@ -16,8 +17,7 @@ export class CodebaseAnalyzer {
     private workspaceRoot: string;
 
     constructor(rootPath: string) {
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        this.workspaceRoot = workspaceFolder?.uri.fsPath || rootPath;
+        this.workspaceRoot = rootPath;
     }
 
     /**
@@ -25,7 +25,7 @@ export class CodebaseAnalyzer {
      * Calls onFile callback for each file, allowing progressive rendering.
      */
     public async analyzeStreaming(
-        onFile: (file: CodeFile) => void,
+        onFiles: (files: CodeFile[]) => void,
         onComplete: (edges: DependencyEdge[]) => void
     ): Promise<void> {
         const files = new Map<string, CodeFile>();
@@ -33,29 +33,37 @@ export class CodebaseAnalyzer {
         // Use setImmediate to not block the event loop
         const yieldToEventLoop = () => new Promise(resolve => setImmediate(resolve));
 
-        const processDirectory = async (dirPath: string): Promise<void> => {
-            // console.log('[Analyzer] Processing dir:', dirPath);
+        const fileBuffer: CodeFile[] = [];
+        const BATCH_SIZE = 50;
+
+        const flushBuffer = () => {
+            if (fileBuffer.length > 0) {
+                onFiles([...fileBuffer]);
+                fileBuffer.length = 0;
+            }
+        };
+
+        const processDirectory = (dirPath: string): void => {
             try {
-                const dirUri = vscode.Uri.file(dirPath);
-                // vscode.workspace.fs.readDirectory returns [name, type][]
-                const entries = await vscode.workspace.fs.readDirectory(dirUri);
+                const entries = fs.readdirSync(dirPath);
 
-                for (const [name, type] of entries) {
+                for (const name of entries) {
                     const fullPath = path.join(dirPath, name);
+                    const stats = fs.statSync(fullPath);
 
-                    if (type === vscode.FileType.Directory) {
+                    if (stats.isDirectory()) {
                         if (!['node_modules', '.git', 'dist', 'build', 'out', '.vscode', '.3d-descriptions', '.vscode-test', 'bin', 'obj'].includes(name)) {
-                            await processDirectory(fullPath);
+                            processDirectory(fullPath);
                         }
-                    } else if (type === vscode.FileType.File) {
-                        const fileInfo = await this.analyzeFile(fullPath);
+                    } else if (stats.isFile()) {
+                        const fileInfo = this.analyzeFileSync(fullPath);
                         if (fileInfo) {
                             files.set(fileInfo.id, fileInfo);
-                            onFile(fileInfo); // Stream file immediately
-                        }
-                        // Yield every few files to keep UI responsive
-                        if (files.size % 5 === 0) {
-                            await yieldToEventLoop();
+                            fileBuffer.push(fileInfo);
+
+                            if (fileBuffer.length >= BATCH_SIZE) {
+                                flushBuffer();
+                            }
                         }
                     }
                 }
@@ -64,7 +72,8 @@ export class CodebaseAnalyzer {
             }
         };
 
-        await processDirectory(this.workspaceRoot);
+        processDirectory(this.workspaceRoot);
+        flushBuffer();
 
         // Build dependency edges after all files are loaded
 
@@ -160,23 +169,33 @@ export class CodebaseAnalyzer {
     /**
      * Analyze a single file and extract its metadata
      */
-    @profile('CodebaseAnalyzer.analyzeFile')
-    public async analyzeFile(filePath: string): Promise<CodeFile | null> {
+    /**
+     * Analyze a single file synchronously (core logic)
+     */
+    public analyzeFileSync(filePath: string): CodeFile | null {
         try {
-            const fileUri = vscode.Uri.file(filePath);
-            const uint8Array = await vscode.workspace.fs.readFile(fileUri);
-            const content = new TextDecoder().decode(uint8Array);
+            const stats = fs.statSync(filePath);
 
-            // Cache the line split to avoid duplicate operations
+            let content = '';
+            const MAX_READ_BYTES = 64 * 1024;
+
+            if (stats.size > MAX_READ_BYTES) {
+                const fd = fs.openSync(filePath, 'r');
+                const buffer = Buffer.alloc(MAX_READ_BYTES);
+                const bytesRead = fs.readSync(fd, buffer, 0, MAX_READ_BYTES, 0);
+                fs.closeSync(fd);
+                content = buffer.toString('utf8', 0, bytesRead);
+            } else {
+                content = fs.readFileSync(filePath, 'utf8');
+            }
+
             const allLines = content.split('\n');
             const truncatedContent = allLines.slice(0, MAX_CONTENT_LINES).join('\n');
 
-            const stats = await vscode.workspace.fs.stat(fileUri);
             const relativePath = path.relative(this.workspaceRoot, filePath);
             const ext = path.extname(filePath);
             const language = getLanguageFromExtension(ext);
 
-            // Only search first 50 lines for imports (they're typically at top)
             const importSection = allLines.slice(0, 50).join('\n');
             const dependencies = isCodeLanguage(language)
                 ? this.extractDependencies(importSection, language)
@@ -195,13 +214,22 @@ export class CodebaseAnalyzer {
                 lines,
                 dependencies,
                 complexity,
-                lastModified: new Date(stats.mtime), // stats.mtime is number (ms) in VSCode API
+                lastModified: new Date(stats.mtimeMs),
                 content: truncatedContent
             };
         } catch (error) {
             console.warn(`Failed to analyze file ${filePath}:`, error);
             return null;
         }
+    }
+
+    /**
+     * Analyze a single file and extract its metadata (async wrapper for watchdog/profiling)
+     */
+    @profile('CodebaseAnalyzer.analyzeFile')
+    @watchdog(2000)
+    public async analyzeFile(filePath: string): Promise<CodeFile | null> {
+        return this.analyzeFileSync(filePath);
     }
 
     /**

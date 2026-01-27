@@ -74,8 +74,7 @@ describe('CodeObjectManager', () => {
                 metadata: { lines: 10 }
             });
 
-            expect(manager.getObjectCount()).toBe(1);
-            const obj = manager.findByMesh(manager.getObjectMeshes()[0] as THREE.Mesh);
+            const obj = manager.getObject('file1');
             expect(obj).toBeInstanceOf(FileObject);
             expect(obj?.filePath).toBe('/path/to/file.ts');
         });
@@ -90,20 +89,18 @@ describe('CodeObjectManager', () => {
                 description: 'Hello Sign'
             });
 
-            expect(manager.getObjectCount()).toBe(1);
-            const obj = manager.findByMesh(manager.getObjectMeshes()[0] as THREE.Mesh);
+            const obj = manager.getObject('sign1');
             expect(obj).toBeInstanceOf(SignObject);
-            // Verify description pass-through fix
             expect(obj?.metadata.description).toBe('Hello Sign');
 
-            // Verify the texture factory was actually called (catches the "shim" bug where we might return empty sprite without calling factory)
+            // Promote to check texture factory calls
+            obj?.promote(scene);
+
             const { createTextSprite } = require('../texture-factory');
             expect(createTextSprite).toHaveBeenCalledWith('Hello Sign', undefined);
         });
 
         it('should initialize labels for created objects', () => {
-            // Mock FileObject.initializeLabel if it were a real object, 
-            // but since we use the real class with mocked THREE, let's verify visual result
             manager.addObject({
                 id: 'file2',
                 type: 'file',
@@ -112,9 +109,9 @@ describe('CodeObjectManager', () => {
                 description: 'test label'
             });
 
-            const obj = manager.findByMesh(manager.getObjectMeshes()[0] as THREE.Mesh);
-            // Helper to check if sprite was added to scene
-            // Since our mock Scene tracks children
+            const obj = manager.getObject('file2');
+            obj?.promote(scene);
+
             const hasSprite = scene.children.some(child => child instanceof THREE.Sprite);
             expect(hasSprite).toBe(true);
         });
@@ -128,8 +125,8 @@ describe('CodeObjectManager', () => {
                 size: { width: 1, height: 1, depth: 1 }
             });
 
-            const obj = manager.findByMesh(manager.getObjectMeshes()[0] as THREE.Mesh);
-            expect(obj?.mesh.position.y).toBe(3.9); // EYE_LEVEL_Y
+            const obj = manager.getObject('obj1');
+            expect(obj?.position.y).toBe(3.9); // EYE_LEVEL_Y
         });
     });
 
@@ -147,7 +144,7 @@ describe('CodeObjectManager', () => {
                 status: 'generated'
             });
 
-            const obj = manager.getObjects().next().value;
+            const obj = manager.getObjects()[0];
             // Access internal metadata via type assertion or public getter if available
             // In test env we can cast to any
             expect((obj as any).metadata.descriptionStatus).toBe('generated');
@@ -170,7 +167,7 @@ describe('CodeObjectManager', () => {
             // If implementation works, sign should accept the update
             // We can verify by checking if updateLabel was called or side effects
             // Let's check metadata side effect
-            const obj = manager.getObjects().next().value;
+            const obj = manager.getObjects()[0];
             expect((obj as any).metadata.descriptionStatus).toBe('user-edited');
         });
     });

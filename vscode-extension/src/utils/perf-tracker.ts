@@ -19,6 +19,8 @@ export class PerfTracker {
     private events: CircularBuffer<TraceEvent>;
     private uiCallback?: (stats: { label: string; count: number; avg: number; max: number }[]) => void;
     private activeStack: string[] = [];
+    private lastReportTime: number = 0;
+    private readonly REPORT_THROTTLE_MS = 500;
 
     constructor() {
         this.events = new CircularBuffer(PerfTracker.BUFFER_SIZE);
@@ -59,12 +61,8 @@ export class PerfTracker {
 
         // Hierarchy Validation
         const stackTop = this.activeStack.pop();
-        if (stackTop !== label) {
+        if (stackTop !== label && stackTop !== undefined) {
             console.warn(`PerfTracker mismatch: stopped '${label}' but expected '${stackTop}'`);
-            // Attempt to recover stack? 
-            // If we just popped mismatch, we might have popped the parent.
-            // Let's put it back if it wasn't a match? 
-            // Or just logging warning is enough for dev tool.
         }
 
         const event: TraceEvent = {
@@ -126,11 +124,14 @@ export class PerfTracker {
     private reportToUI() {
         if (!this.uiCallback) { return; }
 
-        const stats = this.getStats().slice(0, 10); // Top 10 slowest
+        const now = this.now();
+        if (now - this.lastReportTime < this.REPORT_THROTTLE_MS) {
+            return;
+        }
 
-        // Cast to any because the internal type definition of uiCallback might be stale in some contexts
-        // or we are changing it dynamically. 
-        // Ideally we update the property type definition.
+        const stats = this.getStats().slice(0, 10); // Top 10 slowest
+        this.lastReportTime = now;
+
         (this.uiCallback as any)(stats);
     }
 
@@ -176,10 +177,8 @@ export class PerfTracker {
     public getStats(): { label: string; count: number; avg: number; max: number }[] {
         const events = this.events.getAll();
         const stats = new Map<string, number[]>();
-        console.log('getStats events:', events.length);
-
         for (const event of events) {
-            console.log('Event:', event.name, event.ph, event.dur);
+            // Removed verbose console.log to fix performance bottleneck
             if (event.ph === 'X' && event.dur !== undefined) {
                 this.addToStats(stats, event.name, event.dur / 1000);
             }

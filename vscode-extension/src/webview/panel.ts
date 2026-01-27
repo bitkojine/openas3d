@@ -19,6 +19,7 @@ import { EditorConfigService } from '../services/editor-config-service';
 import { WebviewMessageHandler } from './webview-message-handler';
 import { ExtensionMessage, WebviewMessage } from '../shared/messages';
 import { SignService } from '../services/sign-service';
+import { getLogger } from '../utils/logger';
 
 export class WebviewPanelManager {
     private panelManager: PanelManager;
@@ -46,12 +47,12 @@ export class WebviewPanelManager {
 
         // Register Performance Middleware
         this.messageHandler.use(async (msg, next) => {
-            const label = `Message: ${msg.type}`;
-            const start = perf.start(label);
+            const label = `Message:${msg.type}`;
+            const start = performance.now();
             try {
                 await next();
             } finally {
-                perf.stop(label, start);
+                getLogger().performance(label, performance.now() - start);
             }
         });
 
@@ -111,6 +112,13 @@ export class WebviewPanelManager {
     }
 
     /**
+     * Subscribe to messages from the webview
+     */
+    public onMessage(handler: (message: WebviewMessage) => void): vscode.Disposable {
+        return this.messageHandler.onMessage(handler);
+    }
+
+    /**
      * Dispose the panel and stop all services
      */
     public dispose(): void {
@@ -142,7 +150,7 @@ export class WebviewPanelManager {
                         this.panelManager.reveal(undefined, false);
                     }
                 } catch (error) {
-                    console.warn('Failed to reveal in explorer:', error);
+                    getLogger().warn('Failed to reveal in explorer', { error });
                 }
             }
         });
@@ -166,31 +174,34 @@ export class WebviewPanelManager {
         this.messageHandler.register('openFiles', async (data: { codeFile: string }) => {
             try {
                 const codeUri = vscode.Uri.file(data.codeFile);
-
-                // Check existence
-                try {
-                    await vscode.workspace.fs.stat(codeUri);
-                } catch {
-                    vscode.window.showWarningMessage(`File does not exist: ${data.codeFile}`);
-                    return;
-                }
-
-                // Open code file
-                const codeDoc = await vscode.workspace.openTextDocument(codeUri);
-                await vscode.window.showTextDocument(codeDoc, { preview: false });
-
-                // Try to open description file
                 const descUri = vscode.Uri.file(
                     data.codeFile.endsWith('.md') ? data.codeFile : data.codeFile + '.md'
                 );
 
-                try {
-                    await vscode.workspace.fs.stat(descUri);
-                    const descDoc = await vscode.workspace.openTextDocument(descUri);
-                    await vscode.window.showTextDocument(descDoc, { preview: false });
-                } catch {
-                    // Description file doesn't exist, ignore
-                }
+                const openTasks: Promise<any>[] = [];
+
+                // Always try to open code file
+                openTasks.push((async () => {
+                    try {
+                        const codeDoc = await vscode.workspace.openTextDocument(codeUri);
+                        await vscode.window.showTextDocument(codeDoc, { preview: false });
+                    } catch (err) {
+                        getLogger().warn(`Failed to open code file: ${data.codeFile}`, { err });
+                    }
+                })());
+
+                // Try to open description file if it exists
+                openTasks.push((async () => {
+                    try {
+                        await vscode.workspace.fs.stat(descUri);
+                        const descDoc = await vscode.workspace.openTextDocument(descUri);
+                        await vscode.window.showTextDocument(descDoc, { preview: false });
+                    } catch {
+                        // Ignore if description doesn't exist
+                    }
+                })());
+
+                await Promise.all(openTasks);
             } catch (err) {
                 vscode.window.showErrorMessage(`Failed to open files: ${err}`);
             }

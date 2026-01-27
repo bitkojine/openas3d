@@ -7,6 +7,37 @@ export class SignObject extends VisualObject {
 
     private sceneRef?: THREE.Scene;
 
+    public promote(scene: THREE.Scene): void {
+        if (this.isPromoted) return;
+        this.isPromoted = true;
+        this.sceneRef = scene;
+
+        this.mesh = this.createMesh();
+        this.mesh.position.copy(this.position);
+        this.mesh.userData.visualObject = this;
+        scene.add(this.mesh);
+
+        this.initializeLabel(scene);
+    }
+
+    public demote(scene: THREE.Scene): void {
+        if (!this.isPromoted) return;
+        this.isPromoted = false;
+
+        if (this.mesh) {
+            scene.remove(this.mesh);
+            this.dispose();
+            this.mesh = undefined;
+        }
+
+        if (this.descriptionMesh) {
+            scene.remove(this.descriptionMesh);
+            this.descriptionMesh.geometry.dispose();
+            (this.descriptionMesh.material as THREE.Material).dispose();
+            this.descriptionMesh = undefined;
+        }
+    }
+
     protected createMesh(): THREE.Mesh {
         const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.1);
         const material = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
@@ -25,9 +56,8 @@ export class SignObject extends VisualObject {
 
     public updateTheme(theme: ThemeColors): void {
         // Update post color?
-        const mesh = this.mesh as THREE.Mesh;
-        if (mesh.material) {
-            const mat = mesh.material as THREE.MeshLambertMaterial;
+        if (this.mesh) {
+            const mat = this.mesh.material as THREE.MeshLambertMaterial;
             mat.color.set(theme.signPost);
         }
 

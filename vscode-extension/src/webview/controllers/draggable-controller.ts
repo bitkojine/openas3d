@@ -21,11 +21,11 @@ export class DraggableObjectController {
         this.draggedObject = visualObject;
 
         // Store initial height to lock Y movement
-        this.initialY = visualObject.mesh.position.y;
+        this.initialY = visualObject.mesh!.position.y;
 
         // Maintain the distance from the camera to the object center at grab time.
         // This is robust at all viewing angles (unlike plane intersections).
-        this.initialDistance = this.camera.position.distanceTo(visualObject.mesh.position);
+        this.initialDistance = this.camera.position.distanceTo(visualObject.mesh!.position);
 
         // Optional: snap the center to the ray immediately
         this.update(raycaster);
@@ -34,7 +34,7 @@ export class DraggableObjectController {
     }
 
     public update(raycaster: THREE.Raycaster) {
-        if (!this.isDragging || !this.draggedObject) return;
+        if (!this.isDragging || !this.draggedObject || !this.draggedObject.mesh) return;
 
         // Project the current ray forward by the initial distance.
         // This keeps the object at a consistent distance from the player

@@ -1,6 +1,15 @@
 import { analyzeArchitecture, ArchitectureWarning } from '../architecture-analyzer';
 import * as path from 'path';
 
+// Mock vscode module
+jest.mock('vscode', () => ({
+    window: {
+        createOutputChannel: jest.fn().mockReturnValue({
+            appendLine: jest.fn()
+        })
+    }
+}));
+
 // Create a mock cruise function that we'll configure per test
 const mockCruise = jest.fn();
 

@@ -16,6 +16,7 @@ export class WebviewMessageHandler {
     private handlers = new Map<WebviewMessageType, (data: any) => void | Promise<void>>();
     private middleware: ((message: WebviewMessage, next: () => Promise<void>) => Promise<void>)[] = [];
     private messageDispatcher: { notifyMessageReceived(type: string, data?: any): void };
+    private onMessageListeners: ((message: WebviewMessage) => void)[] = [];
 
     constructor(messageDispatcher: { notifyMessageReceived(type: string, data?: any): void }) {
         this.messageDispatcher = messageDispatcher;
@@ -28,6 +29,21 @@ export class WebviewMessageHandler {
      */
     public use(middleware: (message: WebviewMessage, next: () => Promise<void>) => Promise<void>): void {
         this.middleware.push(middleware);
+    }
+
+    /**
+     * Subscribe to all incoming webview messages
+     */
+    public onMessage(handler: (message: WebviewMessage) => void): vscode.Disposable {
+        this.onMessageListeners.push(handler);
+        return {
+            dispose: () => {
+                const index = this.onMessageListeners.indexOf(handler);
+                if (index !== -1) {
+                    this.onMessageListeners.splice(index, 1);
+                }
+            }
+        };
     }
 
     /**
@@ -47,6 +63,11 @@ export class WebviewMessageHandler {
         // Notify dispatcher first (for waiters)
         const data = 'data' in message ? message.data : undefined;
         this.messageDispatcher.notifyMessageReceived(message.type, data);
+
+        // Notify subscribers
+        for (const listener of this.onMessageListeners) {
+            listener(message);
+        }
 
         // Skip test messages after notifying dispatcher
         if (message.type.startsWith('TEST_')) {
@@ -92,10 +113,9 @@ export class WebviewMessageHandler {
             vscode.window.showErrorMessage(`3D World Error: ${data.message}`);
         });
 
-        // Log messages - can be enabled for debugging
-        this.register('log', () => {
-            // Webview logs forwarded - can be enabled for debugging
-        });
+        // Log messages - handled by subscription in extension.ts
+        this.register('log', () => { });
+        this.register('logBatch', () => { });
 
         // Object focused - no-op, visual highlighting handled internally
         this.register('objectFocused', () => {
