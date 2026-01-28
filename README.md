@@ -219,16 +219,4 @@ Refer to [SCHEMA_TECH_DEBT.json](docs/SCHEMA_TECH_DEBT.json) for the canonical f
 
 Refactoring PRs are governed by explicit metrics-based criteria. A refactor is not complete unless it reduces debt without introducing regressions. See [REFACTOR_DOD.md](docs/REFACTOR_DOD.md) for details.
 
-### CodeCharta Visualization
-
-Identify hotspots and structural growth via CodeCharta:
-
-1. Install CodeCharta shell: `npm install -g codecharta-analysis`
-2. Run import: `ccsh sonarimport <SONAR_URL> openas3d -o openas3d.cc.json`
-3. Visualize: Upload `.cc.json` to [https://codecharta.com/](https://codecharta.com/)
-
-**Mapping Strategy:**
-- **Area**: Non-comment lines of code (NCLOC)
-- **Height**: Cognitive Complexity
-- **Color**: Code Smells (Red = High debt)
 
