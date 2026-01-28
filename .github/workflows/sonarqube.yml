@@ -37,7 +37,7 @@ jobs:
         run: cd vscode-extension && npm run test -- --coverage
 
       - name: SonarQube Scan
-        uses: sonarsource/sonarqube-scan-action@e2acbd99031c65a0fa5adc8b19287d018f21b317
+        uses: sonarsource/sonarqube-scan-action@v7.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
@@ -51,7 +51,7 @@ jobs:
             -Dsonar.javascript.lcov.reportPaths=vscode-extension/coverage/lcov.info
 
       - name: SonarQube Quality Gate check
-        uses: sonarsource/sonarqube-quality-gate-action@b878bb05ea46e676a0a52b9e4b588c48b5e2b8e8
+        uses: sonarsource/sonarqube-quality-gate-action@v1.2
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
