@@ -91,7 +91,11 @@
     "build-install-all": "npm run build && VSIX=$(node -p \"require('./package.json').version\") && code --install-extension ./openas3d-vscode-$VSIX.vsix --force && code --reload-window && npm run test:unit && npm run test:e2e",
     "test": "jest",
     "test:unit": "jest",
-    "test:e2e": "npm run test:integration"
+    "test:e2e": "npm run test:integration",
+    "lint": "eslint src --ext .ts,.js",
+    "lint:strict": "eslint src --ext .ts,.js --rule 'no-console:error'",
+    "lint:fix": "eslint src --ext .ts,.js --fix",
+    "check-debug-logs": "node scripts/check-debug-logs.js"
   },
   "devDependencies": {
     "@semantic-release/exec": "^7.1.0",

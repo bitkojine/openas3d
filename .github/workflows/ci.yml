@@ -28,6 +28,14 @@ jobs:
       run: npm run compile
       working-directory: vscode-extension
 
+    - name: Check for debug logs
+      run: npm run check-debug-logs
+      working-directory: vscode-extension
+
+    - name: Lint with strict console rules
+      run: npm run lint:strict
+      working-directory: vscode-extension
+
     - name: Run tests
       run: npm test
       working-directory: vscode-extension
