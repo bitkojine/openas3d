@@ -35,3 +35,9 @@ jobs:
             -Dsonar.tests=.
             -Dsonar.test.inclusions="**/__tests__/**,**/*.test.ts,**/*.spec.ts"
             -Dsonar.javascript.lcov.reportPaths=vscode-extension/coverage/lcov.info
+
+      - name: SonarQube Quality Gate check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
