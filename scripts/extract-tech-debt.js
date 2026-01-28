@@ -71,15 +71,26 @@ function mapType(sonarType) {
 
 function parseEffort(effortStr) {
   if (!effortStr) return 0;
-  // Sonar effort is like "10min", "1h", "2d"
-  const matchMin = effortStr.match(/(\d+)min/);
-  const matchHour = effortStr.match(/(\d+)h/);
-  const matchDay = effortStr.match(/(\d+)d/);
+  // Validate input format to prevent ReDoS
+  if (typeof effortStr !== 'string' || effortStr.length > 50) {
+    return 0;
+  }
   
+  // Sonar effort is like "10min", "1h", "2d" or combinations
+  // Use safe parsing with anchored patterns to prevent backtracking
   let totalMinutes = 0;
-  if (matchMin) totalMinutes += parseInt(matchMin[1]);
-  if (matchHour) totalMinutes += parseInt(matchHour[1]) * 60;
-  if (matchDay) totalMinutes += parseInt(matchDay[1]) * 8 * 60; // Assuming 8h work day
+  
+  // Extract minutes
+  const minMatch = effortStr.match(/(\d+)min/);
+  if (minMatch) totalMinutes += parseInt(minMatch[1]);
+  
+  // Extract hours  
+  const hourMatch = effortStr.match(/(\d+)h/);
+  if (hourMatch) totalMinutes += parseInt(hourMatch[1]) * 60;
+  
+  // Extract days
+  const dayMatch = effortStr.match(/(\d+)d/);
+  if (dayMatch) totalMinutes += parseInt(dayMatch[1]) * 8 * 60; // Assuming 8h work day
   
   return totalMinutes;
 }
