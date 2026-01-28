@@ -201,6 +201,10 @@ Access the UI at [http://localhost:9000](http://localhost:9000) (Default login: 
 
 Analysis runs automatically on Pull Requests and pushes to `main`. Results are uploaded to the configured SonarQube instance.
 
+> [!IMPORTANT]
+> To enable CI analysis, you must add `SONAR_TOKEN` and `SONAR_HOST_URL` to your repository's **GitHub Secrets**. The workflow will gracefully skip the analysis if these secrets are missing.
+
+
 ### Technical Debt Backlog
 
 Technical debt is modeled using the SQALE method. A machine-readable backlog can be extracted using the provided script:
