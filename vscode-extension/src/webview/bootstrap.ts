@@ -74,6 +74,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Handle messages from VSCode extension
 window.addEventListener('message', async (event: MessageEvent<ExtensionMessage>) => {
+    // Verify message origin - only accept messages from VSCode extension host
+    if (!event.origin.startsWith('vscode-webview://')) {
+        console.warn('[Bootstrap] Ignoring message from untrusted origin:', event.origin);
+        return;
+    }
+
     const message = event.data;
 
     if (!world || !router) {
