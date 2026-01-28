@@ -31,7 +31,7 @@ jobs:
           args: >
             -Dsonar.projectKey=bitkojine_openas3d
             -Dsonar.organization=bitkojine
-            -Dsonar.sources=vscode-extension/src
-            -Dsonar.tests=vscode-extension/src
+            -Dsonar.sources=.
+            -Dsonar.tests=.
             -Dsonar.test.inclusions="**/__tests__/**,**/*.test.ts,**/*.spec.ts"
             -Dsonar.javascript.lcov.reportPaths=vscode-extension/coverage/lcov.info
