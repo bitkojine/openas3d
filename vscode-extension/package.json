@@ -95,7 +95,9 @@
     "lint": "eslint src --ext .ts,.js",
     "lint:strict": "eslint src --ext .ts,.js --rule 'no-console:error'",
     "lint:fix": "eslint src --ext .ts,.js --fix",
-    "check-debug-logs": "node scripts/check-debug-logs.js"
+    "check-debug-logs": "node scripts/check-debug-logs.js",
+    "precommit:debug-logs": "node scripts/check-staged-debug-logs.js",
+    "prepare": "cd .. && husky install vscode-extension/.husky"
   },
   "devDependencies": {
     "@semantic-release/exec": "^7.1.0",
@@ -111,6 +113,7 @@
     "conventional-changelog-conventionalcommits": "^8.0.0",
     "eslint": "^8.28.0",
     "glob": "^13.0.0",
+    "husky": "^8.0.3",
     "jest": "^30.2.0",
     "mocha": "^11.3.0",
     "semantic-release": "^25.0.2",
