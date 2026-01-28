@@ -1,0 +1,35 @@
+[
+    {
+        "id": "AY_2j7E8Z1_j7E8Z1",
+        "path": "vscode-extension/src/core/tree-builder.ts",
+        "type": "CODE_SMELL",
+        "severity": "MAJOR",
+        "remediationEffortMinutes": 15,
+        "firstDetected": "2026-01-20T10:00:00Z",
+        "lastObserved": "2026-01-28T18:00:00Z",
+        "trend": "STABLE",
+        "description": "Remove this unused import."
+    },
+    {
+        "id": "AY_2j7E8Z1_j7E8Z2",
+        "path": "vscode-extension/src/render/tree-renderer.ts",
+        "type": "COMPLEXITY",
+        "severity": "CRITICAL",
+        "remediationEffortMinutes": 120,
+        "firstDetected": "2026-01-22T14:30:00Z",
+        "lastObserved": "2026-01-28T18:00:00Z",
+        "trend": "WORSENING",
+        "description": "Method 'renderNode' has a cognitive complexity of 25 (threshold is 15)."
+    },
+    {
+        "id": "AY_2j7E8Z1_j7E8Z3",
+        "path": "vscode-extension/src/utils/math.ts",
+        "type": "DUPLICATION",
+        "severity": "MAJOR",
+        "remediationEffortMinutes": 45,
+        "firstDetected": "2026-01-25T09:15:00Z",
+        "lastObserved": "2026-01-28T18:00:00Z",
+        "trend": "IMPROVING",
+        "description": "Identical code block found in 'src/utils/geometry.ts'."
+    }
+]

@@ -1,0 +1,35 @@
+name: SonarQube Analysis
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarqube:
+    name: SonarQube Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+
+      - name: Install dependencies
+        run: cd vscode-extension && npm install
+
+      - name: Run tests with coverage
+        run: cd vscode-extension && npm run test -- --coverage
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=openas3d
+            -Dsonar.sources=vscode-extension/src
+            -Dsonar.tests=vscode-extension/src/__tests__
+            -Dsonar.javascript.lcov.reportPaths=vscode-extension/coverage/lcov.info
