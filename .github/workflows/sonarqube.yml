@@ -29,8 +29,9 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
           args: >
-            -Dsonar.projectKey=openas3d
+            -Dsonar.projectKey=bitkojine_openas3d
             -Dsonar.organization=bitkojine
+            -Dsonar.branch.name=main
             -Dsonar.sources=vscode-extension/src
             -Dsonar.tests=vscode-extension/src
             -Dsonar.test.inclusions="**/__tests__/**,**/*.test.ts,**/*.spec.ts"
