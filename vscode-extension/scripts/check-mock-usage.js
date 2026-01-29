@@ -80,6 +80,9 @@ testFiles.forEach(file => {
             totalFindings++;
 
             // SonarQube Generic Issue Format
+            // Ensure path is relative to the PROJECT ROOT where sonar-scanner runs
+            const projectRelativePath = `vscode-extension/${relativePath}`;
+
             sonarIssues.push({
                 engineId: 'anti-mock-checker',
                 ruleId: 'mock-trap',
@@ -87,7 +90,7 @@ testFiles.forEach(file => {
                 type: 'CODE_SMELL',
                 primaryLocation: {
                     message: `High-risk mocking pattern detected: ${f.content}. Avoid the "Mock Trap".`,
-                    filePath: relativePath,
+                    filePath: projectRelativePath,
                     textRange: {
                         startLine: f.line
                     }
