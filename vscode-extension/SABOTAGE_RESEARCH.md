@@ -69,11 +69,19 @@ We refactored the core message infrastructure to be fully testable without VS Co
 - **WebviewMessenger Abstraction**: `MessageDispatcher` now uses a `WebviewMessenger` interface. We updated [panel.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/panel.ts) to pass the webview's `postMessage` function through this interface.
 - **Production Safety**: Discovered and fixed a type-safety issue in `panel.ts` caused by the new abstraction.
 
-### Verification Results (Round 10)
+### Selection Perfection: `SelectionManager`
+
+We refactored [selection-manager.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/__tests__/selection-manager.test.ts) to use pure behavioral verification.
+
+#### Key Improvements:
+- **Shim Restoration**: Updated the `three.ts` shim to allow basic object instantiation (`Vector3`, `Scene`) while maintaining sabotage on complex rendering logic.
+- **State-Based Verification**: Enhanced `MockVisualObject` to track its own `isSelected` and `isHighlighted` states, removing the need for fragile `jest` spies.
+
+### Verification Results (Round 11)
 Running the unit test suite now shows:
-- **10 Refactored Suites**: PASSED
+- **11 Refactored Suites**: PASSED
 - **4 Original Pure Suites**: PASSED
-- **9 Other Suites**: STILL FAILED (Correctly sabotaged)
+- **8 Other Suites**: STILL FAILED (Correctly sabotaged)
 
 ## Next Steps
 We are entering the final countdown:
