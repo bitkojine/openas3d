@@ -51,22 +51,29 @@ We refactored the test to:
 3.  **Run the actual `dependency-cruiser` CLI** against the temporary project.
 4.  **Verify the output warnings** against the expected violations.
 
-### Quadruple Victory: Refactoring `LayoutPersistenceService`
+### High Five: Refactoring `CodebaseLayoutEngine`
 
-We then refactored [layout-persistence.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/services/__tests__/layout-persistence.test.ts) to verify the storage logic using real temporary directories and real JSON file reads.
+We then refactored [codebase-layout.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/visualizers/__tests__/codebase-layout.test.ts) to remove the unnecessary `vscode` mock and add a real integration test for layout persistence.
 
 #### Key Improvements:
-- **Real Filesystem Interaction**: Instead of mocking `fs.writeFileSync` and `fs.readFileSync`, we use `fs.mkdtemp` to create a real workspace root and verify that the `.openas3d/layout.json` file is correctly created.
-- **Data Normalization & Sorting**: We verify that the JSON output contains normalized coordinates (3 decimal places) and that the keys are sorted alphabetically by reading the actual file on disk.
-- **Test Isolation**: Each test case uses a fresh subdirectory within the temp directory to prevent side effects and ensure a clean state.
+- **Mock-Free Algorithms**: The layout engine is pure logic. By removing the `vscode` mock, we ensure the test is faster and more robust against environment changes.
+- **Persistence Integration**: We added an integration test that uses a real `LayoutPersistenceService` and a temporary directory to verify that manual overrides are correctly incorporated into the procedural layout.
+- **Maintained Algorithmic Rigor**: We kept the tests for deterministic output, zone assignment, and spiral expansion to ensure the core layout logic remains sound.
 
-### Verification Results (Round 4)
+### Verification Results (Round 5)
 Running the unit test suite now shows:
 - **Architecture Verification**: PASSED (Integration)
 - **PerfTracker**: PASSED (Behavioral)
 - **Profiling Decorator**: PASSED (Behavioral)
 - **Layout Persistence**: PASSED (Behavioral)
-- **15 Other Suites**: STILL FAILED (Correctly sabotaged)
+- **Codebase Layout**: PASSED (Behavioral)
+- **14 Other Suites**: STILL FAILED (Correctly sabotaged)
 
 ## Final State
-The codebase now clearly demonstrates how to refactor various types of tests (CLI-based, storage-based, and decorator-based) into robust, behavior-driven tests. We have established a repeatable pattern for improving test reliability while keeping the "Mock Trap" active for legacy tests.
+The codebase now has five distinct templates for how to escape the "Mock Trap":
+1.  **CLI Integration**: Running real binaries against real files (`Architecture`).
+2.  **Filesystem Persistence**: Verifying real file outputs (`PerfTracker`, `LayoutPersistence`).
+3.  **Cross-Component Interaction**: Verifying state changes in real dependencies (`Profiling`, `CodebaseLayout`).
+4.  **Pure Logic**: Ensuring algorithmic correctness without artificial stubs.
+
+We have established a robust, repeatable pattern for transitioning from "simulated confidence" to "real-world reliability."
