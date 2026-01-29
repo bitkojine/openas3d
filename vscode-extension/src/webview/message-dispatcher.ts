@@ -5,22 +5,28 @@
  * Does NOT handle incoming message routing (that's handled by WebviewMessageHandler).
  */
 
-import * as vscode from 'vscode';
 import { ExtensionMessage } from '../shared/messages';
+
+/**
+ * WebviewMessenger - Interface for sending messages to the webview
+ */
+export interface WebviewMessenger {
+    postMessage(message: any): Thenable<boolean>;
+}
 
 export class MessageDispatcher {
     private messageWaiters: Array<{ type: string; resolve: (data: any) => void }> = [];
     private isReady = false;
 
-    constructor(private getPanel: () => vscode.WebviewPanel | undefined) {}
+    constructor(private getMessenger: () => WebviewMessenger | undefined) { }
 
     /**
      * Send a message to the webview
      */
     public sendMessage(message: ExtensionMessage): void {
-        const panel = this.getPanel();
-        if (panel) {
-            panel.webview.postMessage(message);
+        const messenger = this.getMessenger();
+        if (messenger) {
+            messenger.postMessage(message);
         }
     }
 

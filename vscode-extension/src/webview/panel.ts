@@ -35,7 +35,7 @@ export class WebviewPanelManager {
         this.panelManager = new PanelManager(context, version);
 
         // Initialize message dispatcher (needs panel getter)
-        this.messageDispatcher = new MessageDispatcher(() => this.panelManager.getPanel());
+        this.messageDispatcher = new MessageDispatcher(() => this.panelManager.getPanel()?.webview);
 
         // Initialize services that send messages
         this.descriptionSync = new DescriptionSyncService((msg) => this.messageDispatcher.sendMessage(msg));
