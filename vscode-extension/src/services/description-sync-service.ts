@@ -1,11 +1,3 @@
-/**
- * DescriptionSyncService - Watches files and syncs descriptions to webview
- * 
- * Single Responsibility: File system watching and description file updates.
- * Watches for .md description files and code files, extracts summaries,
- * and sends updates to the webview.
- */
-
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { getLanguageDisplayName, getLanguageFromExtension } from '../utils/languageRegistry';
@@ -20,27 +12,47 @@ export interface DescriptionUpdate {
     };
 }
 
+/**
+ * FileSystemProxy - Interface for decoupling file operations
+ */
+export interface FileSystemProxy {
+    workspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
+    createFileSystemWatcher(pattern: vscode.RelativePattern): vscode.FileSystemWatcher;
+    openTextDocument(uri: vscode.Uri): Promise<{ getText(): string }>;
+    stat(uri: vscode.Uri): Promise<vscode.FileStat>;
+}
+
 export class DescriptionSyncService {
     private watcher: vscode.FileSystemWatcher | undefined;
     private sendUpdate: (message: ExtensionMessage) => void;
+    private fsProxy: FileSystemProxy;
 
-    constructor(sendUpdate: (message: ExtensionMessage) => void) {
+    constructor(
+        sendUpdate: (message: ExtensionMessage) => void,
+        fsProxy: FileSystemProxy = {
+            workspaceFolders: vscode.workspace.workspaceFolders,
+            createFileSystemWatcher: (p) => vscode.workspace.createFileSystemWatcher(p),
+            openTextDocument: (u) => Promise.resolve(vscode.workspace.openTextDocument(u)),
+            stat: (u) => Promise.resolve(vscode.workspace.fs.stat(u))
+        }
+    ) {
         this.sendUpdate = sendUpdate;
+        this.fsProxy = fsProxy;
     }
 
     /**
      * Start watching for file changes
      */
     public startWatching(context: vscode.ExtensionContext): void {
-        if (!vscode.workspace.workspaceFolders) {
+        if (!this.fsProxy.workspaceFolders || this.fsProxy.workspaceFolders.length === 0) {
             return;
         }
 
         const pattern = new vscode.RelativePattern(
-            vscode.workspace.workspaceFolders[0],
+            this.fsProxy.workspaceFolders[0],
             '**/*'
         );
-        this.watcher = vscode.workspace.createFileSystemWatcher(pattern);
+        this.watcher = this.fsProxy.createFileSystemWatcher(pattern);
 
         this.watcher.onDidCreate(uri => this.handleFileChange(uri));
         this.watcher.onDidChange(uri => this.handleFileChange(uri));
@@ -60,7 +72,7 @@ export class DescriptionSyncService {
     /**
      * Handle file creation or change
      */
-    private async handleFileChange(uri: vscode.Uri): Promise<void> {
+    public async handleFileChange(uri: vscode.Uri): Promise<void> {
         try {
             const update = await this.extractDescription(uri);
             if (update) {
@@ -77,7 +89,7 @@ export class DescriptionSyncService {
     /**
      * Handle file deletion
      */
-    private handleFileDelete(uri: vscode.Uri): void {
+    public handleFileDelete(uri: vscode.Uri): void {
         this.sendUpdate({
             type: 'updateObjectDescription',
             data: {
@@ -94,15 +106,14 @@ export class DescriptionSyncService {
      * Extract description from a file
      */
     private async extractDescription(uri: vscode.Uri): Promise<DescriptionUpdate | null> {
-        let content = '';
         let summaryText = '';
         let status: 'missing' | 'generated' | 'reconciled' = 'missing';
 
         const isDescriptionFile = uri.fsPath.endsWith('.md');
         if (isDescriptionFile) {
             try {
-                const doc = await vscode.workspace.openTextDocument(uri);
-                content = doc.getText();
+                const doc = await this.fsProxy.openTextDocument(uri);
+                const content = doc.getText();
                 const summaryMatch = content.match(/## Summary\s+([\s\S]*?)(\n##|$)/i);
                 summaryText = summaryMatch ? summaryMatch[1].trim() : '';
                 const statusMatch = content.match(/status:\s*(\w+)/i);
@@ -118,11 +129,16 @@ export class DescriptionSyncService {
             const codeUri = vscode.Uri.file(filePath);
 
             try {
-                const stats = await vscode.workspace.fs.stat(codeUri);
+                const stats = await this.fsProxy.stat(codeUri);
                 const size = stats.size;
-                const lastModified = new Date(stats.mtime).toLocaleDateString('lt-LT', {
-                    timeZone: 'Europe/Vilnius'
-                });
+                let lastModified = 'Unknown';
+                try {
+                    lastModified = new Date(stats.mtime).toLocaleDateString('lt-LT', {
+                        timeZone: 'Europe/Vilnius'
+                    });
+                } catch (e) {
+                    lastModified = new Date(stats.mtime).toISOString();
+                }
                 const ext = path.extname(filePath);
                 const language = getLanguageDisplayName(getLanguageFromExtension(ext)) || 'Unknown';
                 const complexity = size / 50;

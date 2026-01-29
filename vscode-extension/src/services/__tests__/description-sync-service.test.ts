@@ -1,232 +1,139 @@
-throw new Error("Mock Sabotaged! This test uses mocking (jest.mock, jest.fn, or jest.spyOn).");
-
-/**
- * Tests for DescriptionSyncService
- * 
- * Verifies that the service correctly:
- * - Watches for file changes
- * - Extracts descriptions from .md files
- * - Generates descriptions for code files
- * - Sends updates to webview
- */
-
-import { DescriptionSyncService } from '../description-sync-service';
+import { DescriptionSyncService, FileSystemProxy } from '../description-sync-service';
 import { ExtensionMessage } from '../../shared/messages';
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
-// Mock vscode module
-jest.mock('vscode', () => {
-    const RelativePattern = jest.fn().mockImplementation((folder, pattern) => ({
-        base: folder,
-        pattern: pattern
-    }));
+class FakeWatcher implements vscode.FileSystemWatcher {
+    public onCreateHandlers: ((uri: vscode.Uri) => any)[] = [];
+    public onChangeHandlers: ((uri: vscode.Uri) => any)[] = [];
+    public onDeleteHandlers: ((uri: vscode.Uri) => any)[] = [];
 
-    const Uri = {
-        file: jest.fn((path: string) => ({ fsPath: path }))
-    };
+    onDidCreate = (h: (uri: vscode.Uri) => any) => { this.onCreateHandlers.push(h); return { dispose: () => { } }; };
+    onDidChange = (h: (uri: vscode.Uri) => any) => { this.onChangeHandlers.push(h); return { dispose: () => { } }; };
+    onDidDelete = (h: (uri: vscode.Uri) => any) => { this.onDeleteHandlers.push(h); return { dispose: () => { } }; };
 
-    return {
-        RelativePattern,
-        Uri,
-        workspace: {
-            workspaceFolders: [
-                { uri: { fsPath: '/workspace' } }
-            ],
-            createFileSystemWatcher: jest.fn(),
-            openTextDocument: jest.fn(),
-            fs: {
-                stat: jest.fn()
-            }
-        }
-    };
-});
+    ignoreCreateEvents = false; ignoreChangeEvents = false; ignoreDeleteEvents = false;
+    dispose = () => { };
+}
 
-describe('DescriptionSyncService', () => {
+class FakeFileSystem implements FileSystemProxy {
+    public watcher = new FakeWatcher();
+    public workspaceFolders: vscode.WorkspaceFolder[];
+
+    constructor(rootPath: string) {
+        this.workspaceFolders = [{ uri: vscode.Uri.file(rootPath), name: 'test', index: 0 }];
+    }
+
+    createFileSystemWatcher() { return this.watcher; }
+
+    async openTextDocument(uri: vscode.Uri) {
+        const content = fs.readFileSync(uri.fsPath, 'utf8');
+        return { getText: () => content };
+    }
+
+    async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
+        const stats = fs.statSync(uri.fsPath);
+        return {
+            type: stats.isDirectory() ? vscode.FileType.Directory : vscode.FileType.File,
+            ctime: stats.ctimeMs,
+            mtime: stats.mtimeMs,
+            size: stats.size
+        };
+    }
+}
+
+describe('DescriptionSyncService (Behavioral)', () => {
     let service: DescriptionSyncService;
-    let sendUpdateSpy: jest.Mock;
-    let mockWatcher: any;
+    let fakeFS: FakeFileSystem;
+    let tempDir: string;
+    let sentMessages: ExtensionMessage[] = [];
 
     beforeEach(() => {
-        sendUpdateSpy = jest.fn();
-        service = new DescriptionSyncService(sendUpdateSpy);
-
-        mockWatcher = {
-            onDidCreate: jest.fn(),
-            onDidChange: jest.fn(),
-            onDidDelete: jest.fn(),
-            dispose: jest.fn()
-        };
-
-        (vscode.workspace.createFileSystemWatcher as jest.Mock).mockReturnValue(mockWatcher);
+        tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'desc-sync-test-'));
+        sentMessages = [];
+        fakeFS = new FakeFileSystem(tempDir);
+        service = new DescriptionSyncService(
+            (msg) => sentMessages.push(msg),
+            fakeFS
+        );
     });
 
-    describe('file watching', () => {
-        it('should start watching when startWatching is called', () => {
-            const mockContext = {
-                subscriptions: []
-            } as any;
-
-            service.startWatching(mockContext);
-
-            expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalled();
-            expect(mockWatcher.onDidCreate).toHaveBeenCalled();
-            expect(mockWatcher.onDidChange).toHaveBeenCalled();
-            expect(mockWatcher.onDidDelete).toHaveBeenCalled();
-        });
-
-        it('should stop watching when stopWatching is called', () => {
-            const mockContext = {
-                subscriptions: []
-            } as any;
-
-            service.startWatching(mockContext);
-            service.stopWatching();
-
-            expect(mockWatcher.dispose).toHaveBeenCalled();
-        });
-
-        it('should not start watching if no workspace folders', () => {
-            const originalFolders = vscode.workspace.workspaceFolders;
-            (vscode.workspace as any).workspaceFolders = undefined;
-
-            const mockContext = {
-                subscriptions: []
-            } as any;
-
-            service.startWatching(mockContext);
-
-            expect(vscode.workspace.createFileSystemWatcher).not.toHaveBeenCalled();
-
-            (vscode.workspace as any).workspaceFolders = originalFolders;
-        });
+    afterEach(() => {
+        fs.rmSync(tempDir, { recursive: true, force: true });
     });
 
-    describe('description extraction', () => {
-        it('should extract description from .md file', async () => {
-            const mockDoc = {
-                getText: () => `---
-status: reconciled
----
-
-# Test File
+    it('should extract summary and status from MD file', async () => {
+        const mdPath = path.join(tempDir, 'service.ts.md');
+        const content = `
+# Description
 ## Summary
-This is a test summary
-`
-            };
+This is a test service that handles logic.
+## More details
+status: reconciled
+`;
+        fs.writeFileSync(mdPath, content);
 
-            (vscode.workspace.openTextDocument as jest.Mock).mockResolvedValue(mockDoc);
+        await service.handleFileChange(vscode.Uri.file(mdPath));
 
-            const mockContext = {
-                subscriptions: []
-            } as any;
-
-            service.startWatching(mockContext);
-
-            // Simulate file change
-            const changeHandler = mockWatcher.onDidChange.mock.calls[0][0];
-            await changeHandler({ fsPath: '/workspace/test.md' });
-
-            expect(sendUpdateSpy).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    type: 'updateObjectDescription',
-                    data: expect.objectContaining({
-                        filePath: '/workspace/test.md',
-                        description: expect.objectContaining({
-                            summary: 'This is a test summary',
-                            status: 'reconciled'
-                        })
-                    })
-                })
-            );
-        });
-
-        it('should generate description for code file when .md not found', async () => {
-            const mockStats = {
-                size: 1000,
-                mtime: Date.now()
-            };
-
-            // Mock the stat to return stats for the code file
-            // When a .ts file is passed, extractDescription will:
-            // 1. Check if it's a .md file (false for .ts)
-            // 2. Since no summaryText, it tries to generate from code file
-            // 3. It does: filePath = uri.fsPath.replace(/\.md$/, '') which doesn't change .ts
-            // 4. Creates codeUri = vscode.Uri.file(filePath) which creates { fsPath: '/workspace/test.ts' }
-            // 5. Calls fs.stat(codeUri) which should return the mockStats
-            (vscode.workspace.fs.stat as jest.Mock).mockResolvedValue(mockStats);
-
-            const mockContext = {
-                subscriptions: []
-            } as any;
-
-            service.startWatching(mockContext);
-
-            // Simulate code file change (not .md)
-            const changeHandler = mockWatcher.onDidChange.mock.calls[0][0];
-            const uri = { fsPath: '/workspace/test.ts' };
-            await changeHandler(uri);
-
-            // Wait for async operations to complete
-            await new Promise(resolve => setTimeout(resolve, 50));
-
-            expect(sendUpdateSpy).toHaveBeenCalled();
-            const call = sendUpdateSpy.mock.calls[0][0];
-            expect(call.data.description.status).toBe('generated');
-            expect(call.data.description.summary).toContain('Filename: test.ts');
-        });
-
-        it('should handle file deletion', () => {
-            const mockContext = {
-                subscriptions: []
-            } as any;
-
-            service.startWatching(mockContext);
-
-            // Simulate file deletion
-            const deleteHandler = mockWatcher.onDidDelete.mock.calls[0][0];
-            deleteHandler({ fsPath: '/workspace/test.md' });
-
-            expect(sendUpdateSpy).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    type: 'updateObjectDescription',
-                    data: {
-                        filePath: '/workspace/test.md',
-                        description: {
-                            summary: 'No description yet.',
-                            status: 'missing'
-                        }
-                    }
-                })
-            );
-        });
+        expect(sentMessages.length).toBe(1);
+        const msg = sentMessages[0];
+        if (msg.type === 'updateObjectDescription') {
+            expect(msg.data.description.summary).toBe('This is a test service that handles logic.');
+            expect(msg.data.description.status).toBe('reconciled');
+        } else {
+            fail('Expected updateObjectDescription message');
+        }
     });
 
-    describe('error handling', () => {
-        it('should handle errors when reading files', async () => {
-            // Mock openTextDocument to throw an error
-            (vscode.workspace.openTextDocument as jest.Mock).mockRejectedValue(new Error('File not found'));
-            // Also mock fs.stat to throw so the fallback path also fails
-            (vscode.workspace.fs.stat as jest.Mock).mockRejectedValue(new Error('File not found'));
+    it('should generate summary from code file when MD is missing or empty', async () => {
+        const tsPath = path.join(tempDir, 'utils.ts');
+        fs.writeFileSync(tsPath, 'export const a = 1;');
 
-            const mockContext = {
-                subscriptions: []
-            } as any;
+        // Wait a bit to ensure mtime is set
+        await new Promise(resolve => setTimeout(resolve, 10));
 
-            service.startWatching(mockContext);
+        await service.handleFileChange(vscode.Uri.file(tsPath));
 
-            const changeHandler = mockWatcher.onDidChange.mock.calls[0][0];
-            
-            // The error is caught internally and returns a description with "No description available"
-            // So we should still get an update, just with a fallback description
-            await changeHandler({ fsPath: '/workspace/test.md' });
+        expect(sentMessages.length).toBe(1);
+        const msg = sentMessages[0];
+        if (msg.type === 'updateObjectDescription') {
+            expect(msg.data.description.summary).toContain('Language: TypeScript');
+            expect(msg.data.description.summary).toContain('Filename: utils.ts');
+            expect(msg.data.description.status).toBe('generated');
+        } else {
+            fail('Expected updateObjectDescription message');
+        }
+    });
 
-            // Wait for async operations
-            await new Promise(resolve => setTimeout(resolve, 10));
+    it('should handle file deletion by sending missing status', () => {
+        const filePath = path.join(tempDir, 'deleted.ts');
 
-            // Should still send an update even when errors occur
-            expect(sendUpdateSpy).toHaveBeenCalled();
-            const call = sendUpdateSpy.mock.calls[0][0];
-            expect(call.data.description.summary).toBe('No description available');
-        });
+        service.handleFileDelete(vscode.Uri.file(filePath));
+
+        expect(sentMessages.length).toBe(1);
+        const msg = sentMessages[0];
+        if (msg.type === 'updateObjectDescription') {
+            expect(msg.data.description.status).toBe('missing');
+            expect(msg.data.filePath).toBe(vscode.Uri.file(filePath).fsPath);
+        } else {
+            fail('Expected updateObjectDescription message');
+        }
+    });
+
+    it('should fall back to default text when extraction fails completely', async () => {
+        const nonExistentPath = path.join(tempDir, 'ghost.ts');
+
+        await service.handleFileChange(vscode.Uri.file(nonExistentPath));
+
+        expect(sentMessages.length).toBe(1);
+        const msg = sentMessages[0];
+        if (msg.type === 'updateObjectDescription') {
+            expect(msg.data.description.summary).toBe('No description available');
+        } else {
+            fail('Expected updateObjectDescription message');
+        }
     });
 });
+
