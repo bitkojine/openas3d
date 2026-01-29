@@ -51,29 +51,24 @@ We refactored the test to:
 3.  **Run the actual `dependency-cruiser` CLI** against the temporary project.
 4.  **Verify the output warnings** against the expected violations.
 
-### High Five: Refactoring `CodebaseLayoutEngine`
+### Sensational Six: Refactoring `EditorConfigService`
 
-We then refactored [codebase-layout.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/visualizers/__tests__/codebase-layout.test.ts) to remove the unnecessary `vscode` mock and add a real integration test for layout persistence.
+We then refactored [editor-config-service.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/services/__tests__/editor-config-service.test.ts) to use dependency injection, bypassing the `vscode` mock.
 
 #### Key Improvements:
-- **Mock-Free Algorithms**: The layout engine is pure logic. By removing the `vscode` mock, we ensure the test is faster and more robust against environment changes.
-- **Persistence Integration**: We added an integration test that uses a real `LayoutPersistenceService` and a temporary directory to verify that manual overrides are correctly incorporated into the procedural layout.
-- **Maintained Algorithmic Rigor**: We kept the tests for deterministic output, zone assignment, and spiral expansion to ensure the core layout logic remains sound.
+- **Dependency Injection**: Introduced a `WorkspaceProxy` interface, allowing us to pass a `FakeWorkspace` into the service.
+- **Pure Behavioral Testing**: By triggering events on the `FakeWorkspace`, we verify that the service correctly processes and emits configuration updates to the webview.
+- **Zero Global Mocks**: The test no longer relies on `jest.mock('vscode')`, making it immune to the "Mock Trap".
 
-### Verification Results (Round 5)
+### Verification Results (Round 6)
 Running the unit test suite now shows:
 - **Architecture Verification**: PASSED (Integration)
 - **PerfTracker**: PASSED (Behavioral)
 - **Profiling Decorator**: PASSED (Behavioral)
 - **Layout Persistence**: PASSED (Behavioral)
 - **Codebase Layout**: PASSED (Behavioral)
-- **14 Other Suites**: STILL FAILED (Correctly sabotaged)
+- **Editor Config**: PASSED (Behavioral)
+- **13 Other Suites**: STILL FAILED (Correctly sabotaged)
 
 ## Final State
-The codebase now has five distinct templates for how to escape the "Mock Trap":
-1.  **CLI Integration**: Running real binaries against real files (`Architecture`).
-2.  **Filesystem Persistence**: Verifying real file outputs (`PerfTracker`, `LayoutPersistence`).
-3.  **Cross-Component Interaction**: Verifying state changes in real dependencies (`Profiling`, `CodebaseLayout`).
-4.  **Pure Logic**: Ensuring algorithmic correctness without artificial stubs.
-
-We have established a robust, repeatable pattern for transitioning from "simulated confidence" to "real-world reliability."
+The codebase now includes a masterclass in escaping the "Mock Trap" using **Dependency Injection**. This pattern is the most robust way to test services that would otherwise rely on complex global singletons like the VSCode API.
