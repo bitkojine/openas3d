@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '22.x'
           cache: 'npm'
           cache-dependency-path: vscode-extension/package-lock.json
 
@@ -34,21 +34,13 @@ jobs:
         run: cd vscode-extension && npm install --ignore-scripts
 
       - name: Run tests with coverage
-        run: cd vscode-extension && npm run test -- --coverage
+        run: cd vscode-extension && npm run test:coverage
 
       - name: SonarQube Scan
         uses: sonarsource/sonarqube-scan-action@v7.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        with:
-          args: >
-            -Dsonar.projectKey=bitkojine_openas3d
-            -Dsonar.organization=bitkojine
-            -Dsonar.sources=.
-            -Dsonar.tests=.
-            -Dsonar.test.inclusions="**/__tests__/**,**/*.test.ts,**/*.spec.ts"
-            -Dsonar.javascript.lcov.reportPaths=vscode-extension/coverage/lcov.info
 
       - name: SonarQube Quality Gate check
         uses: sonarsource/sonarqube-quality-gate-action@v1.2.0
