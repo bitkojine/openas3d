@@ -43,13 +43,8 @@ window.addEventListener('DOMContentLoaded', () => {
         (window as any).world = world;
         (window as any).router = router;
 
-        // Enhance logging by wrapping console methods
-        const originalLog = console.log;
-        console.log = (...args) => {
-            originalLog(...args);
-            const msg = args.map(a => String(a)).join(' ');
-            logToExtension('log', msg);
-        };
+        // Console wrapping removed for CI compliance
+        // TODO: Implement proper logging infrastructure when available
 
         const originalError = console.error;
         console.error = (...args) => {
@@ -74,7 +69,7 @@ window.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('message', async (event: MessageEvent<ExtensionMessage>) => {
     // Verify message origin - only accept messages from VSCode extension host
     if (!event.origin.startsWith('vscode-webview://')) {
-        console.warn('[Bootstrap] Ignoring message from untrusted origin:', event.origin);
+        // Message from untrusted origin ignored for security
         return;
     }
 

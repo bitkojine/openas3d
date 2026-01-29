@@ -107,8 +107,8 @@ export class PerfTracker {
             reportLines.push(`${label}: avg ${avg.toFixed(1)}ms | min ${min.toFixed(1)}ms | max ${max.toFixed(1)}ms`);
         });
 
-        console.group('Performance Report');
-        console.groupEnd();
+        // Performance report data prepared - console statements removed for CI compliance
+        // TODO: Implement proper logging infrastructure if needed
     }
 
     /**
