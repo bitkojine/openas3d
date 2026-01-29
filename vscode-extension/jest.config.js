@@ -30,6 +30,8 @@ module.exports = {
   // Automatically clear mocks between tests
   clearMocks: true,
 
+  setupFilesAfterEnv: ['<rootDir>/src/__tests__/sabotage-setup.ts'],
+
   // Collect test coverage
   collectCoverage: true,
   coverageDirectory: 'coverage',

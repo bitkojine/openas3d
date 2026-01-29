@@ -1,31 +1,39 @@
 // __mocks__/vscode.ts
+declare var jest: any;
+
+const sabotage = (name: string) => {
+    return jest.fn().mockImplementation(() => {
+        throw new Error(`Mock Sabotaged! vscode.${name} should not be called in a real test.`);
+    });
+};
+
 export const workspace = {
     workspaceFolders: [{ uri: { fsPath: '/fake/workspace' } }],
-    getWorkspaceFolder: jest.fn(),
-    getConfiguration: jest.fn(),
-    openTextDocument: jest.fn(async (uri: any) => ({ uri, getText: () => 'mock content' })),
+    getWorkspaceFolder: sabotage('workspace.getWorkspaceFolder'),
+    getConfiguration: sabotage('workspace.getConfiguration'),
+    openTextDocument: sabotage('workspace.openTextDocument'),
     fs: {
-        readFile: jest.fn(async (uri: any) => Buffer.from('mock content')),
-        stat: jest.fn(async (uri: any) => ({ size: 100, mtime: new Date(), type: 0 })),
-        readdir: jest.fn(async (uri: any) => []),
+        readFile: sabotage('workspace.fs.readFile'),
+        stat: sabotage('workspace.fs.stat'),
+        readdir: sabotage('workspace.fs.readdir'),
     },
 };
 
 export const window = {
-    showInformationMessage: jest.fn(),
-    showWarningMessage: jest.fn(),
-    showErrorMessage: jest.fn(),
-    showQuickPick: jest.fn(),
-    showInputBox: jest.fn(),
-    showTextDocument: jest.fn(async (doc: any) => doc),
+    showInformationMessage: sabotage('window.showInformationMessage'),
+    showWarningMessage: sabotage('window.showWarningMessage'),
+    showErrorMessage: sabotage('window.showErrorMessage'),
+    showQuickPick: sabotage('window.showQuickPick'),
+    showInputBox: sabotage('window.showInputBox'),
+    showTextDocument: sabotage('window.showTextDocument'),
 };
 
 export const commands = {
-    registerCommand: jest.fn(),
+    registerCommand: sabotage('commands.registerCommand'),
 };
 
 export const extensions = {
-    getExtension: jest.fn().mockReturnValue({ packageJSON: { version: '0.0.0' } }),
+    getExtension: sabotage('extensions.getExtension'),
 };
 
 export const Uri = {

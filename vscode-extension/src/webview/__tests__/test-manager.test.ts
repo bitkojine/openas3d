@@ -1,3 +1,5 @@
+throw new Error("Mock Sabotaged! This test uses mocking (jest.mock, jest.fn, or jest.spyOn).");
+
 import { TestManager } from '../test-manager';
 import { CodeObjectManager } from '../code-object-manager';
 import { FileObject } from '../objects/file-object';

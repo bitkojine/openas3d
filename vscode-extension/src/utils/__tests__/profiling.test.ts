@@ -1,3 +1,5 @@
+throw new Error("Mock Sabotaged! This test uses mocking (jest.mock, jest.fn, or jest.spyOn).");
+
 
 import { profile } from '../profiling';
 import { PerfTracker } from '../perf-tracker';
