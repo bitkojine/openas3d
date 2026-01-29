@@ -60,13 +60,21 @@ We refactored [webview-message-handler.test.ts](file:///Users/name/trusted-git/o
 - **Specialized Fakes**: We implemented a `FakeDispatcher` and `FakeUI` to verify the "outbound" effects of the handler.
 - **Pure Behavioral Verification**: The test now validates message routing, middleware execution (in "onion" order), and error reporting without a single mocked function.
 
-### Verification Results (Round 8)
+### The Dynamic Duo: `MessageRouter` and `MessageDispatcher`
+
+We refactored the core message infrastructure to be fully testable without VS Code or global `console`.
+
+#### Key Improvements:
+- **Logger Abstraction**: `MessageRouter` now uses a `Logger` interface instead of `console`. This allows us to verify warnings and errors via a `FakeLogger`.
+- **WebviewMessenger Abstraction**: `MessageDispatcher` now uses a `WebviewMessenger` interface. We updated [panel.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/panel.ts) to pass the webview's `postMessage` function through this interface.
+- **Production Safety**: Discovered and fixed a type-safety issue in `panel.ts` caused by the new abstraction.
+
+### Verification Results (Round 10)
 Running the unit test suite now shows:
-- **8 Refactored Suites**: PASSED
+- **10 Refactored Suites**: PASSED
 - **4 Original Pure Suites**: PASSED
-- **11 Other Suites**: STILL FAILED (Correctly sabotaged)
+- **9 Other Suites**: STILL FAILED (Correctly sabotaged)
 
 ## Next Steps
-We are entering the final phase:
+We are entering the final countdown:
 1.  **Webview Component Tests**: Refactoring the 3D objects and UI logic as behavioral tests.
-2.  **`message-dispatcher.test.ts` and `message-router.test.ts`**: The last of the communication hubs.

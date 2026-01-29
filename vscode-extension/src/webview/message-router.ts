@@ -14,9 +14,22 @@ import { ExtensionMessage, ExtensionMessageType, ExtensionMessageData } from '..
 type MessageHandler<T extends ExtensionMessageType> = (data: ExtensionMessageData<T>) => void | Promise<void>;
 type Middleware = (message: ExtensionMessage) => ExtensionMessage | null | Promise<ExtensionMessage | null>;
 
+/**
+ * Logger - Interface for decoupling logging operations
+ */
+export interface Logger {
+    warn(message: string, ...args: any[]): void;
+    error(message: string, ...args: any[]): void;
+}
+
 export class MessageRouter {
     private handlers = new Map<ExtensionMessageType, (data: any) => void | Promise<void>>();
     private middleware: Middleware[] = [];
+    private logger: Logger;
+
+    constructor(logger: Logger = console) {
+        this.logger = logger;
+    }
 
     /**
      * Register a handler for a specific message type
@@ -59,7 +72,7 @@ export class MessageRouter {
         // Find and call handler
         const handler = this.handlers.get(processedMessage.type);
         if (!handler) {
-            console.warn(`[MessageRouter] No handler registered for message type: ${processedMessage.type}`);
+            this.logger.warn(`[MessageRouter] No handler registered for message type: ${processedMessage.type}`);
             return;
         }
 
@@ -69,7 +82,7 @@ export class MessageRouter {
             const data = 'data' in processedMessage ? (processedMessage as any).data : undefined;
             await handler(data);
         } catch (error) {
-            console.error(`[MessageRouter] Error handling message type "${processedMessage.type}":`, error);
+            this.logger.error(`[MessageRouter] Error handling message type "${processedMessage.type}":`, error);
             throw error;
         }
     }
