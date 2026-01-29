@@ -31,3 +31,7 @@ jobs:
     - name: Run tests
       run: npm test
       working-directory: vscode-extension
+
+    - name: Run mutation tests
+      run: npm run test:mutation -- --mutate "src/utils/**/*.ts","src/services/**/*.ts"
+      working-directory: vscode-extension
