@@ -1,25 +1,16 @@
-throw new Error("Mock Sabotaged! This test uses mocking (jest.mock, jest.fn, or jest.spyOn).");
-
-
 import { profile } from '../profiling';
 import { PerfTracker } from '../perf-tracker';
 
-describe('@profile Decorator', () => {
+describe('@profile Decorator (Behavioral)', () => {
     let perf: PerfTracker;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let trackerSpy: jest.SpyInstance;
 
     beforeEach(() => {
         perf = new PerfTracker();
+        // Set the global singleton to our test instance
         PerfTracker.instance = perf;
-        trackerSpy = jest.spyOn(perf, 'start');
     });
 
-    afterEach(() => {
-        jest.clearAllMocks();
-    });
-
-    it('should trace method execution', () => {
+    it('should trace method execution in real PerfTracker', () => {
         class TestClass {
             @profile()
             doSomething() {
@@ -31,14 +22,18 @@ describe('@profile Decorator', () => {
         const result = instance.doSomething();
 
         expect(result).toBe('result');
-        expect(trackerSpy).toHaveBeenCalledWith('TestClass.doSomething');
+
+        const stats = perf.getStats();
+        const entry = stats.find(s => s.label === 'TestClass.doSomething');
+        expect(entry).toBeDefined();
+        expect(entry?.count).toBe(1);
     });
 
     it('should trace async method execution and wait for promise', async () => {
         class TestClass {
             @profile()
             async doSomethingAsync() {
-                await new Promise(resolve => setTimeout(resolve, 10));
+                await new Promise(resolve => setTimeout(resolve, 30));
                 return 'async-result';
             }
         }
@@ -47,10 +42,16 @@ describe('@profile Decorator', () => {
         const result = await instance.doSomethingAsync();
 
         expect(result).toBe('async-result');
-        expect(trackerSpy).toHaveBeenCalledWith('TestClass.doSomethingAsync');
+
+        const stats = perf.getStats();
+        const entry = stats.find(s => s.label === 'TestClass.doSomethingAsync');
+        expect(entry).toBeDefined();
+        // Verify that the duration is realistic (around 30ms, allowing for jitter)
+        expect(entry?.avg).toBeGreaterThanOrEqual(25);
+        expect(entry?.avg).toBeLessThan(150);
     });
 
-    it('should use custom label', () => {
+    it('should use custom label in PerfTracker', () => {
         class TestClass {
             @profile('CustomLabel')
             doSomething() {
@@ -61,6 +62,22 @@ describe('@profile Decorator', () => {
         const instance = new TestClass();
         instance.doSomething();
 
-        expect(trackerSpy).toHaveBeenCalledWith('CustomLabel');
+        const stats = perf.getStats();
+        expect(stats.some(s => s.label === 'CustomLabel')).toBe(true);
+    });
+
+    it('should handle errors and still record the event', () => {
+        class TestClass {
+            @profile('ErrorTask')
+            fail() {
+                throw new Error('Expected fail');
+            }
+        }
+
+        const instance = new TestClass();
+        expect(() => instance.fail()).toThrow('Expected fail');
+
+        const stats = perf.getStats();
+        expect(stats.some(s => s.label === 'ErrorTask')).toBe(true);
     });
 });

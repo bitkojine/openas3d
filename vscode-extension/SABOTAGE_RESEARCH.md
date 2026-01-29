@@ -51,22 +51,26 @@ We refactored the test to:
 3.  **Run the actual `dependency-cruiser` CLI** against the temporary project.
 4.  **Verify the output warnings** against the expected violations.
 
-### Another Victory: Refactoring `PerfTracker`
+### Triple Crown: Refactoring `@profile` Decorator
 
-We then refactored [perf-tracker.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/utils/__tests__/perf-tracker.test.ts) to remove fragile mocks of the `fs` module and the global `performance.now()` clock.
+Finally, we refactored [profiling.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/utils/__tests__/profiling.test.ts) to verify the behavior of the method decorator without using `jest.spyOn`.
 
 #### Key Improvements:
-- **Real Delays**: Instead of mocking `perf.now()`, we use `await new Promise(resolve => setTimeout(resolve, 50))` and verify the recorded duration is $\ge 50ms$. This ensures the timer logic is actually executing against a real clock.
-- **Real File Operations**: For the `exportData` test, we use `fs.mkdtemp` to create a real temporary project folder and use `fs.readFileSync` to verify that the generated JSON actually contains the expected trace events.
-- **No Mocking Left**: The `jest.mock('fs')` was completely removed.
+- **Internal State Verification**: Instead of checking if a spy was called, we verify that the `PerfTracker` internal state actually changed by calling `perf.getStats()`.
+- **Async Timing Jitter**: We adjusted the async expectations to $25ms$ (for a $30ms$ delay) to reliably account for event loop jitter in CI/real-world environments.
+- **Error Path Coverage**: Added a test to ensure that even if a decorated method throws an error, the event is still correctly recorded in the `PerfTracker`.
 
-### Verification Results (Round 2)
+### Verification Results (Round 3)
 Running the unit test suite now shows:
 - **Architecture Verification**: PASSED (Integration)
 - **PerfTracker**: PASSED (Behavioral)
-- **17 Other Suites**: STILL FAILED (Correctly sabotaged)
-
-This confirms that we can successfully transition the test suite from "simulated confidence" to "real-world reliability" one piece at a time.
+- **Profiling Decorator**: PASSED (Behavioral)
+- **16 Other Suites**: STILL FAILED (Correctly sabotaged)
 
 ## Final State
-The codebase now clearly distinguishes between high-quality tests and technical debt. You have a proven pattern for refactoring tests to be robust and behavior-driven.
+The codebase now has three distinct templates for how to escape the "Mock Trap":
+1.  **CLI Integration**: Running real binaries against real files (`Architecture`).
+2.  **Filesystem Persistence**: Verifying real file outputs (`PerfTracker`).
+3.  **Cross-Component Interaction**: Verifying state changes in real dependencies (`Profiling`).
+
+The transition from "simulated confidence" to "real-world reliability" is now well-underway.
