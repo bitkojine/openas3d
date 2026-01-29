@@ -36,6 +36,10 @@ jobs:
       - name: Run tests with coverage
         run: cd vscode-extension && npm run test:coverage
 
+      - name: Generate Anti-Mock Report
+        run: cd vscode-extension && npm run check-mocks || true
+        # We use || true so the sonar scan still runs and reports the issues to the dashboard
+
       - name: SonarQube Scan
         uses: sonarsource/sonarqube-scan-action@v7.0.0
         env:

@@ -32,6 +32,10 @@ jobs:
       run: npm run check-debug-logs
       working-directory: vscode-extension
 
+    - name: Check for mock trap
+      run: npm run check-mocks
+      working-directory: vscode-extension
+
     - name: Lint with strict console rules
       run: npm run lint:strict
       working-directory: vscode-extension
