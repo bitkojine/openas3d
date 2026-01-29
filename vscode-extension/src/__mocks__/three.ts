@@ -7,7 +7,6 @@ export class Vector3 {
     public z: number;
 
     constructor(x: number = 0, y: number = 0, z: number = 0) {
-        throw new Error("Mock Sabotaged! Vector3 should not be instantiated in a real test.");
         this.x = x;
         this.y = y;
         this.z = z;
@@ -93,7 +92,6 @@ export class Object3D {
     public visible: boolean = true;
 
     constructor() {
-        throw new Error("Mock Sabotaged! Object3D should not be instantiated in a real test.");
     }
 
     add(obj: Object3D) {
