@@ -51,24 +51,23 @@ We refactored the test to:
 3.  **Run the actual `dependency-cruiser` CLI** against the temporary project.
 4.  **Verify the output warnings** against the expected violations.
 
-### Sensational Six: Refactoring `EditorConfigService`
+### Super Seven: Refactoring `DescriptionSyncService`
 
-We then refactored [editor-config-service.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/services/__tests__/editor-config-service.test.ts) to use dependency injection, bypassing the `vscode` mock.
+We refactored [description-sync-service.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/services/__tests__/description-sync-service.test.ts) to use a `FileSystemProxy`, which is a specialized form of the DI pattern for file operations.
 
 #### Key Improvements:
-- **Dependency Injection**: Introduced a `WorkspaceProxy` interface, allowing us to pass a `FakeWorkspace` into the service.
-- **Pure Behavioral Testing**: By triggering events on the `FakeWorkspace`, we verify that the service correctly processes and emits configuration updates to the webview.
-- **Zero Global Mocks**: The test no longer relies on `jest.mock('vscode')`, making it immune to the "Mock Trap".
+- **FileSystemProxy**: Decoupled the service from `vscode.workspace` for file watching, reading, and stating.
+- **Improved Global Mock**: Updated the global `vscode` mock at [vscode.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/__mocks__/vscode.ts) to include `FileType` and `RelativePattern`, making it more useful for all behavioral tests.
+- **Robust Environment Handling**: Added resilience to the date formatting logic in the service to handle environments with limited locale/timezone support.
+- **Real File Verification**: The test now creates real Markdown and code files in a temp directory and verifies that the service extracts exactly what is written.
 
-### Verification Results (Round 6)
+### Verification Results (Round 7)
 Running the unit test suite now shows:
-- **Architecture Verification**: PASSED (Integration)
-- **PerfTracker**: PASSED (Behavioral)
-- **Profiling Decorator**: PASSED (Behavioral)
-- **Layout Persistence**: PASSED (Behavioral)
-- **Codebase Layout**: PASSED (Behavioral)
-- **Editor Config**: PASSED (Behavioral)
-- **13 Other Suites**: STILL FAILED (Correctly sabotaged)
+- **7 Refactored Suites**: PASSED
+- **4 Original Pure Suites**: PASSED
+- **12 Other Suites**: STILL FAILED (Correctly sabotaged)
 
-## Final State
-The codebase now includes a masterclass in escaping the "Mock Trap" using **Dependency Injection**. This pattern is the most robust way to test services that would otherwise rely on complex global singletons like the VSCode API.
+## Next Steps
+We are down to the final heavy hitters:
+1.  **`webview-message-handler.test.ts`**: The central hub that coordinates all extension/webview communication.
+2.  **Webview Component Tests**: Testing the 3D objects and UI logic as behavioral tests.

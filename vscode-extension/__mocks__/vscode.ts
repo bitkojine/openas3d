@@ -37,6 +37,17 @@ export const extensions = {
 };
 
 export const Uri = {
-    file: (s: string) => ({ fsPath: s }),
-    parse: (s: string) => ({ fsPath: s }),
+    file: (s: string) => ({ fsPath: s, path: s, scheme: 'file' }),
+    parse: (s: string) => ({ fsPath: s, path: s, scheme: 'file' }),
 };
+
+export enum FileType {
+    Unknown = 0,
+    File = 1,
+    Directory = 2,
+    SymbolicLink = 64
+}
+
+export class RelativePattern {
+    constructor(public base: any, public pattern: string) { }
+}
