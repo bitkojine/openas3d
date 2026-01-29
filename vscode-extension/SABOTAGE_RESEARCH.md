@@ -51,23 +51,22 @@ We refactored the test to:
 3.  **Run the actual `dependency-cruiser` CLI** against the temporary project.
 4.  **Verify the output warnings** against the expected violations.
 
-### Super Seven: Refactoring `DescriptionSyncService`
+### Elite Eight: Refactoring `WebviewMessageHandler`
 
-We refactored [description-sync-service.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/services/__tests__/description-sync-service.test.ts) to use a `FileSystemProxy`, which is a specialized form of the DI pattern for file operations.
+We refactored [webview-message-handler.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/__tests__/webview-message-handler.test.ts) to remove all reliance on `jest.mock`, `jest.fn`, and `jest.spyOn`.
 
 #### Key Improvements:
-- **FileSystemProxy**: Decoupled the service from `vscode.workspace` for file watching, reading, and stating.
-- **Improved Global Mock**: Updated the global `vscode` mock at [vscode.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/__mocks__/vscode.ts) to include `FileType` and `RelativePattern`, making it more useful for all behavioral tests.
-- **Robust Environment Handling**: Added resilience to the date formatting logic in the service to handle environments with limited locale/timezone support.
-- **Real File Verification**: The test now creates real Markdown and code files in a temp directory and verifies that the service extracts exactly what is written.
+- **UIProxy Abstraction**: Introduced a `UIProxy` interface to decouple the handler from `vscode.window.showErrorMessage`.
+- **Specialized Fakes**: We implemented a `FakeDispatcher` and `FakeUI` to verify the "outbound" effects of the handler.
+- **Pure Behavioral Verification**: The test now validates message routing, middleware execution (in "onion" order), and error reporting without a single mocked function.
 
-### Verification Results (Round 7)
+### Verification Results (Round 8)
 Running the unit test suite now shows:
-- **7 Refactored Suites**: PASSED
+- **8 Refactored Suites**: PASSED
 - **4 Original Pure Suites**: PASSED
-- **12 Other Suites**: STILL FAILED (Correctly sabotaged)
+- **11 Other Suites**: STILL FAILED (Correctly sabotaged)
 
 ## Next Steps
-We are down to the final heavy hitters:
-1.  **`webview-message-handler.test.ts`**: The central hub that coordinates all extension/webview communication.
-2.  **Webview Component Tests**: Testing the 3D objects and UI logic as behavioral tests.
+We are entering the final phase:
+1.  **Webview Component Tests**: Refactoring the 3D objects and UI logic as behavioral tests.
+2.  **`message-dispatcher.test.ts` and `message-router.test.ts`**: The last of the communication hubs.

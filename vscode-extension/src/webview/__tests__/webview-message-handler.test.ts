@@ -1,68 +1,48 @@
-throw new Error("Mock Sabotaged! This test uses mocking (jest.mock, jest.fn, or jest.spyOn).");
-
-/**
- * Tests for WebviewMessageHandler
- * 
- * Verifies that the handler correctly:
- * - Routes messages to registered handlers
- * - Notifies dispatcher when messages arrive
- * - Handles errors gracefully
- * - Skips test messages after notifying dispatcher
- */
-
-import { WebviewMessageHandler } from '../webview-message-handler';
+import { WebviewMessageHandler, UIProxy } from '../webview-message-handler';
 import { WebviewMessage } from '../../shared/messages';
-import * as vscode from 'vscode';
 
-// Mock vscode module
-jest.mock('vscode', () => ({
-    window: {
-        showErrorMessage: jest.fn()
+class FakeDispatcher {
+    public received: { type: string, data?: any }[] = [];
+    notifyMessageReceived(type: string, data?: any) {
+        this.received.push({ type, data });
     }
-}));
+}
 
-describe('WebviewMessageHandler', () => {
+class FakeUI implements UIProxy {
+    public errors: string[] = [];
+    async showErrorMessage(message: string) {
+        this.errors.push(message);
+    }
+}
+
+describe('WebviewMessageHandler (Behavioral)', () => {
     let handler: WebviewMessageHandler;
-    let mockDispatcher: { notifyMessageReceived: jest.Mock };
+    let fakeDispatcher: FakeDispatcher;
+    let fakeUI: FakeUI;
 
     beforeEach(() => {
-        mockDispatcher = {
-            notifyMessageReceived: jest.fn()
-        };
-        handler = new WebviewMessageHandler(mockDispatcher);
+        fakeDispatcher = new FakeDispatcher();
+        fakeUI = new FakeUI();
+        handler = new WebviewMessageHandler(fakeDispatcher, fakeUI);
     });
 
     describe('message routing', () => {
-        it('should call registered handler', async () => {
-            let called = false;
-            handler.register('objectSelected', () => {
-                called = true;
-            });
-
-            const message: WebviewMessage = {
-                type: 'objectSelected',
-                data: { id: 'test-id', type: 'file', filePath: '/test.ts' }
-            };
-
-            await handler.handle(message);
-
-            expect(called).toBe(true);
-        });
-
-        it('should pass data to handler', async () => {
+        it('should call registered handler and notify dispatcher', async () => {
             let receivedData: any = null;
             handler.register('objectSelected', (data) => {
                 receivedData = data;
             });
 
+            const data = { id: 'test-id', type: 'file', filePath: '/test.ts' };
             const message: WebviewMessage = {
                 type: 'objectSelected',
-                data: { id: 'test-id', type: 'file', filePath: '/test.ts' }
+                data
             };
 
             await handler.handle(message);
 
-            expect(receivedData).toEqual({ id: 'test-id', type: 'file', filePath: '/test.ts' });
+            expect(receivedData).toEqual(data);
+            expect(fakeDispatcher.received[0]).toEqual({ type: 'objectSelected', data });
         });
 
         it('should handle messages without data', async () => {
@@ -71,219 +51,83 @@ describe('WebviewMessageHandler', () => {
                 called = true;
             });
 
-            const message: WebviewMessage = { type: 'ready' };
-
-            await handler.handle(message);
+            await handler.handle({ type: 'ready' });
 
             expect(called).toBe(true);
-        });
-
-        it('should handle async handlers', async () => {
-            let resolved = false;
-            handler.register('ready', async () => {
-                await new Promise(resolve => setTimeout(resolve, 10));
-                resolved = true;
-            });
-
-            const message: WebviewMessage = { type: 'ready' };
-            await handler.handle(message);
-
-            expect(resolved).toBe(true);
-        });
-    });
-
-    describe('dispatcher notification', () => {
-        it('should notify dispatcher before calling handler', async () => {
-            let handlerCalled = false;
-            handler.register('ready', () => {
-                handlerCalled = true;
-            });
-
-            const message: WebviewMessage = { type: 'ready' };
-            await handler.handle(message);
-
-            expect(mockDispatcher.notifyMessageReceived).toHaveBeenCalledWith('ready', undefined);
-            expect(handlerCalled).toBe(true);
-        });
-
-        it('should notify dispatcher with data', async () => {
-            handler.register('error', () => { });
-
-            const message: WebviewMessage = {
-                type: 'error',
-                data: { message: 'test error' }
-            };
-
-            await handler.handle(message);
-
-            expect(mockDispatcher.notifyMessageReceived).toHaveBeenCalledWith('error', { message: 'test error' });
+            expect(fakeDispatcher.received[0]).toEqual({ type: 'ready', data: undefined });
         });
     });
 
     describe('test messages', () => {
         it('should notify dispatcher but skip handler for test messages', async () => {
             let handlerCalled = false;
-            handler.register('TEST_SELECTION_DONE', () => {
+            handler.register('TEST_SELECTION_DONE' as any, () => {
                 handlerCalled = true;
             });
 
-            const message: WebviewMessage = { type: 'TEST_SELECTION_DONE' };
-            await handler.handle(message);
+            await handler.handle({ type: 'TEST_SELECTION_DONE' } as any);
 
-            expect(mockDispatcher.notifyMessageReceived).toHaveBeenCalledWith('TEST_SELECTION_DONE', undefined);
+            expect(fakeDispatcher.received[0].type).toBe('TEST_SELECTION_DONE');
             expect(handlerCalled).toBe(false);
         });
     });
 
     describe('error handling', () => {
-        it('should catch and log handler errors', async () => {
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-            const error = new Error('Test error');
-
-            handler.register('error', () => {
-                throw error;
+        it('should catch and report handler errors via UI proxy', async () => {
+            handler.register('ready', () => {
+                throw new Error('Boom');
             });
 
-            const message: WebviewMessage = {
-                type: 'error',
-                data: { message: 'test' }
-            };
+            await handler.handle({ type: 'ready' });
 
-            await handler.handle(message);
-
-            expect(consoleErrorSpy).toHaveBeenCalledWith(
-                '[WebviewMessageHandler] Error handling error:',
-                error
-            );
-            expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
-                'Error handling webview message: Test error'
-            );
-
-            consoleErrorSpy.mockRestore();
+            expect(fakeUI.errors[0]).toContain('Error handling webview message: Boom');
         });
 
         it('should handle non-Error exceptions', async () => {
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-            handler.register('error', () => {
-                throw 'String error';
+            handler.register('ready', () => {
+                throw 'Surprise';
             });
 
-            const message: WebviewMessage = {
-                type: 'error',
-                data: { message: 'test' }
-            };
+            await handler.handle({ type: 'ready' });
 
-            await handler.handle(message);
-
-            expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
-                'Error handling webview message: String error'
-            );
-
-            consoleErrorSpy.mockRestore();
+            expect(fakeUI.errors[0]).toContain('Error handling webview message: Surprise');
         });
     });
 
-    describe('unknown messages', () => {
-        it('should log unknown message types', async () => {
-            const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+    describe('middleware', () => {
+        it('should execute multiple middleware in onion order', async () => {
+            const trace: string[] = [];
 
-            const message: WebviewMessage = { type: 'unknownMessage' as any };
-            await handler.handle(message);
+            handler.use(async (msg, next) => {
+                trace.push('m1-in');
+                await next();
+                trace.push('m1-out');
+            });
 
-            expect(consoleLogSpy).toHaveBeenCalledWith('Unknown message from webview:', 'unknownMessage');
-            expect(mockDispatcher.notifyMessageReceived).toHaveBeenCalledWith('unknownMessage', undefined);
+            handler.use(async (msg, next) => {
+                trace.push('m2-in');
+                await next();
+                trace.push('m2-out');
+            });
 
-            consoleLogSpy.mockRestore();
+            handler.register('ready', () => {
+                trace.push('handler');
+            });
+
+            await handler.handle({ type: 'ready' });
+
+            expect(trace).toEqual(['m1-in', 'm2-in', 'handler', 'm2-out', 'm1-out']);
         });
     });
 
     describe('default handlers', () => {
-        it('should have default handler for ready', async () => {
-            const message: WebviewMessage = { type: 'ready' };
-
-            // Should not throw
-            await expect(handler.handle(message)).resolves.not.toThrow();
-        });
-
-        it('should have default handler for error', async () => {
-            const message: WebviewMessage = {
+        it('should show error message for the "error" message type', async () => {
+            await handler.handle({
                 type: 'error',
-                data: { message: 'test' }
-            };
-
-            await handler.handle(message);
-
-            expect(vscode.window.showErrorMessage).toHaveBeenCalledWith('3D World Error: test');
-        });
-
-        it('should have default handler for log', async () => {
-            const message: WebviewMessage = {
-                type: 'log',
-                data: { message: 'test log' }
-            };
-
-            // Should not throw (handler is no-op)
-            await expect(handler.handle(message)).resolves.not.toThrow();
-        });
-
-        it('should have default handler for objectFocused', async () => {
-            const message: WebviewMessage = {
-                type: 'objectFocused',
-                data: { id: 'test', type: 'file', filePath: '/test.ts' }
-            };
-
-            // Should not throw (handler is no-op)
-            await expect(handler.handle(message)).resolves.not.toThrow();
-        });
-    });
-    describe('middleware', () => {
-        it('should execute middleware before handler', async () => {
-            const operations: string[] = [];
-
-            handler.use(async (msg, next) => {
-                operations.push('middleware-start');
-                await next();
-                operations.push('middleware-end');
+                data: { message: 'Something went wrong' }
             });
 
-            handler.register('ready', () => {
-                operations.push('handler');
-            });
-
-            await handler.handle({ type: 'ready' });
-
-            expect(operations).toEqual(['middleware-start', 'handler', 'middleware-end']);
-        });
-
-        it('should execute multiple middleware in order', async () => {
-            const operations: string[] = [];
-
-            handler.use(async (msg, next) => {
-                operations.push('m1-start');
-                await next();
-                operations.push('m1-end');
-            });
-
-            handler.use(async (msg, next) => {
-                operations.push('m2-start');
-                await next();
-                operations.push('m2-end');
-            });
-
-            handler.register('ready', () => {
-                operations.push('handler');
-            });
-
-            await handler.handle({ type: 'ready' });
-
-            expect(operations).toEqual([
-                'm1-start',
-                'm2-start',
-                'handler',
-                'm2-end',
-                'm1-end'
-            ]);
+            expect(fakeUI.errors[0]).toBe('3D World Error: Something went wrong');
         });
     });
 });

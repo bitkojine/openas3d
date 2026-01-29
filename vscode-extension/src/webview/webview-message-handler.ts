@@ -1,10 +1,3 @@
-/**
- * WebviewMessageHandler - Handles incoming messages from webview
- * 
- * Single Responsibility: Route incoming webview messages to appropriate handlers.
- * Uses a simple handler registry pattern (similar to MessageRouter but for webview messages).
- */
-
 import * as vscode from 'vscode';
 import { WebviewMessage, WebviewMessageType, WebviewMessageData } from '../shared/messages';
 
@@ -12,13 +5,27 @@ type MessageHandlerFn<T extends WebviewMessageType> = (
     data: WebviewMessageData<T>
 ) => void | Promise<void>;
 
+/**
+ * UIProxy - Interface for decoupling UI operations
+ */
+export interface UIProxy {
+    showErrorMessage(message: string): void | Promise<void>;
+}
+
 export class WebviewMessageHandler {
     private handlers = new Map<WebviewMessageType, (data: any) => void | Promise<void>>();
     private middleware: ((message: WebviewMessage, next: () => Promise<void>) => Promise<void>)[] = [];
     private messageDispatcher: { notifyMessageReceived(type: string, data?: any): void };
+    private uiProxy: UIProxy;
 
-    constructor(messageDispatcher: { notifyMessageReceived(type: string, data?: any): void }) {
+    constructor(
+        messageDispatcher: { notifyMessageReceived(type: string, data?: any): void },
+        uiProxy: UIProxy = {
+            showErrorMessage: (m) => Promise.resolve(vscode.window.showErrorMessage(m)).then(() => { })
+        }
+    ) {
         this.messageDispatcher = messageDispatcher;
+        this.uiProxy = uiProxy;
         this.registerDefaultHandlers();
     }
 
@@ -72,7 +79,7 @@ export class WebviewMessageHandler {
             await runMiddleware(0);
         } catch (error) {
             console.error(`[WebviewMessageHandler] Error handling ${message.type}:`, error);
-            vscode.window.showErrorMessage(
+            this.uiProxy.showErrorMessage(
                 `Error handling webview message: ${error instanceof Error ? error.message : String(error)}`
             );
         }
@@ -89,7 +96,7 @@ export class WebviewMessageHandler {
 
         // Error messages
         this.register('error', (data: { message: string }) => {
-            vscode.window.showErrorMessage(`3D World Error: ${data.message}`);
+            this.uiProxy.showErrorMessage(`3D World Error: ${data.message}`);
         });
 
         // Log messages - can be enabled for debugging
