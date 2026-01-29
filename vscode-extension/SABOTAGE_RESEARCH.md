@@ -51,26 +51,22 @@ We refactored the test to:
 3.  **Run the actual `dependency-cruiser` CLI** against the temporary project.
 4.  **Verify the output warnings** against the expected violations.
 
-### Triple Crown: Refactoring `@profile` Decorator
+### Quadruple Victory: Refactoring `LayoutPersistenceService`
 
-Finally, we refactored [profiling.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/utils/__tests__/profiling.test.ts) to verify the behavior of the method decorator without using `jest.spyOn`.
+We then refactored [layout-persistence.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/services/__tests__/layout-persistence.test.ts) to verify the storage logic using real temporary directories and real JSON file reads.
 
 #### Key Improvements:
-- **Internal State Verification**: Instead of checking if a spy was called, we verify that the `PerfTracker` internal state actually changed by calling `perf.getStats()`.
-- **Async Timing Jitter**: We adjusted the async expectations to $25ms$ (for a $30ms$ delay) to reliably account for event loop jitter in CI/real-world environments.
-- **Error Path Coverage**: Added a test to ensure that even if a decorated method throws an error, the event is still correctly recorded in the `PerfTracker`.
+- **Real Filesystem Interaction**: Instead of mocking `fs.writeFileSync` and `fs.readFileSync`, we use `fs.mkdtemp` to create a real workspace root and verify that the `.openas3d/layout.json` file is correctly created.
+- **Data Normalization & Sorting**: We verify that the JSON output contains normalized coordinates (3 decimal places) and that the keys are sorted alphabetically by reading the actual file on disk.
+- **Test Isolation**: Each test case uses a fresh subdirectory within the temp directory to prevent side effects and ensure a clean state.
 
-### Verification Results (Round 3)
+### Verification Results (Round 4)
 Running the unit test suite now shows:
 - **Architecture Verification**: PASSED (Integration)
 - **PerfTracker**: PASSED (Behavioral)
 - **Profiling Decorator**: PASSED (Behavioral)
-- **16 Other Suites**: STILL FAILED (Correctly sabotaged)
+- **Layout Persistence**: PASSED (Behavioral)
+- **15 Other Suites**: STILL FAILED (Correctly sabotaged)
 
 ## Final State
-The codebase now has three distinct templates for how to escape the "Mock Trap":
-1.  **CLI Integration**: Running real binaries against real files (`Architecture`).
-2.  **Filesystem Persistence**: Verifying real file outputs (`PerfTracker`).
-3.  **Cross-Component Interaction**: Verifying state changes in real dependencies (`Profiling`).
-
-The transition from "simulated confidence" to "real-world reliability" is now well-underway.
+The codebase now clearly demonstrates how to refactor various types of tests (CLI-based, storage-based, and decorator-based) into robust, behavior-driven tests. We have established a repeatable pattern for improving test reliability while keeping the "Mock Trap" active for legacy tests.
