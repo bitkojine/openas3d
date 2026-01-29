@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -30,10 +30,11 @@ const EXCLUDED_PATTERNS = [
 function getStagedFiles() {
   try {
     // Get staged files, filter for TypeScript/JavaScript in src directory
-    const output = execSync('git diff --cached --name-only --diff-filter=ACM', { 
+    const output = spawnSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACM'], { 
       encoding: 'utf8',
-      cwd: process.cwd()
-    });
+      cwd: process.cwd(),
+      shell: false
+    }).stdout;
     
     return output
       .split('\n')
@@ -78,10 +79,11 @@ function getStagedContent(filePath) {
   try {
     // Get the staged content of the file using the full path
     const fullPath = `vscode-extension/${filePath}`;
-    const output = execSync(`git show :${fullPath}`, { 
+    const output = spawnSync('git', ['show', `:${fullPath}`], { 
       encoding: 'utf8',
-      cwd: process.cwd()
-    });
+      cwd: process.cwd(),
+      shell: false
+    }).stdout;
     return output;
   } catch (error) {
     console.error(`❌ Failed to get staged content for ${filePath}:`, error.message);
