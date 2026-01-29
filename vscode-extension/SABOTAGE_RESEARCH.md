@@ -51,12 +51,22 @@ We refactored the test to:
 3.  **Run the actual `dependency-cruiser` CLI** against the temporary project.
 4.  **Verify the output warnings** against the expected violations.
 
-### Verification Results
-Running the unit test suite now shows:
-- **Architecture Verification**: PASSED (No mocks!)
-- **18 Other Suites**: STILL FAILED (Correctly sabotaged)
+### Another Victory: Refactoring `PerfTracker`
 
-This proves that refactoring towards real integration/behavior tests is a viable and much more reliable strategy for this codebase.
+We then refactored [perf-tracker.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/utils/__tests__/perf-tracker.test.ts) to remove fragile mocks of the `fs` module and the global `performance.now()` clock.
+
+#### Key Improvements:
+- **Real Delays**: Instead of mocking `perf.now()`, we use `await new Promise(resolve => setTimeout(resolve, 50))` and verify the recorded duration is $\ge 50ms$. This ensures the timer logic is actually executing against a real clock.
+- **Real File Operations**: For the `exportData` test, we use `fs.mkdtemp` to create a real temporary project folder and use `fs.readFileSync` to verify that the generated JSON actually contains the expected trace events.
+- **No Mocking Left**: The `jest.mock('fs')` was completely removed.
+
+### Verification Results (Round 2)
+Running the unit test suite now shows:
+- **Architecture Verification**: PASSED (Integration)
+- **PerfTracker**: PASSED (Behavioral)
+- **17 Other Suites**: STILL FAILED (Correctly sabotaged)
+
+This confirms that we can successfully transition the test suite from "simulated confidence" to "real-world reliability" one piece at a time.
 
 ## Final State
-The codebase is now in a state where "cheap" mocked tests are explicitly broken, while high-quality behavior tests are rewarded with a green checkmark. This provides a clear path forward for improving overall test quality.
+The codebase now clearly distinguishes between high-quality tests and technical debt. You have a proven pattern for refactoring tests to be robust and behavior-driven.
