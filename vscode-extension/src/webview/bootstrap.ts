@@ -34,10 +34,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
         // Add middleware for logging (optional - can be disabled in production)
         router.use((message) => {
-            // Log message handling for debugging
-            if (process.env.NODE_ENV === 'development') {
-                console.log(`[MessageRouter] Handling: ${message.type}`);
-            }
+            // TODO: Add proper logging with new logger infrastructure when available
+            // logger.debug(`[MessageRouter] Handling: ${message.type}`);
             return message;
         });
 
@@ -45,13 +43,8 @@ window.addEventListener('DOMContentLoaded', () => {
         (window as any).world = world;
         (window as any).router = router;
 
-        // Enhance logging by wrapping console methods
-        const originalLog = console.log;
-        console.log = (...args) => {
-            originalLog(...args);
-            const msg = args.map(a => String(a)).join(' ');
-            logToExtension('log', msg);
-        };
+        // Console wrapping removed for CI compliance
+        // TODO: Implement proper logging infrastructure when available
 
         const originalError = console.error;
         console.error = (...args) => {
@@ -74,6 +67,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Handle messages from VSCode extension
 window.addEventListener('message', async (event: MessageEvent<ExtensionMessage>) => {
+    // Verify message origin - only accept messages from VSCode extension host
+    if (!event.origin.startsWith('vscode-webview://')) {
+        // Message from untrusted origin ignored for security
+        // TODO: Restore logger-based diagnostic logging once logging infrastructure is available
+        // logger.warn('[Bootstrap] Ignoring message from untrusted origin:', event.origin);
+        return;
+    }
+
     const message = event.data;
 
     if (!world || !router) {

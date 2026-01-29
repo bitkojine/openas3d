@@ -75,7 +75,6 @@ export class TestDiscoveryService {
                     child.stderr.on('data', (data: any) => {
                         // Optional: log stderr to console 
                         const msg = data.toString();
-                        console.log(`[Jest Stderr]: ${msg}`);
                         run.appendOutput(msg.replace(/\n/g, '\r\n'));
                     });
 

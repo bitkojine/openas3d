@@ -8,5 +8,5 @@ import { WarningOverlay } from '../../../webview/warning-overlay';
 
 export function coreFunction(): void {
     // This is bad architecture - core shouldn't know about UI
-    console.log('Core function accessing UI:', WarningOverlay);
+    // Intentional layer violation for testing
 }

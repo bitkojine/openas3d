@@ -1,0 +1,77 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Technical Debt Item",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "id": {
+                "type": "string",
+                "description": "Stable identifier for the debt item (e.g., SonarQube issue key)."
+            },
+            "path": {
+                "type": "string",
+                "description": "File or component path affected by the debt."
+            },
+            "type": {
+                "type": "string",
+                "enum": [
+                    "CODE_SMELL",
+                    "BUG",
+                    "VULNERABILITY",
+                    "COMPLEXITY",
+                    "DUPLICATION",
+                    "DESIGN"
+                ],
+                "description": "The category of technical debt."
+            },
+            "severity": {
+                "type": "string",
+                "enum": [
+                    "INFO",
+                    "MINOR",
+                    "MAJOR",
+                    "CRITICAL",
+                    "BLOCKER"
+                ],
+                "description": "The severity level of the issue."
+            },
+            "remediationEffortMinutes": {
+                "type": "integer",
+                "description": "Estimated time to fix the issue in minutes."
+            },
+            "firstDetected": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Timestamp when the debt was first detected."
+            },
+            "lastObserved": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Timestamp when the debt was last observed in an analysis."
+            },
+            "trend": {
+                "type": "string",
+                "enum": [
+                    "IMPROVING",
+                    "STABLE",
+                    "WORSENING"
+                ],
+                "description": "Direction of the debt trend for this specific item/component."
+            },
+            "description": {
+                "type": "string",
+                "description": "Brief description of the debt."
+            }
+        },
+        "required": [
+            "id",
+            "path",
+            "type",
+            "severity",
+            "remediationEffortMinutes",
+            "firstDetected",
+            "lastObserved"
+        ]
+    }
+}
