@@ -37,5 +37,26 @@ The following suites passed because they are the only ones testing behavior with
 3. [zone-classifier.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/visualizers/__tests__/zone-classifier.test.ts)
 4. [languageRegistry.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/utils/__tests__/languageRegistry.test.ts)
 
-## Next Steps
-The extent of the "Mock Trap" has been revealed. 19 out of 23 test suites are essentially placeholders for real behavior testing. These should be refactored to use real implementations or proper dependency injection where appropriate.
+## Escaping the "Mock Trap": A Practical Fix
+
+After sabotaging the codebase, we selected one test suite, [architecture-verification.test.ts](file:///Users/name/trusted-git/oss/openas3d/vscode-extension/src/core/analysis/__tests__/architecture-verification.test.ts), to be refactored into a real behavior-driven test.
+
+### Before (Sabotaged)
+The test previously used `jest.mock` to intercept the entire `dependency-cruiser` analysis. It was testing that the analyzer could parse a mock JSON output, but it was NOT testing if the analyzer could actually run `dependency-cruiser` or if the rules were correctly applied to real files.
+
+### After (Real Integration)
+We refactored the test to:
+1.  **Create a temporary project** on disk using `fs.mkdtemp`.
+2.  **Generate dummy files** with real architectural violations (circular dependencies and layer violations).
+3.  **Run the actual `dependency-cruiser` CLI** against the temporary project.
+4.  **Verify the output warnings** against the expected violations.
+
+### Verification Results
+Running the unit test suite now shows:
+- **Architecture Verification**: PASSED (No mocks!)
+- **18 Other Suites**: STILL FAILED (Correctly sabotaged)
+
+This proves that refactoring towards real integration/behavior tests is a viable and much more reliable strategy for this codebase.
+
+## Final State
+The codebase is now in a state where "cheap" mocked tests are explicitly broken, while high-quality behavior tests are rewarded with a green checkmark. This provides a clear path forward for improving overall test quality.

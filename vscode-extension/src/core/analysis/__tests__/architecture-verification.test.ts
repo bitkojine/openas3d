@@ -1,102 +1,109 @@
-throw new Error("Mock Sabotaged! This test uses mocking (jest.mock, jest.fn, or jest.spyOn).");
-
-import { analyzeArchitecture, ArchitectureWarning } from '../architecture-analyzer';
+import { analyzeArchitecture } from '../architecture-analyzer';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 
-// Create a mock cruise function that we'll configure per test
-const mockCruise = jest.fn();
+describe('analyzeArchitecture (Integration)', () => {
+    let tempDir: string;
+    const extensionPath = path.resolve(__dirname, '../../../../');
 
-describe('analyzeArchitecture', () => {
-    const rootPath = '/test/root';
-    const fileIdMap = new Map<string, string>();
-    fileIdMap.set(path.join(rootPath, 'src/index.ts'), 'entry-id');
-    fileIdMap.set(path.join(rootPath, 'src/utils.ts'), 'utils-id');
-    fileIdMap.set(path.join(rootPath, 'src/api.ts'), 'api-id');
+    beforeAll(() => {
+        // Create a temporary project structure
+        tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openas3d-test-'));
 
-    beforeEach(() => {
-        mockCruise.mockReset();
-    });
+        // Mock package.json
+        fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({
+            name: 'test-project',
+            version: '1.0.0'
+        }));
 
-    it('should return warnings for circular dependencies', async () => {
-        mockCruise.mockResolvedValue({
-            outputType: 'json',
-            modules: [],
-            summary: {
-                violations: [
-                    {
-                        from: 'src/index.ts',
-                        to: 'src/utils.ts',
-                        rule: { name: 'no-circular' },
-                        cycle: ['src/index.ts', 'src/utils.ts']
-                    }
-                ]
+        // Mock tsconfig
+        fs.writeFileSync(path.join(tempDir, 'tsconfig.json'), JSON.stringify({
+            compilerOptions: {
+                baseUrl: ".",
+                paths: { "*": ["src/*"] },
+                module: "commonjs",
+                target: "es6"
             }
-        });
+        }));
 
-        const warnings = await analyzeArchitecture(rootPath, fileIdMap, { cruiseOptions: {}, cruiseFn: mockCruise });
+        const srcDir = path.join(tempDir, 'src');
+        fs.mkdirSync(srcDir);
 
-        expect(warnings).toHaveLength(1);
-        expect(warnings[0]).toMatchObject({
-            fileId: 'entry-id',
-            type: 'circular-dependency',
-            severity: 'high',
-            ruleName: 'no-circular',
-            message: 'Circular dependency detected'
-        });
-        expect(warnings[0].cyclePath).toBeDefined();
-        expect(warnings[0].cyclePath).toContain('entry-id');
-        expect(warnings[0].cyclePath).toContain('utils-id');
-        expect(warnings[0].relatedFileIds).toContain('utils-id');
-    });
+        // Circular dependency: a -> b -> a
+        fs.writeFileSync(path.join(srcDir, 'a.ts'), "import { b } from './b';\nexport const a = 1;");
+        fs.writeFileSync(path.join(srcDir, 'b.ts'), "import { a } from './a';\nexport const b = 1;");
 
-    it('should return warnings for layer violations', async () => {
-        mockCruise.mockResolvedValue({
-            outputType: 'json',
-            modules: [],
-            summary: {
-                violations: [
+        // Layer violation: src/utils/utils.ts -> src/api/api.ts
+        const configContent = `
+            module.exports = {
+                forbidden: [
                     {
-                        from: 'src/utils.ts',
-                        to: 'src/api.ts',
-                        rule: { name: 'layer-no-utils-to-api' }
+                        name: 'no-circular',
+                        severity: 'error',
+                        from: {},
+                        to: { circular: true }
+                    },
+                    {
+                        name: 'layer-no-utils-to-api',
+                        severity: 'error',
+                        from: { path: 'src/utils/' },
+                        to: { path: 'src/api/' }
                     }
-                ]
-            }
-        });
-
-        const warnings = await analyzeArchitecture(rootPath, fileIdMap, { cruiseOptions: {}, cruiseFn: mockCruise });
-
-        expect(warnings).toHaveLength(1);
-        expect(warnings[0]).toMatchObject({
-            fileId: 'utils-id',
-            type: 'layer-violation',
-            severity: 'high',
-            ruleName: 'layer-no-utils-to-api',
-            targetId: 'api-id',
-            message: 'Dependency on `api.ts` violates layer rules'
-        });
-    });
-
-    it('should handle entry bloat', async () => {
-        const bigDeps = Array.from({ length: 20 }, (_, i) => `dep${i}`);
-        mockCruise.mockResolvedValue({
-            outputType: 'json',
-            modules: [
-                {
-                    source: 'src/index.ts',
-                    dependencies: bigDeps
+                ],
+                options: {
+                    tsPreCompilationDeps: true
                 }
-            ],
-            summary: { violations: [] }
+            };
+        `;
+        fs.writeFileSync(path.join(tempDir, '.dependency-cruiser.cjs'), configContent);
+
+        const apiDir = path.join(srcDir, 'api');
+        fs.mkdirSync(apiDir);
+        fs.writeFileSync(path.join(apiDir, 'api.ts'), "export const API = 1;");
+
+        const utilsDir = path.join(srcDir, 'utils');
+        fs.mkdirSync(utilsDir);
+        fs.writeFileSync(path.join(utilsDir, 'utils.ts'), "import { API } from '../api/api';\nexport const util = API;");
+
+        // Entry point with many dependencies
+        fs.writeFileSync(path.join(srcDir, 'index.ts'),
+            Array.from({ length: 20 }, (_, i) => `import './dep${i}';`).join('\n')
+        );
+        for (let i = 0; i < 20; i++) {
+            fs.writeFileSync(path.join(srcDir, `dep${i}.ts`), "export {}");
+        }
+    });
+
+    afterAll(() => {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    it('should detect violations in a real project structure', async () => {
+        const fileIdMap = new Map<string, string>();
+        fileIdMap.set(path.join(tempDir, 'src/a.ts'), 'a-id');
+        fileIdMap.set(path.join(tempDir, 'src/b.ts'), 'b-id');
+        fileIdMap.set(path.join(tempDir, 'src/utils/utils.ts'), 'utils-id');
+        fileIdMap.set(path.join(tempDir, 'src/api/api.ts'), 'api-id');
+        fileIdMap.set(path.join(tempDir, 'src/index.ts'), 'index-id');
+
+        const warnings = await analyzeArchitecture(tempDir, fileIdMap, {
+            extensionPath
         });
 
-        const warnings = await analyzeArchitecture(rootPath, fileIdMap, { cruiseOptions: {}, cruiseFn: mockCruise });
+        // 1. Check Circular Dependency
+        const circular = warnings.filter(w => w.type === 'circular-dependency');
+        expect(circular.length).toBeGreaterThan(0);
+        expect(circular.some(w => w.fileId === 'a-id' || w.fileId === 'b-id')).toBe(true);
 
-        expect(warnings).toHaveLength(1);
-        expect(warnings[0]).toMatchObject({
-            fileId: 'entry-id',
-            type: 'entry-bloat',
-            severity: 'low'
-        });
+        // 2. Check Layer Violation
+        const layer = warnings.find(w => w.type === 'layer-violation');
+        expect(layer).toBeDefined();
+        expect(layer?.fileId).toBe('utils-id');
+
+        // 3. Check Entry Bloat
+        const bloat = warnings.find(w => w.type === 'entry-bloat');
+        expect(bloat).toBeDefined();
+        expect(bloat?.fileId).toBe('index-id');
     });
 });
