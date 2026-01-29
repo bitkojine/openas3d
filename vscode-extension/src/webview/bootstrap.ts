@@ -34,10 +34,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
         // Add middleware for logging (optional - can be disabled in production)
         router.use((message) => {
-            // Log message handling for debugging
-            if (process.env.NODE_ENV === 'development') {
-                console.log(`[MessageRouter] Handling: ${message.type}`);
-            }
+            // TODO: Add proper logging with new logger infrastructure when available
+            // logger.debug(`[MessageRouter] Handling: ${message.type}`);
             return message;
         });
 

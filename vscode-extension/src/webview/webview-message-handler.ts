@@ -61,7 +61,6 @@ export class WebviewMessageHandler {
                 // Final step: execute handler
                 const handler = this.handlers.get(message.type);
                 if (!handler) {
-                    console.log('Unknown message from webview:', message.type);
                     return;
                 }
                 await handler(data);

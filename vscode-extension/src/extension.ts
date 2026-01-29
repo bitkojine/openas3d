@@ -20,7 +20,6 @@ let testDiscovery: TestDiscoveryService;
 export function activate(context: vscode.ExtensionContext) {
     const extension = vscode.extensions.getExtension('openas3d.openas3d-vscode');
     const version = extension?.packageJSON?.version || '0.0.0';
-    console.log(`OpenAs3D extension is now active! (Version ${version})`);
 
     // Initialize core managers
     // We pass perf tracker to WebviewPanelManager for middleware support
@@ -229,7 +228,6 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-    console.log('OpenAs3D extension is being deactivated');
 
     if (webviewPanelManager) { webviewPanelManager.dispose(); }
     // CodebaseVisualizer doesn't have a dispose method currently, cleanup happens via initialize return fn

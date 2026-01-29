@@ -108,7 +108,6 @@ export class PerfTracker {
         });
 
         console.group('Performance Report');
-        reportLines.forEach(line => console.log(line));
         console.groupEnd();
     }
 
@@ -158,7 +157,6 @@ export class PerfTracker {
 
         try {
             await fs.promises.writeFile(filePath, JSON.stringify(traceData, null, 2), 'utf8');
-            console.log(`Performance data exported to ${filePath}`);
         } catch (err) {
             console.error('Failed to export performance data:', err);
             throw err;
@@ -176,10 +174,8 @@ export class PerfTracker {
     public getStats(): { label: string; count: number; avg: number; max: number }[] {
         const events = this.events.getAll();
         const stats = new Map<string, number[]>();
-        console.log('getStats events:', events.length);
 
         for (const event of events) {
-            console.log('Event:', event.name, event.ph, event.dur);
             if (event.ph === 'X' && event.dur !== undefined) {
                 this.addToStats(stats, event.name, event.dur / 1000);
             }
