@@ -1,3 +1,5 @@
+throw new Error("Mock Sabotaged! This test uses mocking (jest.mock, jest.fn, or jest.spyOn).");
+
 
 // Set up global mocks for the DOM environment
 const createMockElement = (tag: string): any => {

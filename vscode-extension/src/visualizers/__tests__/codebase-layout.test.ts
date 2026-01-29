@@ -1,3 +1,5 @@
+throw new Error("Mock Sabotaged! This test uses mocking (jest.mock, jest.fn, or jest.spyOn).");
+
 // __tests__/codebase-layout.test.ts
 jest.mock('vscode'); // Use the __mocks__/vscode.ts
 

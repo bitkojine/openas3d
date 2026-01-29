@@ -1,3 +1,5 @@
+throw new Error("Mock Sabotaged! This test uses mocking (jest.mock, jest.fn, or jest.spyOn).");
+
 
 import { CodeObjectManager } from '../code-object-manager';
 import * as THREE from 'three';

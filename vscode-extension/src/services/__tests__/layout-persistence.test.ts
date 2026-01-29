@@ -1,3 +1,5 @@
+throw new Error("Mock Sabotaged! This test uses mocking (jest.mock, jest.fn, or jest.spyOn).");
+
 import { LayoutPersistenceService } from '../layout-persistence';
 import * as fs from 'fs';
 import * as path from 'path';
