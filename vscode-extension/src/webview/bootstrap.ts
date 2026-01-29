@@ -70,6 +70,8 @@ window.addEventListener('message', async (event: MessageEvent<ExtensionMessage>)
     // Verify message origin - only accept messages from VSCode extension host
     if (!event.origin.startsWith('vscode-webview://')) {
         // Message from untrusted origin ignored for security
+        // TODO: Restore logger-based diagnostic logging once logging infrastructure is available
+        // logger.warn('[Bootstrap] Ignoring message from untrusted origin:', event.origin);
         return;
     }
 

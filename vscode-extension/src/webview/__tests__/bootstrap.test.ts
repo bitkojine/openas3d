@@ -146,10 +146,7 @@ describe('Bootstrap Origin Verification', () => {
                 
                 await messageHandler(trustedEvent);
                 
-                expect(mockConsoleWarn).not.toHaveBeenCalledWith(
-                    expect.stringContaining('Ignoring message from untrusted origin'),
-                    origin
-                );
+                expect(mockConsoleWarn).not.toHaveBeenCalled();
             }
         });
 
@@ -176,13 +173,7 @@ describe('Bootstrap Origin Verification', () => {
             };
             
             await messageHandler(untrustedEvent);
-            
-            // Should log warning for untrusted origin
-            expect(mockConsoleWarn).toHaveBeenCalledWith(
-                '[Bootstrap] Ignoring message from untrusted origin:',
-                'https://malicious-site.com'
-            );
-            
+
             // Should not attempt to handle the message
             expect(mockRouter.handle).not.toHaveBeenCalled();
         });
@@ -220,11 +211,6 @@ describe('Bootstrap Origin Verification', () => {
                 };
                 
                 await messageHandler(untrustedEvent);
-                
-                expect(mockConsoleWarn).toHaveBeenCalledWith(
-                    '[Bootstrap] Ignoring message from untrusted origin:',
-                    origin
-                );
             }
             
             // Should never attempt to handle any untrusted messages

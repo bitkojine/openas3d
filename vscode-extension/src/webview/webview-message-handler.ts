@@ -61,6 +61,8 @@ export class WebviewMessageHandler {
                 // Final step: execute handler
                 const handler = this.handlers.get(message.type);
                 if (!handler) {
+                    // TODO: Add logger-based diagnostic logging once logging infrastructure is available
+                    // logger.debug('Unknown message from webview:', message.type);
                     return;
                 }
                 await handler(data);
