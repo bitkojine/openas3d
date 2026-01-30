@@ -14,7 +14,7 @@ const createMockElement = (tag: string): any => {
         remove: jest.fn(() => {
             if (el.parentElement) {
                 const idx = el.parentElement.children.indexOf(el);
-                if (idx > -1) el.parentElement.children.splice(idx, 1);
+                if (idx > -1) { el.parentElement.children.splice(idx, 1); }
             }
         }),
         getBoundingClientRect: jest.fn(() => ({ top: 0, left: 0, right: 0, bottom: 0, width: 100, height: 100 })),
@@ -101,8 +101,7 @@ describe('Context Menu Full Flow', () => {
     beforeEach(() => {
         // Setup DOM
         domElement = document.createElement('div');
-        // @ts-ignore
-        document.body.appendChild(domElement);
+        (document.body as any).appendChild(domElement);
 
         // Setup Camera
         camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
@@ -175,7 +174,7 @@ describe('Context Menu Full Flow', () => {
         const menuContainer = bodyChildren.find((el: any) => el.className === 'context-menu-container');
 
         expect(menuContainer).toBeDefined();
-        if (!menuContainer) return;
+        if (!menuContainer) { return; }
 
         // Check styles
         expect(menuContainer.style.position).toBe('fixed');

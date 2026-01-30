@@ -182,3 +182,41 @@ ln -s "$(pwd)/vscode-extension" ~/.vscode/extensions/openas3d-dev
    ```
 
 Now, whenever you save a change to the extension source code, Webpack will recompile `extension.js`, and the extension will automatically reload the VS Code window for you.
+
+## Architectural Quality & Technical Debt
+
+OpenAs3D uses SonarQube Community Edition for authoritative tracking of architectural health and technical debt.
+
+### Local SonarQube Setup
+
+Run SonarQube and PostgreSQL locally via Docker Compose:
+
+```zsh
+docker-compose up -d
+```
+
+Access the UI at [http://localhost:9000](http://localhost:9000) (Default login: `admin`/`admin`).
+
+### CI/CD Integration
+
+Analysis runs automatically on Pull Requests and pushes to `main`. Results are uploaded to the configured SonarQube instance.
+
+> [!IMPORTANT]
+> To enable CI analysis, you must add `SONAR_TOKEN` and `SONAR_HOST_URL` to your repository's **GitHub Secrets**. The workflow will gracefully skip the analysis if these secrets are missing.
+
+
+### Technical Debt Backlog
+
+Technical debt is modeled using the SQALE method. A machine-readable backlog can be extracted using the provided script:
+
+```zsh
+node scripts/extract-tech-debt.js <SONAR_HOST_URL> <SONAR_TOKEN> openas3d > tech-debt.json
+```
+
+Refer to [SCHEMA_TECH_DEBT.json](docs/SCHEMA_TECH_DEBT.json) for the canonical format.
+
+### Definition of Done for Refactors
+
+Refactoring PRs are governed by explicit metrics-based criteria. A refactor is not complete unless it reduces debt without introducing regressions. See [REFACTOR_DOD.md](docs/REFACTOR_DOD.md) for details.
+
+

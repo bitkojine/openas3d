@@ -38,10 +38,10 @@ export class SceneManager {
         this.renderer.dispose();
 
         // Specific disposals
-        if (this.ground.geometry) this.ground.geometry.dispose();
+        if (this.ground.geometry) {this.ground.geometry.dispose();}
         if (this.ground.material instanceof THREE.Material) {
             const mat = this.ground.material as THREE.MeshLambertMaterial;
-            if (mat.map) mat.map.dispose();
+            if (mat.map) {mat.map.dispose();}
             mat.dispose();
         }
 
@@ -166,7 +166,7 @@ export class SceneManager {
         // Re-generate texture with theme colors (grassColor)
         const newGrassTex = createEnhancedGrassTexture(theme);
         const groundMat = this.ground.material as THREE.MeshLambertMaterial;
-        if (groundMat.map) groundMat.map.dispose();
+        if (groundMat.map) {groundMat.map.dispose();}
         groundMat.map = newGrassTex;
         groundMat.map.needsUpdate = true;
         // Also tint the ground material slightly to match ambient? No, texture handles it.

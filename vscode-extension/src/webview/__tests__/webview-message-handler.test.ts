@@ -164,7 +164,7 @@ describe('WebviewMessageHandler', () => {
             const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
             handler.register('error', () => {
-                throw 'String error';
+                throw new Error('String error');
             });
 
             const message: WebviewMessage = {
@@ -183,16 +183,11 @@ describe('WebviewMessageHandler', () => {
     });
 
     describe('unknown messages', () => {
-        it('should log unknown message types', async () => {
-            const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-
+        it('should ignore unknown message types', async () => {
             const message: WebviewMessage = { type: 'unknownMessage' as any };
             await handler.handle(message);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith('Unknown message from webview:', 'unknownMessage');
             expect(mockDispatcher.notifyMessageReceived).toHaveBeenCalledWith('unknownMessage', undefined);
-
-            consoleLogSpy.mockRestore();
         });
     });
 

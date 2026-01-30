@@ -1,9 +1,39 @@
 // __tests__/codebase-layout.test.ts
-jest.mock('vscode'); // Use the __mocks__/vscode.ts
-
 import { CodebaseLayoutEngine } from '../codebase-layout';
 
 describe('CodebaseLayoutEngine', () => {
+    /**
+     * Bug: Layout Collision
+     * Multiple files in the same zone are assigned the exact same coordinates.
+     * This could occur if the spiral expansion algorithm is broken or bypassed.
+     */
+    it('ensures no two files in the same zone have the same position (Collision Check)', () => {
+        const engine = new CodebaseLayoutEngine();
+
+        // Create 50 files in the same zone
+        const files = Array.from({ length: 50 }, (_, i) => ({
+            id: `file_${i}`,
+            filePath: `src/core/logic_${i}.ts`
+        } as any));
+
+        const positions = engine.computePositions(files);
+
+        const seenPositions = new Set<string>();
+        files.forEach(file => {
+            const pos = positions.get(file.id);
+            expect(pos).toBeDefined();
+            const posKey = `${pos!.x},${pos!.z}`;
+
+            // If we've seen this position already, it's a collision
+            if (seenPositions.has(posKey)) {
+                throw new Error(`Collision detected at ${posKey} for file ${file.id}`);
+            }
+            seenPositions.add(posKey);
+        });
+
+        expect(seenPositions.size).toBe(50);
+    });
+
     it('computes positions consistently', () => {
         const engine = new CodebaseLayoutEngine();
 

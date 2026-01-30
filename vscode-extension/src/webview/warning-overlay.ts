@@ -224,7 +224,7 @@ export class WarningOverlay {
         // Render each severity group
         (['high', 'medium', 'low'] as WarningSeverity[]).forEach(severity => {
             const items = bySeverity[severity];
-            if (items.length === 0) return;
+            if (items.length === 0) {return;}
 
             // Section header
             const header = document.createElement('div');
@@ -315,7 +315,7 @@ export class WarningOverlay {
      * Copy warnings to clipboard
      */
     private async copyWarnings(): Promise<void> {
-        if (this.warnings.length === 0) return;
+        if (this.warnings.length === 0) {return;}
 
         const lines: string[] = [];
         lines.push('# Architecture Warnings\n');
@@ -329,7 +329,7 @@ export class WarningOverlay {
         // Format each group
         (['high', 'medium', 'low'] as WarningSeverity[]).forEach(severity => {
             const items = bySeverity[severity];
-            if (items.length === 0) return;
+            if (items.length === 0) {return;}
 
             lines.push(`## ${SEVERITY_ICONS[severity]} ${severity.toUpperCase()} (${items.length})`);
 

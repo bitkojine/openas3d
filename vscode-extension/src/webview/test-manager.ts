@@ -83,7 +83,7 @@ export class TestManager {
 
     private syncFileStatus(fileId: string) {
         const fileTests = this.tests.get(fileId);
-        if (!fileTests) return;
+        if (!fileTests) {return;}
 
         const allTests = Array.from(fileTests.values());
 

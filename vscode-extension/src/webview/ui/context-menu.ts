@@ -12,7 +12,7 @@ export class ContextMenu {
     public show(x: number, y: number, items: ContextMenuItem[], target: VisualObject): void {
         this.hide();
 
-        if (items.length === 0) return;
+        if (items.length === 0) {return;}
 
         this.currentTarget = target;
         this.container = document.createElement('div');

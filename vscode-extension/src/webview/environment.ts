@@ -574,16 +574,16 @@ export function createEnhancedGrassTexture(theme?: ThemeColors): THREE.Texture {
         // Draw at original position
         drawFn(x, y);
         // Wrap horizontally
-        if (x < 20) drawFn(x + size, y);
-        if (x > size - 20) drawFn(x - size, y);
+        if (x < 20) {drawFn(x + size, y);}
+        if (x > size - 20) {drawFn(x - size, y);}
         // Wrap vertically
-        if (y < 20) drawFn(x, y + size);
-        if (y > size - 20) drawFn(x, y - size);
+        if (y < 20) {drawFn(x, y + size);}
+        if (y > size - 20) {drawFn(x, y - size);}
         // Wrap corners
-        if (x < 20 && y < 20) drawFn(x + size, y + size);
-        if (x > size - 20 && y < 20) drawFn(x - size, y + size);
-        if (x < 20 && y > size - 20) drawFn(x + size, y - size);
-        if (x > size - 20 && y > size - 20) drawFn(x - size, y - size);
+        if (x < 20 && y < 20) {drawFn(x + size, y + size);}
+        if (x > size - 20 && y < 20) {drawFn(x - size, y + size);}
+        if (x < 20 && y > size - 20) {drawFn(x + size, y - size);}
+        if (x > size - 20 && y > size - 20) {drawFn(x - size, y - size);}
     };
 
     // Use seeded random for consistent results

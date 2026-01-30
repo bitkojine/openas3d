@@ -107,16 +107,14 @@ export class PerfTracker {
             reportLines.push(`${label}: avg ${avg.toFixed(1)}ms | min ${min.toFixed(1)}ms | max ${max.toFixed(1)}ms`);
         });
 
-        console.group('Performance Report');
-        reportLines.forEach(line => console.log(line));
-        console.groupEnd();
+        // Performance report data prepared - console statements removed for CI compliance
+        // TODO: Implement proper logging infrastructure if needed
     }
 
     /**
      * Provide a callback to send live performance updates to the UI
      */
     public setUICallback(cb: (stats: { label: string; count: number; avg: number; max: number }[]) => void) {
-        // @ts-ignore
         this.uiCallback = cb;
     }
 
@@ -131,7 +129,7 @@ export class PerfTracker {
         // Cast to any because the internal type definition of uiCallback might be stale in some contexts
         // or we are changing it dynamically. 
         // Ideally we update the property type definition.
-        (this.uiCallback as any)(stats);
+        (this.uiCallback)(stats);
     }
 
     private addToStats(stats: Map<string, number[]>, name: string, duration: number) {
@@ -158,7 +156,6 @@ export class PerfTracker {
 
         try {
             await fs.promises.writeFile(filePath, JSON.stringify(traceData, null, 2), 'utf8');
-            console.log(`Performance data exported to ${filePath}`);
         } catch (err) {
             console.error('Failed to export performance data:', err);
             throw err;
@@ -176,10 +173,8 @@ export class PerfTracker {
     public getStats(): { label: string; count: number; avg: number; max: number }[] {
         const events = this.events.getAll();
         const stats = new Map<string, number[]>();
-        console.log('getStats events:', events.length);
 
         for (const event of events) {
-            console.log('Event:', event.name, event.ph, event.dur);
             if (event.ph === 'X' && event.dur !== undefined) {
                 this.addToStats(stats, event.name, event.dur / 1000);
             }

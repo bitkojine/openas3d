@@ -136,8 +136,8 @@ describe('EditorConfigService', () => {
     describe('config calculation', () => {
         it('should calculate lineHeight from fontSize when lineHeight is 0', () => {
             mockConfig.get.mockImplementation((key: string) => {
-                if (key === 'fontSize') return 16;
-                if (key === 'lineHeight') return 0;
+                if (key === 'fontSize') {return 16;}
+                if (key === 'lineHeight') {return 0;}
                 return 'Consolas';
             });
 
@@ -153,8 +153,8 @@ describe('EditorConfigService', () => {
 
         it('should use configured lineHeight when not 0', () => {
             mockConfig.get.mockImplementation((key: string) => {
-                if (key === 'fontSize') return 14;
-                if (key === 'lineHeight') return 20;
+                if (key === 'fontSize') {return 14;}
+                if (key === 'lineHeight') {return 20;}
                 return 'Consolas';
             });
 

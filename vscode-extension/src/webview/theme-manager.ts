@@ -114,7 +114,7 @@ export class ThemeManager {
         grassBase.getHSL(grassHSL);
 
         // Enforce visibility
-        if (grassHSL.s < 0.1) grassHSL.s = 0.1;
+        if (grassHSL.s < 0.1) {grassHSL.s = 0.1;}
 
         // Luminance sweet spot for ground - CLAMPED for visibility
         if (isDark) {

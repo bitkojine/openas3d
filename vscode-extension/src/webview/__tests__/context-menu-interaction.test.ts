@@ -84,8 +84,7 @@ describe('InteractionController Context Menu', () => {
     beforeEach(() => {
         // Setup DOM
         domElement = document.createElement('div');
-        // @ts-ignore
-        document.body.appendChild(domElement);
+        (document.body as any).appendChild(domElement);
 
         // Setup Camera
         camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
@@ -169,7 +168,8 @@ describe('InteractionController Context Menu', () => {
         // We EXPECT it to NOT be 0,0 if we want it to work with mouse clicks
         // But for this reproduction test, let's just log what we got or assert the expected breakdown
 
-        console.log('Raycast Coords:', coords);
+        // Debug: Raycast coordinates for testing
+        // Current buggy code sets coords to 0,0, expected -0.8, 0.8
 
         // With current buggy code, this will be 0,0
         // We WANT it to utilize clientX/Y

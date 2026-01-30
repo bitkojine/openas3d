@@ -15,7 +15,7 @@ export class DraggableObjectController {
     ) { }
 
     public startDrag(visualObject: VisualObject, raycaster: THREE.Raycaster): boolean {
-        if (this.isDragging) return false;
+        if (this.isDragging) {return false;}
 
         this.isDragging = true;
         this.draggedObject = visualObject;
@@ -34,7 +34,7 @@ export class DraggableObjectController {
     }
 
     public update(raycaster: THREE.Raycaster) {
-        if (!this.isDragging || !this.draggedObject) return;
+        if (!this.isDragging || !this.draggedObject) {return;}
 
         // Project the current ray forward by the initial distance.
         // This keeps the object at a consistent distance from the player

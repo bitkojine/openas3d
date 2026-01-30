@@ -120,13 +120,13 @@ export class StatsUI {
                 perfStats.forEach(stat => {
                     // Remove package prefix for readability, but keep full method name
                     let label = stat.label;
-                    if (label.includes('.')) label = label.split('.').pop()!;
+                    if (label.includes('.')) {label = label.split('.').pop()!;}
                     // No artificial truncation here - let CSS handle overflow if needed
 
                     // Colorize slow operations via CSS classes
                     let rowClass = '';
-                    if (stat.avg > 100) rowClass = 'row-slow';
-                    else if (stat.avg > 16) rowClass = 'row-medium';
+                    if (stat.avg > 100) {rowClass = 'row-slow';}
+                    else if (stat.avg > 16) {rowClass = 'row-medium';}
 
                     html += `
                         <tr class="${rowClass}">

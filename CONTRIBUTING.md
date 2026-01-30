@@ -11,6 +11,7 @@ If you are an AI assistant helping with this repository, please adhere to these 
 1.  **Context Loading**: Read `REPO_OVERVIEW.md` and `ARCHITECTURE.md` before making structural changes.
 2.  **Atomic Changes**: Keep PRs focused. One feature or one bug fix per PR.
 3.  **Conventional Commits**: You **MUST** use the Conventional Commits format for every commit. This is what powers our `semantic-release` automation.
+4.  **Avoid the "Mock Trap"**: Do not over-mock dependencies in tests. Read the [Anti-Mock Guide](docs/ANTI_MOCK_TRAP.md) before writing tests.
 
 ---
 

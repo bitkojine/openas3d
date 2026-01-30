@@ -6,7 +6,7 @@ const createMockElement = (tag: string): any => {
         style: {} as any,
         classList: {
             add: jest.fn((cls: string) => {
-                if (!el.className.includes(cls)) el.className = (el.className + ' ' + cls).trim();
+                if (!el.className.includes(cls)) {el.className = (el.className + ' ' + cls).trim();}
             }),
             remove: jest.fn((cls: string) => {
                 el.className = el.className.replace(new RegExp(`\\b${cls}\\b`, 'g'), '').trim();
@@ -15,7 +15,7 @@ const createMockElement = (tag: string): any => {
                 const has = el.className.includes(cls);
                 const shouldHave = force !== undefined ? force : !has;
                 if (shouldHave) {
-                    if (!has) el.className = (el.className + ' ' + cls).trim();
+                    if (!has) {el.className = (el.className + ' ' + cls).trim();}
                 } else {
                     el.className = el.className.replace(new RegExp(`\\b${cls}\\b`, 'g'), '').trim();
                 }
@@ -31,21 +31,21 @@ const createMockElement = (tag: string): any => {
         remove: jest.fn(() => {
             if (el.parentElement) {
                 const idx = el.parentElement.children.indexOf(el);
-                if (idx > -1) el.parentElement.children.splice(idx, 1);
+                if (idx > -1) {el.parentElement.children.splice(idx, 1);}
             }
         }),
         querySelector: jest.fn((sel: string) => {
             const findRecursive = (node: any): any => {
                 if (sel.startsWith('.')) {
-                    if (node.className?.split(/\s+/).includes(sel.substring(1))) return node;
+                    if (node.className?.split(/\s+/).includes(sel.substring(1))) {return node;}
                 } else if (sel.startsWith('#')) {
-                    if (node.id === sel.substring(1)) return node;
+                    if (node.id === sel.substring(1)) {return node;}
                 } else {
-                    if (node.tagName?.toLowerCase() === sel.toLowerCase()) return node;
+                    if (node.tagName?.toLowerCase() === sel.toLowerCase()) {return node;}
                 }
                 for (const child of node.children) {
                     const found = findRecursive(child);
-                    if (found) return found;
+                    if (found) {return found;}
                 }
                 return null;
             };

@@ -61,14 +61,16 @@ export class LayoutPersistenceService {
      * Load from disk
      */
     private load() {
-        if (!this.workspaceRoot) return;
+        if (!this.workspaceRoot) {
+            return;
+        }
 
         const layoutPath = path.join(this.workspaceRoot, this.DIR_NAME, this.FILE_NAME);
         if (fs.existsSync(layoutPath)) {
             try {
                 const content = fs.readFileSync(layoutPath, 'utf8');
                 const data = JSON.parse(content) as LayoutFile;
-                
+
                 this.overrides.clear();
                 if (data.overrides) {
                     Object.entries(data.overrides).forEach(([key, val]) => {
@@ -85,7 +87,9 @@ export class LayoutPersistenceService {
      * Write to disk with normalization
      */
     private async persist() {
-        if (!this.workspaceRoot) return;
+        if (!this.workspaceRoot) {
+            return;
+        }
 
         const dirPath = path.join(this.workspaceRoot, this.DIR_NAME);
         const filePath = path.join(dirPath, this.FILE_NAME);
@@ -98,7 +102,7 @@ export class LayoutPersistenceService {
         // Sort keys for deterministic output
         const sortedOverrides: { [key: string]: LayoutOverride } = {};
         const sortedKeys = Array.from(this.overrides.keys()).sort();
-        
+
         sortedKeys.forEach(key => {
             sortedOverrides[key] = this.overrides.get(key)!;
         });

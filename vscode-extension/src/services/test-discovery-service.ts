@@ -75,7 +75,6 @@ export class TestDiscoveryService {
                     child.stderr.on('data', (data: any) => {
                         // Optional: log stderr to console 
                         const msg = data.toString();
-                        console.log(`[Jest Stderr]: ${msg}`);
                         run.appendOutput(msg.replace(/\n/g, '\r\n'));
                     });
 
@@ -142,14 +141,14 @@ export class TestDiscoveryService {
                 await this.initialize();
             } else {
                 // If it's a file, we could re-parse it here if needed
-                if (item.uri) await this.parseFile(item.uri);
+                if (item.uri) {await this.parseFile(item.uri);}
             }
         };
     }
 
     private updateInternalStatus(testItem: vscode.TestItem, status: 'passed' | 'failed' | 'running') {
         const fileId = testItem.uri ? vscode.workspace.asRelativePath(testItem.uri) : null;
-        if (!fileId) return;
+        if (!fileId) {return;}
 
         const tests = this.tests.get(fileId);
         if (tests) {
