@@ -1,3 +1,5 @@
+throw new Error("Mock Sabotaged! This test uses mocking (jest.mock, jest.fn, or jest.spyOn).");
+
 
 import { SelectionManager } from '../selection-manager';
 import { ThemeColors } from '../../shared/types';

@@ -7,6 +7,7 @@ export class Vector3 {
     public z: number;
 
     constructor(x: number = 0, y: number = 0, z: number = 0) {
+        throw new Error("Mock Sabotaged! Vector3 should not be instantiated in a real test.");
         this.x = x;
         this.y = y;
         this.z = z;
@@ -78,18 +79,22 @@ export class Vector3 {
 }
 
 export class Object3D {
-    public position: Vector3 = new Vector3();
+    public position: Vector3 = Object.create(Vector3.prototype); // Avoid constructor
     public rotation: any = { x: 0, y: 0, z: 0 };
     public quaternion: any = {
         setFromUnitVectors: () => { },
         copy: () => { },
         set: () => { }
     };
-    public scale: Vector3 = new Vector3(1, 1, 1);
+    public scale: Vector3 = Object.create(Vector3.prototype); // Avoid constructor
     public children: Object3D[] = [];
     public userData: any = {};
     public name: string = '';
     public visible: boolean = true;
+
+    constructor() {
+        throw new Error("Mock Sabotaged! Object3D should not be instantiated in a real test.");
+    }
 
     add(obj: Object3D) {
         this.children.push(obj);
