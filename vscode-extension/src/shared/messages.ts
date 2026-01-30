@@ -9,7 +9,7 @@
  * - WebviewMessage: Messages sent FROM the Webview TO the Extension Host
  */
 
-import { ZoneDTO, ArchitectureWarning, ImportKind, Position3D, EditorConfig, TestDTO } from './types';
+import { ZoneDTO, ArchitectureWarning, ImportKind, Position3D, EditorConfig, TestDTO, MonumentConfig } from './types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Payload Types (shared data structures)
@@ -75,6 +75,24 @@ export interface ObjectEventPayload {
     description?: string;
 }
 
+/** Comprehensive world state for persistence */
+export interface WorldStatePayload {
+    player: {
+        position: Position3DPayload;
+        yaw: number;
+        pitch: number;
+        flightMode: boolean;
+    };
+    ui: {
+        legendOpen: boolean;
+        tddOpen: boolean;
+        statsOpen: boolean;
+    };
+    selection: {
+        selectedFileId: string | null;
+    };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Extension -> Webview Messages
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,6 +111,7 @@ export type ExtensionMessage =
     | { type: 'removeObject'; data: { id: string } }
     | { type: 'updateObjectPosition'; data: UpdatePositionPayload }
     | { type: 'updateObjectDescription'; data: UpdateDescriptionPayload }
+    | { type: 'updateBatch'; data: { type: 'position'; updates: UpdatePositionPayload[] } }
 
     // Dependency Management
     | { type: 'addDependency'; data: AddDependencyPayload }
@@ -118,6 +137,12 @@ export type ExtensionMessage =
     // Test Data
     | { type: 'updateTests'; data: TestDTO[] }
 
+    // Development/Debug
+    | { type: 'updateMonument'; data: MonumentConfig }
+
+    // E2E Progress (only used during integration/E2E test runs)
+    | { type: 'e2eStatus'; data: { phase: 'run' | 'pass' | 'fail' | 'info'; title: string; message?: string } }
+
     // Test Messages (only active in test mode)
     | { type: 'TEST_GET_SCENE_STATE' }
     | { type: 'TEST_SIMULATE_SELECTION'; data: { id: string } }
@@ -125,7 +150,10 @@ export type ExtensionMessage =
     | { type: 'TEST_SIMULATE_INPUT'; data: { kind: string; code?: string } }
     | { type: 'TEST_TELEPORT'; data: { x: number; y: number; z: number } }
     | { type: 'TEST_LOOK_AT'; data: { x: number; y: number; z: number; duration?: number } }
-    | { type: 'TEST_GET_POSITION' };
+    | { type: 'TEST_GET_POSITION' }
+
+    // State Restoration
+    | { type: 'restoreWorldState'; data: WorldStatePayload };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Webview -> Extension Messages
@@ -163,7 +191,10 @@ export type WebviewMessage =
     | { type: 'TEST_INPUT_DONE' }
     | { type: 'TEST_TELEPORT_DONE' }
     | { type: 'TEST_LOOK_AT_DONE' }
-    | { type: 'TEST_POSITION'; data: Position3DPayload };
+    | { type: 'TEST_POSITION'; data: Position3DPayload }
+
+    // State Updates
+    | { type: 'updateWorldState'; data: WorldStatePayload };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Type Guards and Utilities

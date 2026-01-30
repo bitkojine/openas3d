@@ -17,19 +17,22 @@ import { MessageDispatcher } from './message-dispatcher';
 import { DescriptionSyncService } from '../services/description-sync-service';
 import { EditorConfigService } from '../services/editor-config-service';
 import { WebviewMessageHandler } from './webview-message-handler';
-import { ExtensionMessage, WebviewMessage } from '../shared/messages';
+import { ExtensionMessage, WebviewMessage, WebviewMessageType, WebviewMessageData } from '../shared/messages';
 import { SignService } from '../services/sign-service';
+import { LifecycleCoordinator } from '../core/lifecycle-coordinator';
 
-export class WebviewPanelManager {
+export class WebviewPanelManager implements vscode.WebviewPanelSerializer {
     private panelManager: PanelManager;
     private messageDispatcher: MessageDispatcher;
     private descriptionSync: DescriptionSyncService;
     private editorConfig: EditorConfigService;
     private messageHandler: WebviewMessageHandler;
     private context: vscode.ExtensionContext;
+    private coordinator: LifecycleCoordinator;
 
-    constructor(context: vscode.ExtensionContext, perf: any, version: string = '0.0.0') {
+    constructor(context: vscode.ExtensionContext, perf: any, version: string = '0.0.0', coordinator: LifecycleCoordinator) {
         this.context = context;
+        this.coordinator = coordinator;
 
         // Initialize panel manager
         this.panelManager = new PanelManager(context, version);
@@ -219,5 +222,20 @@ export class WebviewPanelManager {
         this.messageHandler.register('moveObject', async (data: { id: string; position: { x: number; y: number; z: number } }) => {
             await handler(data.id, data.position);
         });
+    }
+
+    /**
+     * Component registration for webview messages
+     */
+    public register<T extends WebviewMessageType>(type: T, handler: (data: WebviewMessageData<T>) => void | Promise<void>): void {
+        this.messageHandler.register(type, handler);
+    }
+
+    /**
+     * Deserialize panel from state (WebviewPanelSerializer implementation)
+     */
+    public async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: any): Promise<void> {
+        // When VS Code restores a webview, we need to re-initialize our management services
+        await this.createOrShowPanel();
     }
 }
