@@ -1,33 +1,47 @@
 # Dependencies
 node_modules/
+jspm_packages/
+.npm
+.eslintcache
+
+# Build & Dist
+dist/
+out/
+build/
+release/
+*.vsix
+*.tsbuildinfo
+
+# VS Code Extension Runtime & Results
+.vscode-test/
+.vscode-test-extensions/
+.vscode-test-user-data/
+.test-results.json
+
+# Compilation Outputs (Extension)
+vscode-extension/out/
+vscode-extension/src/**/*.js
+vscode-extension/src/**/*.js.map
+
+# Mutation Testing (Stryker)
+.stryker-tmp/
+reports/
+vscode-extension/.stryker-tmp/
+vscode-extension/reports/
+stryker-error.log
+
+# Logs
+*.log
+logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Build outputs
-dist/
-build/
-out/
-release/
+# Environment & Config
+.env*
+!.env.example
 
-# VSCode extension specific
-*.vsix
-vscode-extension/out/
-vscode-extension/node_modules/
-vscode-extension/.vscode-test-extensions/
-vscode-extension/.vscode-test-user-data/
-vscode-extension/.test-results.json
-vscode-extension/src/**/*.js
-vscode-extension/src/**/*.js.map
-
-# Environment and config
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# OS generated files
+# OS Generated
 .DS_Store
 .DS_Store?
 ._*
@@ -36,41 +50,28 @@ vscode-extension/src/**/*.js.map
 ehthumbs.db
 Thumbs.db
 
-# IDE files
-.vscode/settings.json
-.vscode/launch.json
-.vscode/extensions.json
+# IDEs
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
 *~
 
-# Logs
-*.log
-logs/
-
-# Runtime data
+# Runtime Data & Temp
 pids
 *.pid
 *.seed
 *.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage/
-.nyc_output/
-
-# Dependency directories
-jspm_packages/
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Temporary folders
 tmp/
 temp/
 
-# OpenAs3D local data
+# Coverage
+coverage/
+.nyc_output/
+
+# Project Specific
 .openas3d/

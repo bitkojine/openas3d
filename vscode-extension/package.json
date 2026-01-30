@@ -102,9 +102,13 @@
     "check-mocks": "node scripts/check-mock-usage.js",
     "precommit:debug-logs": "node scripts/check-staged-debug-logs.js",
     "prepare": "cd .. && husky install vscode-extension/.husky"
+    "test:mutation": "stryker run"
   },
   "devDependencies": {
     "@semantic-release/exec": "^7.1.0",
+    "@stryker-mutator/core": "^9.4.0",
+    "@stryker-mutator/jest-runner": "^9.4.0",
+    "@stryker-mutator/typescript-checker": "^9.4.0",
     "@types/cross-spawn": "^6.0.6",
     "@types/glob": "^8.1.0",
     "@types/jest": "^30.0.0",
