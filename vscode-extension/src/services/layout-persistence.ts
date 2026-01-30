@@ -61,7 +61,9 @@ export class LayoutPersistenceService {
      * Load from disk
      */
     private load() {
-        if (!this.workspaceRoot) return;
+        if (!this.workspaceRoot) {
+            return;
+        }
 
         const layoutPath = path.join(this.workspaceRoot, this.DIR_NAME, this.FILE_NAME);
         if (fs.existsSync(layoutPath)) {
@@ -85,7 +87,9 @@ export class LayoutPersistenceService {
      * Write to disk with normalization
      */
     private async persist() {
-        if (!this.workspaceRoot) return;
+        if (!this.workspaceRoot) {
+            return;
+        }
 
         const dirPath = path.join(this.workspaceRoot, this.DIR_NAME);
         const filePath = path.join(dirPath, this.FILE_NAME);
