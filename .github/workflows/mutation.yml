@@ -1,0 +1,55 @@
+name: Mutation Testing
+
+on:
+    schedule:
+        - cron: "0 2 * * *" # Run at 02:00 UTC every day
+    workflow_dispatch: # Allow manual trigger
+
+jobs:
+    check-changes:
+        runs-on: ubuntu-latest
+        outputs:
+            should_run: ${{ steps.check.outputs.should_run }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+            - id: check
+              run: |
+                  if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                    echo "should_run=true" >> $GITHUB_OUTPUT
+                  else
+                    # For scheduled runs, check if there are commits in last 24h
+                    COMMITS=$(git log --since="24 hours ago" --oneline)
+                    if [ -n "$COMMITS" ]; then
+                      echo "should_run=true" >> $GITHUB_OUTPUT
+                    else
+                      echo "should_run=false" >> $GITHUB_OUTPUT
+                    fi
+                  fi
+
+    mutation-test:
+        needs: check-changes
+        if: needs.check-changes.outputs.should_run == 'true'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Use Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22.x"
+                  cache: "npm"
+                  cache-dependency-path: vscode-extension/package-lock.json
+
+            - name: Install dependencies
+              run: npm install
+              working-directory: vscode-extension
+
+            - name: Compile
+              run: npm run compile
+              working-directory: vscode-extension
+
+            - name: Run mutation tests
+              run: npm run test:mutation -- --mutate "src/utils/**/*.ts","src/services/**/*.ts"
+              working-directory: vscode-extension
