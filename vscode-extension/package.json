@@ -101,7 +101,7 @@
     "check-debug-logs": "node scripts/check-debug-logs.js",
     "check-mocks": "node scripts/check-mock-usage.js",
     "precommit:debug-logs": "node scripts/check-staged-debug-logs.js",
-    "prepare": "cd .. && husky install vscode-extension/.husky"
+    "prepare": "cd .. && husky install vscode-extension/.husky",
     "test:mutation": "stryker run"
   },
   "devDependencies": {
