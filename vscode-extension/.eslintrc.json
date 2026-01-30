@@ -9,26 +9,46 @@
         "@typescript-eslint"
     ],
     "rules": {
-        "@typescript-eslint/semi": "warn",
-        "curly": "warn",
-        "eqeqeq": "warn",
-        "no-throw-literal": "warn",
+        "@typescript-eslint/semi": "error",
+        "curly": "error",
+        "eqeqeq": "error",
+        "no-throw-literal": "error",
         "semi": "off",
-        "no-console": ["warn", { 
-            "allow": ["warn", "error"]
-        }]
+        "no-console": [
+            "warn",
+            {
+                "allow": [
+                    "warn",
+                    "error"
+                ]
+            }
+        ]
     },
     "overrides": [
         {
-            "files": ["src/test/**/*", "**/*.test.ts", "**/*.test.js", "src/test/fixtures/**/*"],
+            "files": [
+                "src/test/**/*",
+                "**/*.test.ts",
+                "**/*.test.js",
+                "src/test/fixtures/**/*"
+            ],
             "rules": {
                 "no-console": "off"
             }
         },
         {
-            "files": ["src/webview/bootstrap.ts"],
+            "files": [
+                "src/webview/bootstrap.ts"
+            ],
             "rules": {
-                "no-console": ["error", { "allow": ["error"] }]
+                "no-console": [
+                    "error",
+                    {
+                        "allow": [
+                            "error"
+                        ]
+                    }
+                ]
             }
         }
     ],

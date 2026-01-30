@@ -164,7 +164,7 @@ describe('WebviewMessageHandler', () => {
             const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
             handler.register('error', () => {
-                throw 'String error';
+                throw new Error('String error');
             });
 
             const message: WebviewMessage = {

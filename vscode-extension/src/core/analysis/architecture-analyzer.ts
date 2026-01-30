@@ -17,6 +17,27 @@ import { PerfTracker } from '../../utils/perf-tracker';
 
 export { ArchitectureWarning, WarningSeverity, WarningType, FileWithZone, ArchitectureDependency };
 
+interface CruiseViolation {
+    type: string;
+    from: string;
+    to?: string;
+    rule: {
+        name: string;
+        severity: string;
+    };
+    cycle?: (string | { name?: string; source?: string })[];
+    comment?: string;
+}
+
+interface CruiseModule {
+    source: string;
+    dependencies: {
+        resolved: string;
+        coreModule: boolean;
+        module: string;
+    }[];
+}
+
 /**
  * Analyze architecture using dependency-cruiser and return warnings
  */
@@ -195,14 +216,13 @@ export async function analyzeArchitecture(
         const moduleByPath = new Map<string, IModule>();
 
         if (result.output?.modules || result.modules) { // Handle both structures if CLI varies
-            const modules = result.output?.modules || result.modules;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            for (const mod of modules as any[]) {
+            const modules = (result.output?.modules || result.modules) as CruiseModule[];
+            for (const mod of modules) {
                 const absPath = path.isAbsolute(mod.source)
                     ? mod.source
                     : path.resolve(effectiveBaseDir, mod.source);
 
-                moduleByPath.set(absPath, mod);
+                moduleByPath.set(absPath, mod as any); // IModule and CruiseModule are similar enough for our use
             }
         }
 
@@ -216,19 +236,18 @@ export async function analyzeArchitecture(
         // So handling both is safe.
 
         const summary = result.output?.summary || result.summary;
-        const violations = summary?.violations || [];
+        const violations = (summary?.violations || []) as CruiseViolation[];
 
 
         if (violations.length > 0) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            for (const violation of violations as any[]) {
+            for (const violation of violations) {
                 const sourceAbsPath = path.isAbsolute(violation.from)
                     ? violation.from
                     : path.resolve(effectiveBaseDir, violation.from);
 
                 const sourceId = fileIdMap.get(sourceAbsPath);
 
-                if (!sourceId) continue; // Skip if we don't track this file
+                if (!sourceId) { continue; } // Skip if we don't track this file
 
                 const relatedIds: string[] = [];
                 let type: WarningType = 'unknown';
@@ -241,15 +260,14 @@ export async function analyzeArchitecture(
                         ? violation.to
                         : path.resolve(effectiveBaseDir, violation.to);
                     targetId = fileIdMap.get(targetAbsPath);
-                    if (targetId) relatedIds.push(targetId);
+                    if (targetId) { relatedIds.push(targetId); }
                 }
 
                 if (violation.cycle) {
                     // For cycles, add all participants as related
                     cyclePath = [];
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     for (const step of violation.cycle) {
-                        const stepSource = typeof step === 'string' ? step : step.name || step.source;
+                        const stepSource = typeof step === 'string' ? step : (step.name || step.source || '');
 
                         const stepAbsPath = path.isAbsolute(stepSource)
                             ? stepSource
@@ -310,17 +328,16 @@ export async function analyzeArchitecture(
         // 3. Custom Checks (Entry Bloat) - Dependency-cruiser counts dependencies too
         // We can iterate over modules to check for bloated entry points
         const ENTRY_BLOAT_THRESHOLD = 15;
-        const modules = result.output?.modules || result.modules;
+        const modules = (result.output?.modules || result.modules) as CruiseModule[];
         if (modules) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            for (const mod of modules as any[]) {
+            for (const mod of modules) {
                 // Determine absolute path
                 const absPath = path.isAbsolute(mod.source)
                     ? mod.source
                     : path.resolve(effectiveBaseDir, mod.source);
 
                 const id = fileIdMap.get(absPath);
-                if (!id) continue;
+                if (!id) { continue; }
 
                 // Check if it's an entry point (simple heuristic or use our zone map if we had it)
                 // For now, let's look at dependencies count
@@ -353,7 +370,7 @@ export function getWarningsByFile(warnings: ArchitectureWarning[]): Map<string, 
     const byFile = new Map<string, ArchitectureWarning[]>();
 
     warnings.forEach(w => {
-        if (!byFile.has(w.fileId)) byFile.set(w.fileId, []);
+        if (!byFile.has(w.fileId)) { byFile.set(w.fileId, []); }
         byFile.get(w.fileId)!.push(w);
     });
 

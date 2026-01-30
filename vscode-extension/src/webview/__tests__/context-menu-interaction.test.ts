@@ -84,8 +84,7 @@ describe('InteractionController Context Menu', () => {
     beforeEach(() => {
         // Setup DOM
         domElement = document.createElement('div');
-        // @ts-ignore
-        document.body.appendChild(domElement);
+        (document.body as any).appendChild(domElement);
 
         // Setup Camera
         camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);

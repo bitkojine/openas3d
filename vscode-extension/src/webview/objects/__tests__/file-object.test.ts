@@ -73,8 +73,8 @@ describe('FileObject', () => {
         const childDisposeSpies = fileObject.mesh.children.map(child => {
             const mesh = child as THREE.Mesh;
             // Ensure geometry exists on mock
-            if (!mesh.geometry) mesh.geometry = { dispose: jest.fn() } as any;
-            if (!mesh.material) mesh.material = { dispose: jest.fn() } as any;
+            if (!mesh.geometry) {mesh.geometry = { dispose: jest.fn() } as any;}
+            if (!mesh.material) {mesh.material = { dispose: jest.fn() } as any;}
 
             return {
                 geometry: jest.spyOn(mesh.geometry, 'dispose'),

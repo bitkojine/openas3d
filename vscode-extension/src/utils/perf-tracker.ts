@@ -115,7 +115,6 @@ export class PerfTracker {
      * Provide a callback to send live performance updates to the UI
      */
     public setUICallback(cb: (stats: { label: string; count: number; avg: number; max: number }[]) => void) {
-        // @ts-ignore
         this.uiCallback = cb;
     }
 
@@ -130,7 +129,7 @@ export class PerfTracker {
         // Cast to any because the internal type definition of uiCallback might be stale in some contexts
         // or we are changing it dynamically. 
         // Ideally we update the property type definition.
-        (this.uiCallback as any)(stats);
+        (this.uiCallback)(stats);
     }
 
     private addToStats(stats: Map<string, number[]>, name: string, duration: number) {

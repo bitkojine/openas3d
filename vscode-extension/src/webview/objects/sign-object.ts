@@ -48,7 +48,7 @@ export class SignObject extends VisualObject {
 
         if (this.descriptionMesh) {
             scene.remove(this.descriptionMesh);
-            if (this.descriptionMesh.material.map) this.descriptionMesh.material.map.dispose();
+            if (this.descriptionMesh.material.map) {this.descriptionMesh.material.map.dispose();}
             this.descriptionMesh.material.dispose();
         }
 

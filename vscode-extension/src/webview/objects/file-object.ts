@@ -208,7 +208,7 @@ export class FileObject extends VisualObject {
         }
 
         const ctx = canvas.getContext('2d');
-        if (!ctx) return new THREE.CanvasTexture(null as any);
+        if (!ctx) {return new THREE.CanvasTexture(null as any);}
 
         // 1. Setup Font to measure text
         ctx.font = 'bold 70px "Segoe UI", Arial, sans-serif';
@@ -343,7 +343,7 @@ export class FileObject extends VisualObject {
         }
 
         const ctx = canvas.getContext('2d');
-        if (!ctx) return new THREE.CanvasTexture(null as any);
+        if (!ctx) {return new THREE.CanvasTexture(null as any);}
 
         // 1. Setup Font
         const fontSize = 50;
@@ -435,7 +435,7 @@ export class FileObject extends VisualObject {
             const mat = this._bottomCapMesh.material as THREE.MeshLambertMaterial;
             if (mat && mat.map) {
                 mat.map.offset.x += 0.2 * deltaTime;
-                if (mat.emissiveMap) mat.emissiveMap.offset.x = mat.map.offset.x;
+                if (mat.emissiveMap) {mat.emissiveMap.offset.x = mat.map.offset.x;}
             }
         }
 
@@ -480,7 +480,7 @@ export class FileObject extends VisualObject {
             const mat = this._frameMesh.material as THREE.MeshLambertMaterial;
             if (mat?.emissive) {
                 const color = new THREE.Color(theme.editorBackground);
-                if (color.getHSL({ h: 0, s: 0, l: 0 }).l < 0.1) color.offsetHSL(0, 0, 0.1);
+                if (color.getHSL({ h: 0, s: 0, l: 0 }).l < 0.1) {color.offsetHSL(0, 0, 0.1);}
                 mat.emissive.copy(color.multiplyScalar(0.2));
             }
         }
@@ -488,15 +488,15 @@ export class FileObject extends VisualObject {
         // Update Bar (Language Cap)
         if (this._barMesh) {
             const mat = this._barMesh.material as THREE.MeshLambertMaterial;
-            if (mat) mat.emissiveIntensity = isDark ? 0.9 : 0.6;
+            if (mat) {mat.emissiveIntensity = isDark ? 0.9 : 0.6;}
         }
 
         // Update Bottom Cap (Filename)
         if (this._bottomCapMesh) {
             const mat = this._bottomCapMesh.material as THREE.MeshLambertMaterial;
             if (mat) {
-                if (mat.map) mat.map.dispose();
-                if (mat.emissiveMap) mat.emissiveMap.dispose();
+                if (mat.map) {mat.map.dispose();}
+                if (mat.emissiveMap) {mat.emissiveMap.dispose();}
 
                 const width = FileObject.STRICT_WIDTH;
                 const filename = this.getFilename(this.filePath);
@@ -522,7 +522,7 @@ export class FileObject extends VisualObject {
         if (this._lastFrameThemeKey !== newFrameKey) {
             if (this._frameMesh) {
                 const mat = this._frameMesh.material as THREE.MeshLambertMaterial;
-                if (mat.map) mat.map.dispose();
+                if (mat.map) {mat.map.dispose();}
                 mat.map = this.createTechTexture(FileObject.STRICT_WIDTH + 0.1, (this.metadata.size?.height ?? 1) + 0.1, theme);
                 mat.needsUpdate = true;
             }
@@ -537,7 +537,7 @@ export class FileObject extends VisualObject {
 
     private updateContentTexture(theme: ThemeColors): void {
         const screenFront = this.mesh.children.find(c => (c as THREE.Mesh).geometry && (c as THREE.Mesh).geometry.type === 'PlaneGeometry' && c.position.z > 0) as THREE.Mesh;
-        if (!screenFront) return;
+        if (!screenFront) {return;}
 
         const content = this.metadata.metadata?.content || '';
 
@@ -571,7 +571,7 @@ export class FileObject extends VisualObject {
 
         // Dispose old texture
         const oldMat = screenFront.material as THREE.MeshBasicMaterial;
-        if (oldMat.map) oldMat.map.dispose();
+        if (oldMat.map) {oldMat.map.dispose();}
 
         // Update material
         oldMat.map = newTexture;
@@ -591,7 +591,7 @@ export class FileObject extends VisualObject {
 
         if (this.descriptionMesh) {
             scene.remove(this.descriptionMesh);
-            if (this.descriptionMesh.material.map) this.descriptionMesh.material.map.dispose();
+            if (this.descriptionMesh.material.map) {this.descriptionMesh.material.map.dispose();}
             this.descriptionMesh.material.dispose();
         }
 
@@ -704,15 +704,15 @@ export class FileObject extends VisualObject {
         }
 
         // 2. Specialized assets
-        if (this.descriptionMesh) this.disposeObject(this.descriptionMesh);
-        if (this.warningBadge) this.disposeObject(this.warningBadge);
+        if (this.descriptionMesh) {this.disposeObject(this.descriptionMesh);}
+        if (this.warningBadge) {this.disposeObject(this.warningBadge);}
     }
 
     private disposeObject(obj: THREE.Object3D): void {
-        if (!obj) return;
+        if (!obj) {return;}
 
         // Remove from parent if still attached
-        if (obj.parent) obj.parent.remove(obj);
+        if (obj.parent) {obj.parent.remove(obj);}
 
         // Recursive disposal for Groups/Meshes
         if (obj.children.length > 0) {
@@ -740,7 +740,7 @@ export class FileObject extends VisualObject {
             this.warningBadge = null;
         }
 
-        if (!warnings || warnings.length === 0) return;
+        if (!warnings || warnings.length === 0) {return;}
 
         const canvas = document.createElement('canvas');
         canvas.width = 64;
@@ -774,7 +774,7 @@ export class FileObject extends VisualObject {
 
     /** Set test status visualization. */
     public setTestStatus(status: 'passed' | 'failed' | 'running' | 'unknown'): void {
-        if (this._testStatus === status) return;
+        if (this._testStatus === status) {return;}
         this._testStatus = status;
 
         if (this._statusBeam) {

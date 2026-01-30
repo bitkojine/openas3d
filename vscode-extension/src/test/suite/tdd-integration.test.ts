@@ -74,7 +74,7 @@ suite('TDD Integration Test Suite', () => {
         const layoutFile = path.join(workspacePath, '.openas3d', 'layout.json');
 
         await waitFor(async () => {
-            if (!fs.existsSync(layoutFile)) return false;
+            if (!fs.existsSync(layoutFile)) {return false;}
             const content = JSON.parse(fs.readFileSync(layoutFile, 'utf8'));
             const override = content.overrides[obj.userData.fileId];
             return override && Math.abs(override.x - newX) < 0.1;

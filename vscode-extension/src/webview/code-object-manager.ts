@@ -192,7 +192,7 @@ export class CodeObjectManager {
 
     public updateObjectPosition(id: string, position: { x: number; y: number; z: number }): void {
         const obj = this.objects.get(id);
-        if (!obj) return;
+        if (!obj) {return;}
 
         // Update stored position
         obj.position.set(position.x, position.y, position.z);

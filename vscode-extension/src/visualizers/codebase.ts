@@ -69,7 +69,7 @@ export class CodebaseVisualizer {
                     const zoneName = f.zone;
                     const zone = this.layout.getZone(zoneName) || this.layout.getZone('core')!;
 
-                    if (!zoneIndices[zoneName]) zoneIndices[zoneName] = 0;
+                    if (!zoneIndices[zoneName]) {zoneIndices[zoneName] = 0;}
                     const index = zoneIndices[zoneName]++;
 
                     const pos = this.layout.getPositionForZone(zone, index);
