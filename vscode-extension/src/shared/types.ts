@@ -150,3 +150,14 @@ export interface TestDTO {
     line: number;
     status: 'unknown' | 'passed' | 'failed' | 'running';
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Monument Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface MonumentConfig {
+    color: number;
+    shape: 'box' | 'sphere' | 'torus' | 'cylinder';
+    rotationSpeed: number;
+    label: string;
+}

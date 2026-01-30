@@ -3,7 +3,7 @@
  */
 export class StatsUI {
     private frameCount: number = 0;
-    private isCollapsed: boolean = false;
+    public isCollapsed: boolean = false;
     private contentElement: HTMLElement;
 
     constructor(
@@ -68,8 +68,12 @@ export class StatsUI {
         this.statsElement.appendChild(this.contentElement);
     }
 
-    private toggleCollapse(): void {
-        this.isCollapsed = !this.isCollapsed;
+    public toggleCollapse(): void {
+        this.setCollapsed(!this.isCollapsed);
+    }
+
+    public setCollapsed(collapsed: boolean): void {
+        this.isCollapsed = collapsed;
         this.statsElement.classList.toggle('collapsed', this.isCollapsed);
     }
 
