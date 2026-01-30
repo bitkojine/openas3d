@@ -91,10 +91,14 @@
     "build-install-all": "npm run build && VSIX=$(node -p \"require('./package.json').version\") && code --install-extension ./openas3d-vscode-$VSIX.vsix --force && code --reload-window && npm run test:unit && npm run test:e2e",
     "test": "jest",
     "test:unit": "jest",
-    "test:e2e": "npm run test:integration"
+    "test:e2e": "npm run test:integration",
+    "test:mutation": "stryker run"
   },
   "devDependencies": {
     "@semantic-release/exec": "^7.1.0",
+    "@stryker-mutator/core": "^9.4.0",
+    "@stryker-mutator/jest-runner": "^9.4.0",
+    "@stryker-mutator/typescript-checker": "^9.4.0",
     "@types/cross-spawn": "^6.0.6",
     "@types/glob": "^8.1.0",
     "@types/jest": "^30.0.0",
