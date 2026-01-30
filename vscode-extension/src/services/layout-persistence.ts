@@ -68,7 +68,7 @@ export class LayoutPersistenceService {
             try {
                 const content = fs.readFileSync(layoutPath, 'utf8');
                 const data = JSON.parse(content) as LayoutFile;
-                
+
                 this.overrides.clear();
                 if (data.overrides) {
                     Object.entries(data.overrides).forEach(([key, val]) => {
@@ -98,7 +98,7 @@ export class LayoutPersistenceService {
         // Sort keys for deterministic output
         const sortedOverrides: { [key: string]: LayoutOverride } = {};
         const sortedKeys = Array.from(this.overrides.keys()).sort();
-        
+
         sortedKeys.forEach(key => {
             sortedOverrides[key] = this.overrides.get(key)!;
         });
