@@ -325,7 +325,7 @@ export class CodebaseLayoutEngine {
         if (index === 0) { return { x: 0, z: 0 }; }
 
         // Find which ring we're on (ring 0 = center, ring 1 = first layer, etc.)
-        let ring = Math.ceil((Math.sqrt(index + 1) - 1) / 2);
+        const ring = Math.ceil((Math.sqrt(index + 1) - 1) / 2);
 
         // How many cells are in rings 0 to (ring-1)?
         const cellsInPreviousRings = (2 * ring - 1) ** 2;

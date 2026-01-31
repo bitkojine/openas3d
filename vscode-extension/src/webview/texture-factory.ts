@@ -24,7 +24,7 @@ export interface WrappedLine {
 }
 
 /** Configuration for content texture rendering */
-export let CONTENT_CONFIG = {
+export const CONTENT_CONFIG = {
     maxLines: 150,
     padding: 12,
     fontSize: 24,
