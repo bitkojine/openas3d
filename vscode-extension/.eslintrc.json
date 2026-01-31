@@ -18,7 +18,18 @@
         "eqeqeq": "error",
         "no-throw-literal": "error",
         "semi": "off",
-        "no-console": "error"
+        "no-console": "error",
+        "@typescript-eslint/no-explicit-any": "error",
+        "@typescript-eslint/no-unused-vars": "error",
+        "@typescript-eslint/no-inferrable-types": "error",
+        "@typescript-eslint/no-non-null-assertion": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "@typescript-eslint/ban-ts-comment": "error",
+        "@typescript-eslint/no-var-requires": "error",
+        "no-case-declarations": "error",
+        "prefer-const": "error",
+        "no-empty": "error",
+        "no-async-promise-executor": "error"
     },
     "ignorePatterns": [
         "out",

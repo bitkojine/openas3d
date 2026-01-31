@@ -84,7 +84,6 @@ describe('InteractionController Context Menu', () => {
     beforeEach(() => {
         // Setup DOM
         domElement = document.createElement('div');
-        // @ts-ignore
         document.body.appendChild(domElement);
 
         // Setup Camera

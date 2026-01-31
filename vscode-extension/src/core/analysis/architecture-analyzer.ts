@@ -196,7 +196,6 @@ export async function analyzeArchitecture(
 
         if (result.output?.modules || result.modules) { // Handle both structures if CLI varies
             const modules = result.output?.modules || result.modules;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             for (const mod of modules as any[]) {
                 const absPath = path.isAbsolute(mod.source)
                     ? mod.source
@@ -220,7 +219,6 @@ export async function analyzeArchitecture(
 
 
         if (violations.length > 0) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             for (const violation of violations as any[]) {
                 const sourceAbsPath = path.isAbsolute(violation.from)
                     ? violation.from
@@ -247,7 +245,6 @@ export async function analyzeArchitecture(
                 if (violation.cycle) {
                     // For cycles, add all participants as related
                     cyclePath = [];
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     for (const step of violation.cycle) {
                         const stepSource = typeof step === 'string' ? step : step.name || step.source;
 
@@ -312,7 +309,6 @@ export async function analyzeArchitecture(
         const ENTRY_BLOAT_THRESHOLD = 15;
         const modules = result.output?.modules || result.modules;
         if (modules) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             for (const mod of modules as any[]) {
                 // Determine absolute path
                 const absPath = path.isAbsolute(mod.source)

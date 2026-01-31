@@ -50,8 +50,7 @@ suite('TestDiscoveryService Test Suite', () => {
                 });
 
                 // Trigger parse manually to speed up test or if it missed the watcher
-                // @ts-ignore - access private for testing
-                service.parseFile(uri);
+                (service as any).parseFile(uri);
             });
 
             const tests = service.getTests().get('discovery-test.test.ts');
@@ -73,16 +72,14 @@ suite('TestDiscoveryService Test Suite', () => {
         const uri = vscode.Uri.file(testFilePath);
 
         // First parse it
-        // @ts-ignore
-        await service.parseFile(uri);
+        await (service as any).parseFile(uri);
         assert.ok(service.getTests().has('delete-me.test.ts'));
 
         // Delete it
         fs.unlinkSync(testFilePath);
 
         // Mock removeFile call or wait for watcher (watcher is async and environment dependent)
-        // @ts-ignore
-        service.removeFile(uri);
+        (service as any).removeFile(uri);
 
         assert.strictEqual(service.getTests().has('delete-me.test.ts'), false, 'Test file should be removed from discovery');
     });
