@@ -127,7 +127,8 @@ function createSignTexture(text: string, theme: ThemeColors): THREE.Texture {
     const height = 128;
     canvas.width = width;
     canvas.height = height;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { return new THREE.Texture(); }
 
     // Uniform dark background for high contrast readability
     ctx.fillStyle = theme.signBoard;

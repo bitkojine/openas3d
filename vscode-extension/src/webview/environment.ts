@@ -133,7 +133,7 @@ export class ProceduralSky {
         return skyDome;
     }
 
-    public updateTheme(colors: any): void {
+    public updateTheme(colors: ThemeColors): void {
         const mat = this.mesh.material as THREE.ShaderMaterial;
         mat.uniforms.topColor.value.set(colors.skyTop);
         mat.uniforms.horizonColor.value.set(colors.skyHorizon);
@@ -551,7 +551,8 @@ export function createEnhancedGrassTexture(theme?: ThemeColors): THREE.Texture {
     const size = 512;
     canvas.width = size;
     canvas.height = size;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { return new THREE.Texture(); }
 
     // Solid base color (gradients don't tile well)
     // Use theme colors if provided, else default
@@ -740,7 +741,8 @@ export function createPathwayTexture(theme?: ThemeColors): THREE.Texture {
     const size = 512;
     canvas.width = size;
     canvas.height = size;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { return new THREE.Texture(); }
 
     // Base color - neutral grey or theme derived
     const baseColor = theme ? theme.pathway : '#666666';

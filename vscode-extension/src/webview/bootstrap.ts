@@ -1,14 +1,15 @@
 import { World } from './world';
-import { ExtensionMessage } from '../shared/messages';
+import { ExtensionMessage, WebviewMessage } from '../shared/messages';
 import { MessageRouter } from './message-router';
+import { WebviewApi } from './world';
 
 // Initialize the world when the page loads
 let world: World;
 let router: MessageRouter;
-let vscode: any; // Store vscode API for use in message handler
+let vscode: WebviewApi<WebviewMessage>; // Store vscode API for use in message handler
 
 // Declare global API
-declare const acquireVsCodeApi: () => any;
+declare const acquireVsCodeApi: <T = WebviewMessage>() => WebviewApi<T>;
 
 // Helper to log to VSCode
 // We will initialize this in DOMContentLoaded
@@ -42,8 +43,9 @@ window.addEventListener('DOMContentLoaded', () => {
         });
 
         // Expose globally for VSCode extension or debugging
-        (window as any).world = world;
-        (window as any).router = router;
+        const globalWindow = window as unknown as { world: World; router: MessageRouter };
+        globalWindow.world = world;
+        globalWindow.router = router;
 
         // Enhance logging by wrapping console methods
         const originalLog = console.log;
@@ -63,11 +65,12 @@ window.addEventListener('DOMContentLoaded', () => {
         // Notify extension that we are ready
         vscode.postMessage({ type: 'ready' });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
         console.error('Failed to initialize World:', error);
         vscode.postMessage({
             type: 'error',
-            data: { message: `Bootstrap Error: ${error.message || error}` }
+            data: { message: `Bootstrap Error: ${errorMsg}` }
         });
     }
 });
@@ -83,12 +86,13 @@ window.addEventListener('message', async (event: MessageEvent<ExtensionMessage>)
 
     try {
         await router.handle(message);
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error('[Bootstrap] Critical error in message handler:', err);
+        const errorMsg = err instanceof Error ? err.message : String(err);
         // Optionally send error back to extension
         vscode.postMessage({
             type: 'error',
-            data: { message: `Message handling error: ${err.message || err}` }
+            data: { message: `Message handling error: ${errorMsg}` }
         });
     }
 });

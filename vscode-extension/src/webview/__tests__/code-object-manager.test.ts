@@ -9,7 +9,7 @@ import { createTextSprite } from '../texture-factory';
 // We rely on the __mocks__/three.ts automatically used by jest
 
 // Mock document for canvas actions
-(global as any).document = {
+(global as unknown as Record<string, unknown>).document = {
     createElement: jest.fn().mockReturnValue({
         getContext: jest.fn().mockReturnValue({
             createLinearGradient: jest.fn().mockReturnValue({
@@ -36,23 +36,23 @@ jest.mock('../texture-factory', () => ({
     renderLabel: jest.fn(() => {
         const sprite = new THREE.Sprite();
         sprite.userData = { width: 1, height: 1 };
-        sprite.material = {
+        (sprite as unknown as { material: { dispose: jest.Mock, map: { dispose: jest.Mock } } }).material = {
             dispose: jest.fn(),
             map: { dispose: jest.fn() }
-        } as any;
+        };
         return sprite;
     }),
     createTextSprite: jest.fn(() => {
         const sprite = new THREE.Sprite();
         sprite.userData = { width: 1, height: 1 };
-        sprite.material = {
+        (sprite as unknown as { material: { dispose: jest.Mock, map: { dispose: jest.Mock } } }).material = {
             dispose: jest.fn(),
             map: { dispose: jest.fn() }
-        } as any;
+        };
         return sprite;
     }),
-    generateTexture: jest.fn(() => new THREE.CanvasTexture({} as any)),
-    createContentTexture: jest.fn(() => new THREE.CanvasTexture({} as any))
+    generateTexture: jest.fn(() => new THREE.CanvasTexture({} as unknown as HTMLCanvasElement)),
+    createContentTexture: jest.fn(() => new THREE.CanvasTexture({} as unknown as HTMLCanvasElement))
 }));
 
 describe('CodeObjectManager', () => {
@@ -112,7 +112,7 @@ describe('CodeObjectManager', () => {
                 description: 'test label'
             });
 
-            const obj = manager.findByMesh(manager.getObjectMeshes()[0] as THREE.Mesh);
+            manager.findByMesh(manager.getObjectMeshes()[0] as THREE.Mesh);
             // Helper to check if sprite was added to scene
             // Since our mock Scene tracks children
             const hasSprite = scene.children.some(child => child instanceof THREE.Sprite);
@@ -149,8 +149,7 @@ describe('CodeObjectManager', () => {
 
             const obj = manager.getObjects().next().value;
             // Access internal metadata via type assertion or public getter if available
-            // In test env we can cast to any
-            expect((obj as any).metadata.descriptionStatus).toBe('generated');
+            expect((obj as unknown as { metadata: Record<string, unknown> }).metadata.descriptionStatus).toBe('generated');
         });
 
         it('should update description for SignObject (Regression Test)', () => {
@@ -171,7 +170,7 @@ describe('CodeObjectManager', () => {
             // We can verify by checking if updateLabel was called or side effects
             // Let's check metadata side effect
             const obj = manager.getObjects().next().value;
-            expect((obj as any).metadata.descriptionStatus).toBe('user-edited');
+            expect((obj as unknown as { metadata: Record<string, unknown> }).metadata.descriptionStatus).toBe('user-edited');
         });
     });
 });

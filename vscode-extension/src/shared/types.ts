@@ -77,7 +77,7 @@ export interface FileEntityDTO extends BaseEntityDTO {
         descriptionLastUpdated?: string;
         size?: { width?: number; height?: number; depth?: number };
         color?: number;
-        [key: string]: any;
+        [key: string]: unknown;
     };
 }
 
@@ -86,7 +86,7 @@ export interface SignEntityDTO extends BaseEntityDTO {
     text: string;
     metadata: {
         description?: string; // Signs might have descriptions too
-        [key: string]: any;
+        [key: string]: unknown;
     };
 }
 

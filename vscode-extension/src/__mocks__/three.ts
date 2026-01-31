@@ -79,15 +79,19 @@ export class Vector3 {
 
 export class Object3D {
     public position: Vector3 = new Vector3();
-    public rotation: any = { x: 0, y: 0, z: 0 };
-    public quaternion: any = {
-        setFromUnitVectors: () => { },
-        copy: () => { },
-        set: () => { }
-    };
+    public rotation: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
+    public quaternion: {
+        setFromUnitVectors: (v1: Vector3, v2: Vector3) => void;
+        copy: (q: unknown) => void;
+        set: (x: number, y: number, z: number, w: number) => void;
+    } = {
+            setFromUnitVectors: () => { },
+            copy: () => { },
+            set: () => { }
+        };
     public scale: Vector3 = new Vector3(1, 1, 1);
     public children: Object3D[] = [];
-    public userData: any = {};
+    public userData: Record<string, unknown> = {};
     public name: string = '';
     public visible: boolean = true;
 
@@ -104,7 +108,7 @@ export class Object3D {
 
     lookAt(v: Vector3) { }
 
-    traverse(callback: (object: Object3D) => any) {
+    traverse(callback: (object: Object3D) => void) {
         callback(this);
         for (const child of this.children) {
             child.traverse(callback);
@@ -113,7 +117,7 @@ export class Object3D {
 }
 
 export class Mesh extends Object3D {
-    constructor(public geometry?: any, public material?: any) {
+    constructor(public geometry?: BufferGeometry, public material?: Material | Material[]) {
         super();
     }
 }
@@ -123,19 +127,25 @@ export class Group extends Object3D { }
 export class Scene extends Object3D { }
 
 export class BufferGeometry {
-    public boundingBox: any = { max: { y: 1 }, min: { y: 0 } };
-    public attributes: any = {};
-    setFromPoints() { return this; }
+    public boundingBox: { max: { x: number; y: number; z: number }; min: { x: number; y: number; z: number } } | null = {
+        max: { x: 1, y: 1, z: 1 },
+        min: { x: 0, y: 0, z: 0 }
+    };
+    public attributes: Record<string, unknown> = {};
+    setFromPoints(points: Vector3[]) { return this; }
     computeBoundingBox() { return this.boundingBox; }
-    setAttribute(name: string, attribute: any) { this.attributes[name] = attribute; }
+    setAttribute(name: string, attribute: unknown) { this.attributes[name] = attribute; }
     dispose() { }
 }
 
 export class Box3 {
     public min = new Vector3();
     public max = new Vector3();
-    constructor() { }
-    setFromObject(obj: any) { return this; }
+    constructor(min?: Vector3, max?: Vector3) {
+        if (min) this.min.copy(min);
+        if (max) this.max.copy(max);
+    }
+    setFromObject(obj: Object3D) { return this; }
     getSize(target: Vector3) {
         target.set(1, 1, 1);
         return target;
@@ -162,8 +172,8 @@ export class Material {
 
 export class MeshLambertMaterial extends Material {
     public emissive = { setHex: () => { } };
-    public map: any = undefined;
-    constructor(parameters?: any) {
+    public map: Texture | undefined = undefined;
+    constructor(parameters?: { map?: Texture; color?: number | string; emissive?: number | string }) {
         super();
         if (parameters && parameters.map) {
             this.map = parameters.map;
@@ -199,7 +209,7 @@ export class Texture {
 }
 
 export class CanvasTexture extends Texture {
-    constructor(canvas: any) { super(); }
+    constructor(canvas: unknown) { super(); }
     clone() {
         // Return a Texture instance that mimics CanvasTexture for testing
         const t = new CanvasTexture(null);
@@ -210,7 +220,7 @@ export class CanvasTexture extends Texture {
 }
 
 export class Sprite extends Object3D {
-    constructor(material?: any) {
+    constructor(material?: Material) {
         super();
     }
 }
@@ -218,17 +228,17 @@ export class Sprite extends Object3D {
 export class LinearMipmapLinearFilter { }
 export class LinearFilter { }
 export class QuadraticBezierCurve3 {
-    constructor(v0: any, v1: any, v2: any) { }
+    constructor(v0: Vector3, v1: Vector3, v2: Vector3) { }
     getPoints() { return []; }
     getTangent() { return new Vector3(); }
 }
 export class CubicBezierCurve3 {
-    constructor(v0: any, v1: any, v2: any, v3: any) { }
+    constructor(v0: Vector3, v1: Vector3, v2: Vector3, v3: Vector3) { }
     getPoints() { return []; }
     getTangent() { return new Vector3(); }
 }
 export class Line extends Object3D {
-    constructor(geo?: any, mat?: any) { super(); }
+    constructor(geo?: BufferGeometry, mat?: Material) { super(); }
     computeLineDistances() { }
 }
 
@@ -242,7 +252,7 @@ export class Color {
     public r: number = 0;
     public g: number = 0;
     public b: number = 0;
-    constructor(r?: any, g?: any, b?: any) { }
+    constructor(r?: number | string, g?: number, b?: number) { }
     set() { }
     clone() { return new Color(this.r, this.g, this.b); }
     offsetHSL() { return this; }
@@ -250,13 +260,13 @@ export class Color {
 
 export class Float32BufferAttribute {
     public count: number;
-    constructor(array: any, itemSize: any) {
+    constructor(array: number[] | Float32Array, itemSize: number) {
         this.count = array.length / itemSize;
     }
 }
 
 export class TubeGeometry extends BufferGeometry {
-    constructor(path: any, tubularSegments: any, radius: any, radialSegments: any, closed: any) {
+    constructor(path: unknown, tubularSegments: number, radius: number, radialSegments: number, closed: boolean) {
         super();
         // Mock default position attribute for count check
         this.attributes.position = { count: (tubularSegments + 1) * (radialSegments + 1) };

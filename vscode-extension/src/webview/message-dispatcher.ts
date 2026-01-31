@@ -9,10 +9,10 @@ import * as vscode from 'vscode';
 import { ExtensionMessage } from '../shared/messages';
 
 export class MessageDispatcher {
-    private messageWaiters: Array<{ type: string; resolve: (data: any) => void }> = [];
+    private messageWaiters: Array<{ type: string; resolve: (data: unknown) => void }> = [];
     private isReady = false;
 
-    constructor(private getPanel: () => vscode.WebviewPanel | undefined) {}
+    constructor(private getPanel: () => vscode.WebviewPanel | undefined) { }
 
     /**
      * Send a message to the webview
@@ -35,7 +35,7 @@ export class MessageDispatcher {
      * Wait for a specific message type from the webview
      * Used primarily for testing
      */
-    public waitForMessage(type: string): Promise<any> {
+    public waitForMessage(type: string): Promise<unknown> {
         return new Promise(resolve => {
             this.messageWaiters.push({ type, resolve });
         });
@@ -45,7 +45,7 @@ export class MessageDispatcher {
      * Notify that a message was received (called by WebviewMessageHandler)
      * This resolves any waiters waiting for that message type
      */
-    public notifyMessageReceived(type: string, data?: any): void {
+    public notifyMessageReceived(type: string, data?: unknown): void {
         const waiterIndex = this.messageWaiters.findIndex(w => w.type === type);
         if (waiterIndex !== -1) {
             const waiter = this.messageWaiters[waiterIndex];

@@ -142,12 +142,12 @@ export function createContentTexture(
     meshHeight: number = 1
 ): { texture: THREE.Texture; lines: WrappedLine[] } {
     const colors = getSyntaxColors(theme);
-    const { maxLines, padding, fontSize, lineHeight, lineNumberWidth, canvasWidth } = CONTENT_CONFIG;
-    const font = getFontString();
-
+    const { maxLines, padding, lineHeight, lineNumberWidth, canvasWidth } = CONTENT_CONFIG;
     // Check if we need to invalidate cache due to config change
     // (This is tricky because cache is passed in from outside. 
     //  Caller needs to know invalidation logic.)
+
+    const font = getFontString();
 
     const lines = fileContent.split('\n').slice(0, maxLines);
     const codeAreaWidth = canvasWidth - lineNumberWidth - padding * 2;
@@ -156,7 +156,8 @@ export function createContentTexture(
     if (!wrappedLines) {
         // Pre-calculate wrapped lines (Expensive!)
         const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d')!;
+        const tempCtx = tempCanvas.getContext('2d');
+        if (!tempCtx) { return { texture: new THREE.Texture(), lines: [] }; }
         tempCtx.font = font;
         wrappedLines = wrapLines(lines, tempCtx, codeAreaWidth);
     }
@@ -171,7 +172,8 @@ export function createContentTexture(
     const canvas = document.createElement('canvas');
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { return { texture: new THREE.Texture(), lines: wrappedLines }; }
 
     // Enable better text rendering
     ctx.imageSmoothingEnabled = true;
@@ -320,7 +322,8 @@ function renderLabel(
     const { canvasWidth, padding, fontSize, lineHeight, font } = SPRITE_CONFIG;
 
     const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d')!;
+    const tempCtx = tempCanvas.getContext('2d');
+    if (!tempCtx) { return new THREE.Sprite(); }
     tempCtx.font = `${fontSize}px ${font}`;
 
     // Prepare lines
@@ -398,7 +401,8 @@ function renderLabel(
     const canvas = document.createElement('canvas');
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { return new THREE.Sprite(); }
 
     // Config
     const cornerRadius = 12;

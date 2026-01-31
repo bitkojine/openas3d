@@ -12,7 +12,7 @@ export abstract class VisualObject implements RenderableEntity {
     public id: string;
     public type: 'file' | 'module' | 'class' | 'function' | 'sign';
     public position: THREE.Vector3;
-    public metadata: any;
+    public metadata: Record<string, unknown>; // Using unknown for safer metadata access
 
     // CodeObject compatibility
     public filePath: string;
@@ -27,17 +27,18 @@ export abstract class VisualObject implements RenderableEntity {
      */
     public initializeLabel?(scene: THREE.Scene): void;
 
-    constructor(id: string, type: string, position: THREE.Vector3, metadata: any = {}) {
+    constructor(id: string, type: 'file' | 'module' | 'class' | 'function' | 'sign', position: THREE.Vector3, metadata: Record<string, unknown> = {}) {
         this.id = id;
-        this.type = type as any;
+        this.type = type;
         this.position = position;
         this.metadata = metadata;
-        this.filePath = metadata.filePath || '';
-        this.description = metadata.description || 'No description';
+        const meta = metadata;
+        this.filePath = (meta.filePath as string) || '';
+        this.description = (meta.description as string) || 'No description';
 
         // Initialize description state from metadata if present
-        if (metadata.descriptionStatus) { this.descriptionStatus = metadata.descriptionStatus; }
-        if (metadata.descriptionLastUpdated) { this.descriptionLastUpdated = metadata.descriptionLastUpdated; }
+        if (meta.descriptionStatus) { this.descriptionStatus = meta.descriptionStatus as 'missing' | 'generated' | 'reconciled'; }
+        if (meta.descriptionLastUpdated) { this.descriptionLastUpdated = meta.descriptionLastUpdated as string; }
 
         this.mesh = this.createMesh(); // Template method
         this.mesh.position.copy(position);
@@ -55,7 +56,7 @@ export abstract class VisualObject implements RenderableEntity {
     /**
      * Update the object with new data (e.g. from file change)
      */
-    public abstract update(data: any): void;
+    public abstract update(data: Record<string, unknown>): void;
 
     /**
      * Update the object appearance based on the theme

@@ -10,7 +10,7 @@ describe('TestManager', () => {
     beforeEach(() => {
         mockObjects = {
             getObject: jest.fn()
-        } as any;
+        } as unknown as jest.Mocked<CodeObjectManager>;
         mockPostMessage = jest.fn();
         testManager = new TestManager(mockObjects, mockPostMessage);
     });
@@ -21,9 +21,10 @@ describe('TestManager', () => {
 
         const mockFile = {
             setTestStatus: jest.fn()
-        } as any;
+        } as unknown as { setTestStatus: jest.Mock };
+        Object.setPrototypeOf(mockFile, FileObject.prototype);
 
-        mockObjects.getObject.mockReturnValue(mockFile);
+        mockObjects.getObject.mockReturnValue(mockFile as unknown as FileObject);
 
         testManager.updateTestResult(rawId, 'passed');
 
@@ -34,12 +35,13 @@ describe('TestManager', () => {
 
     it('should aggregate test statuses (Fail > Running > Pass)', () => {
         const fileId = 'src/test.ts';
-        const sanitizedId = 'src_test_ts';
+        // const sanitizedId = 'src_test_ts';
         const mockFile = {
             setTestStatus: jest.fn()
-        } as any;
+        } as unknown as { setTestStatus: jest.Mock };
+        Object.setPrototypeOf(mockFile, FileObject.prototype);
 
-        mockObjects.getObject.mockReturnValue(mockFile);
+        mockObjects.getObject.mockReturnValue(mockFile as unknown as FileObject);
 
         // 1. Pass
         testManager.updateTestResult(`${fileId}:test1`, 'passed');

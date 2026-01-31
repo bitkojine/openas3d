@@ -18,7 +18,7 @@ export class SignObject extends VisualObject {
         return mesh;
     }
 
-    public update(data: any): void {
+    public update(data: Record<string, unknown>): void {
         // Signs might update text or position
         this.metadata = { ...this.metadata, ...data };
     }
@@ -39,7 +39,7 @@ export class SignObject extends VisualObject {
 
     public initializeLabel(scene: THREE.Scene): void {
         this.sceneRef = scene;
-        const text = this.metadata.description || 'Sign';
+        const text = (this.metadata.description as string | undefined) || 'Sign';
         this.updateLabel(scene, text);
     }
 
@@ -76,7 +76,7 @@ export class SignObject extends VisualObject {
     }
 
     private getDescriptionText(): string {
-        return this.description || this.metadata.description || 'Sign';
+        return this.description || (this.metadata.description as string | undefined) || 'Sign';
     }
 
     // Duplicate helper from texture-factory needed here or passed in?
@@ -98,7 +98,7 @@ export class SignObject extends VisualObject {
             id: this.id,
             type: 'sign',
             position: { x: this.position.x, y: this.position.y, z: this.position.z },
-            text: this.metadata.description || 'Sign',
+            text: (this.metadata.description as string | undefined) || 'Sign',
             metadata: {
                 description: this.description,
                 ...this.metadata

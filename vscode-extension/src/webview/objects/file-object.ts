@@ -7,6 +7,18 @@ import { createContentTexture, createTextSprite, createTextSpriteWithDeps, Label
 import { ArchitectureWarning } from '../../core/analysis';
 import { ThemeColors } from '../../shared/types';
 
+interface FileMetadata {
+    height?: number;
+    content?: string;
+    language?: string;
+    isLibrary?: boolean;
+    filePath?: string;
+    size?: { height?: number };
+    complexity?: number;
+    lastModified?: string;
+    color?: number;
+}
+
 export class FileObject extends VisualObject {
     // Configurable gap between box and label
     private readonly GAP = 0.4; // Reduced as requested
@@ -30,11 +42,9 @@ export class FileObject extends VisualObject {
     private currentStats?: LabelDependencyStats;
     private cachedLines?: WrappedLine[];
 
-
-
-
     protected createMesh(): THREE.Mesh {
-        const bodyHeight = this.metadata.size?.height ?? 1;
+        const metadata = this.metadata as FileMetadata;
+        const bodyHeight = metadata.size?.height ?? 1;
         const width = FileObject.STRICT_WIDTH;
         const HITBOX_DEPTH = 0.2;
 
@@ -72,7 +82,8 @@ export class FileObject extends VisualObject {
 
     private addScreens(root: THREE.Mesh, width: number, height: number): void {
         const FRAME_DEPTH = 0.1;
-        const content = this.metadata.metadata?.content || '';
+        const metadata = this.metadata as FileMetadata;
+        const content = metadata.content || '';
         const { texture: contentTexture, lines } = createContentTexture(content, undefined, undefined, width, height);
         this.cachedLines = lines;
 
@@ -101,10 +112,11 @@ export class FileObject extends VisualObject {
     private addCaps(root: THREE.Mesh, width: number, height: number): void {
         const capHeight = FileObject.BAR_HEIGHT;
         const FRAME_DEPTH = 0.1;
+        const metadata = this.metadata as FileMetadata;
 
         // Top Bar (Language)
-        const lang = this.metadata.metadata?.language?.toLowerCase() || 'other';
-        const color = this.metadata.color ?? getLanguageColor(lang);
+        const lang = metadata.language?.toLowerCase() || 'other';
+        const color = metadata.color ?? getLanguageColor(lang);
         const barGeometry = new THREE.BoxGeometry(width + 0.1, capHeight, FRAME_DEPTH);
         const barTexture = this.createLanguageTexture(lang, color, width + 0.1, capHeight);
         const barMaterial = new THREE.MeshLambertMaterial({
@@ -146,7 +158,8 @@ export class FileObject extends VisualObject {
         if (typeof document !== 'undefined' && document.createElement) {
             canvas = document.createElement('canvas');
         } else {
-            return new THREE.CanvasTexture(null as any);
+            // For Node environment (tests), return a dummy texture
+            return new THREE.CanvasTexture({} as unknown as HTMLCanvasElement);
         }
 
         canvas.width = 512;
@@ -204,11 +217,11 @@ export class FileObject extends VisualObject {
         if (typeof document !== 'undefined' && document.createElement) {
             canvas = document.createElement('canvas');
         } else {
-            return new THREE.CanvasTexture(null as any);
+            return new THREE.CanvasTexture({} as unknown as HTMLCanvasElement);
         }
 
         const ctx = canvas.getContext('2d');
-        if (!ctx) return new THREE.CanvasTexture(null as any);
+        if (!ctx) return new THREE.CanvasTexture({} as unknown as HTMLCanvasElement);
 
         // 1. Setup Font to measure text
         ctx.font = 'bold 70px "Segoe UI", Arial, sans-serif';
@@ -277,55 +290,14 @@ export class FileObject extends VisualObject {
         // 5. Create Texture with Aspect Ratio Fix
         const texture = new THREE.CanvasTexture(canvas);
 
-        // Match aspect ratio logic from Bottom Cap to prevent stretching/squashing
-        // Bar Height (World) = 0.6. Texture Height (Px) = 128.
         const idealResolution = canvasHeight / FileObject.BAR_HEIGHT; // px per unit
         const visiblePixels = width * idealResolution;
 
-        // If the mesh is wider than the text needs, we clamp repeat to avoid tiling or stretching gap
-        // Actually, for language cap we don't want RepeatWrapping usually (it's centered text).
-        // But we DO want to avoid SQUASHING it if the mesh is narrow.
-
-        // If mesh is NARROW (width < canvasWidth / idealResolution), repeatX > 1.
-        // This effectively "zooms in" on the texture horizontally, or rather, maps a larger texture coords to the mesh.
-        // texture.repeat.set(repeatX, 1) means the texture covers [0, repeatX] of the geometry.
-        // If repeatX > 1, the texture is Tiled. We don't want tiling for centered text.
-        // We want ClampToEdgeWrapping.
-
-        // But if we simply map 0..1 to the mesh, and the mesh is square (1x1) but texture is 4:1 (512x128),
-        // The texture apppears compressed 4x horizontally.
-
-        // To fix aspect ratio on a SINGLE image (no tiling):
-        // We usually scale the UVs or use a texture matrix.
-        // Or we draw to the canvas with the correct aspect ratio for the mesh?
-        // But mesh size varies dynamically.
-
-        // BETTER APPROACH for fixed "Signage":
-        // Always map the texture such that aspect ratio is preserved.
-        // Setting texture.repeat.x = visiblePixels / canvasWidth is technically correct for TILING.
-        // For Centered text:
-        // If we want the text to look correct, we need the "viewport" of the texture to match the mesh aspect.
-        // Mesh Aspect = width / 0.6.
-        // Texture Aspect = canvasWidth / 128.
-
-        // If Mesh Aspect < Texture Aspect (Mesh is taller/thinner relative to bar),
-        // we show the full height, but only a fraction of width? No, we show full width.
-        // This is tricky for "responsive" canvas mapping.
-
-        // If we use the logic "pixels per unit", and set repeat.x:
         const repeatX = visiblePixels / canvasWidth;
         texture.repeat.set(repeatX, 1);
 
         // Center the content if we are zooming out (repeatX < 1)
-        // offset = (1 - repeatX) / 2
         texture.offset.x = (1 - repeatX) / 2;
-
-        // If repeatX > 1 (Mesh is wider than natural texture resolution), 
-        // we tile (bad) or clamp (stretches edges).
-        // If Mesh is wider, visiblePixels > canvasWidth.
-        // If we want to avoid stretching, we should keep repeatX, but prevent tiling?
-        // ClampToEdgeWrapping + repeatX > 1 -> The edge pixels are repeated.
-        // This works perfectly if the edge pixels are background color!
 
         texture.wrapS = THREE.ClampToEdgeWrapping;
         texture.wrapT = THREE.ClampToEdgeWrapping;
@@ -339,27 +311,23 @@ export class FileObject extends VisualObject {
         if (typeof document !== 'undefined' && document.createElement) {
             canvas = document.createElement('canvas');
         } else {
-            return new THREE.CanvasTexture(null as any);
+            return new THREE.CanvasTexture({} as unknown as HTMLCanvasElement);
         }
 
         const ctx = canvas.getContext('2d');
-        if (!ctx) return new THREE.CanvasTexture(null as any);
+        if (!ctx) return new THREE.CanvasTexture({} as unknown as HTMLCanvasElement);
 
         // 1. Setup Font
         const fontSize = 50;
         ctx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
 
         // 2. Measure Text Length
-        // Add minimal padding for the loop gap
         const padding = "      ";
         const params = ctx.measureText(filename + padding);
         const textWidth = Math.ceil(params.width);
 
         // 3. Determine Canvas Dimensions
-        // Height is fixed resolution for crispness (128px maps to 0.6 world units)
         const canvasHeight = 128;
-        // Width must fit the text. Minimum 512 for short files, but grow if needed.
-        // We use exactly textWidth (if larger than min) to make the loop seamless (wrapS).
         const canvasWidth = Math.max(512, textWidth);
 
         canvas.width = canvasWidth;
@@ -389,9 +357,8 @@ export class FileObject extends VisualObject {
 
         // 6. Draw Text
         ctx.fillStyle = theme ? theme.editorForeground || '#ffffff' : '#ffffff';
-        ctx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`; // Reset font after resize (canvas resize clears context state)
+        ctx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
 
-        // Left align to ensure we start at 0. Texture wrap will handle the loop.
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
 
@@ -404,20 +371,6 @@ export class FileObject extends VisualObject {
         texture.wrapT = THREE.ClampToEdgeWrapping;
 
         // 8. Calculate Repeat to Preserve Aspect Ratio
-        // We want the text to look "true to size" (50px visual height relative to bar height).
-        // Bar Height (World) = 0.6. Texture Height (Px) = 128.
-        // Mesh Width (World) = width (passed arg). Texture Width (Px) = canvasWidth.
-
-        // Visual Scale Factor = (Pixels / WorldUnit) Vertical
-        // Vertical Resolution = 128 / 0.6 ~= 213 px/unit.
-
-        // We want Horizontal Resolution to match (~213 px/unit).
-        // Current Horizontal Resolution without repeat = canvasWidth / width.
-        // If canvasWidth is huge (long text), resolution is huge -> squashed text.
-        // We need to show a "window" of the texture such that the window width = width * 213 pixels.
-        // Repeat = (Window Px) / (Total Px)
-        // Repeat = (width * (128 / 0.6)) / canvasWidth
-
         const idealResolution = canvasHeight / FileObject.BAR_HEIGHT; // px per unit
         const visiblePixels = width * idealResolution;
         const repeatX = visiblePixels / canvasWidth;
@@ -467,9 +420,9 @@ export class FileObject extends VisualObject {
         this.updateLabel(scene, this.getDescriptionText());
     }
 
-    public update(data: any): void {
+    public update(data: Record<string, unknown>): void {
         this.metadata = { ...this.metadata, ...data };
-        if (data.filePath) { this.filePath = data.filePath; }
+        if (data.filePath) { this.filePath = data.filePath as string; }
     }
 
     public updateTheme(theme: ThemeColors): void {
@@ -522,8 +475,9 @@ export class FileObject extends VisualObject {
         if (this._lastFrameThemeKey !== newFrameKey) {
             if (this._frameMesh) {
                 const mat = this._frameMesh.material as THREE.MeshLambertMaterial;
+                const metadata = this.metadata as FileMetadata;
                 if (mat.map) mat.map.dispose();
-                mat.map = this.createTechTexture(FileObject.STRICT_WIDTH + 0.1, (this.metadata.size?.height ?? 1) + 0.1, theme);
+                mat.map = this.createTechTexture(FileObject.STRICT_WIDTH + 0.1, (metadata.size?.height ?? 1) + 0.1, theme);
                 mat.needsUpdate = true;
             }
             this._lastFrameThemeKey = newFrameKey;
@@ -539,11 +493,10 @@ export class FileObject extends VisualObject {
         const screenFront = this.mesh.children.find(c => (c as THREE.Mesh).geometry && (c as THREE.Mesh).geometry.type === 'PlaneGeometry' && c.position.z > 0) as THREE.Mesh;
         if (!screenFront) return;
 
-        const content = this.metadata.metadata?.content || '';
+        const metadata = this.metadata as FileMetadata;
+        const content = metadata.content || '';
 
         // Check cache
-        // We import CONTENT_CONFIG dynamically to check current state
-        // (Assuming it's exported from texture-factory)
         const currentFont = JSON.stringify(CONTENT_CONFIG);
         const currentThemeStr = JSON.stringify(theme);
 
@@ -553,14 +506,12 @@ export class FileObject extends VisualObject {
             return; // No changes needed
         }
 
-        // Re-create texture with theme, reusing cached layout if available 
-        // AND ONLY IF font/layout hasn't changed. If font changed, wrappedLines are invalid.
         if (this.lastRenderedFont !== currentFont) {
             this.cachedLines = undefined; // Force re-wrap
         }
 
         const width = FileObject.STRICT_WIDTH;
-        const height = this.metadata.size?.height ?? 1;
+        const height = metadata.size?.height ?? 1;
         const { texture: newTexture, lines } = createContentTexture(content, theme, this.cachedLines, width, height);
         this.cachedLines = lines;
 
@@ -599,7 +550,8 @@ export class FileObject extends VisualObject {
             ? createTextSpriteWithDeps(text, stats, theme)
             : createTextSprite(text || 'No description', theme);
 
-        const height = this.metadata.size?.height ?? 1;
+        const metadata = this.metadata as FileMetadata;
+        const height = metadata.size?.height ?? 1;
         const capHeight = FileObject.BAR_HEIGHT;
         const topOfCap = (height + 0.1) / 2 + capHeight;
         const labelHeight = sprite.userData.height || 1;
@@ -626,7 +578,8 @@ export class FileObject extends VisualObject {
         if (this.descriptionMesh) {
             this.descriptionMesh.lookAt(camera.position);
 
-            const height = this.metadata.size?.height ?? 1;
+            const metadata = this.metadata as FileMetadata;
+            const height = metadata.size?.height ?? 1;
             const topOfCap = (height + 0.1) / 2 + FileObject.BAR_HEIGHT;
             const labelHeight = this.descriptionMesh.userData.height || 1;
 
@@ -672,21 +625,15 @@ export class FileObject extends VisualObject {
 
     private getDescriptionText(): string {
         if (this.description && this.description !== 'No description') { return this.description; }
-        if (this.metadata.description) { return this.metadata.description; }
 
-        // Fallback to metadata-based description
-        if (this.metadata.metadata) {
-            const meta = this.metadata.metadata;
-            return [
-                // Filename moved to bottom cap
-                // Language is now visible on the object itself
-                `Size: ${(meta.size ?? 0).toLocaleString('lt-LT')} bytes`,
-                `Complexity: ${meta.complexity ?? 'N/A'}`,
-                `Last Modified: ${meta.lastModified ? new Date(meta.lastModified).toLocaleDateString('lt-LT', { timeZone: 'Europe/Vilnius' }) : 'unknown'}`
-            ].join('\n');
-        }
-
-        return 'No description';
+        const metadata = this.metadata as FileMetadata;
+        return [
+            // Filename moved to bottom cap
+            // Language is now visible on the object itself
+            `Size: ${(metadata.size?.height ?? 0).toLocaleString('lt-LT')} bytes`,
+            `Complexity: ${metadata.complexity ?? 'N/A'}`,
+            `Last Modified: ${metadata.lastModified ? new Date(metadata.lastModified).toLocaleDateString('lt-LT', { timeZone: 'Europe/Vilnius' }) : 'unknown'}`
+        ].join('\n');
     }
 
     private getFilename(filePath: string): string {
@@ -742,10 +689,12 @@ export class FileObject extends VisualObject {
 
         if (!warnings || warnings.length === 0) return;
 
-        const canvas = document.createElement('canvas');
+        const canvas = (typeof document !== 'undefined' && document.createElement) ? document.createElement('canvas') : null;
+        if (!canvas) { return; }
         canvas.width = 64;
         canvas.height = 64;
-        const ctx = canvas.getContext('2d')!;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { return; }
 
         const hasHigh = warnings.some(w => w.severity === 'high');
         const hasMedium = warnings.some(w => w.severity === 'medium');
@@ -765,7 +714,8 @@ export class FileObject extends VisualObject {
         const material = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true });
         this.warningBadge = new THREE.Sprite(material);
 
-        const height = this.metadata.size?.height ?? 1;
+        const metadata = this.metadata as FileMetadata;
+        const height = metadata.size?.height ?? 1;
         this.warningBadge.scale.set(0.5, 0.5, 1);
         this.warningBadge.position.set(FileObject.STRICT_WIDTH / 2 + 0.1, height / 2 + 0.1, 0.2);
 
@@ -799,7 +749,7 @@ export class FileObject extends VisualObject {
         }
 
         if (status !== 'unknown' && status !== 'failed' && status !== 'passed') {
-            this.createTestBadge(status as any);
+            this.createTestBadge(status as 'passed' | 'running');
         }
     }
 
@@ -831,7 +781,8 @@ export class FileObject extends VisualObject {
         container.add(glow);
 
         // Position at top of object, extending upwards
-        const bodyHeight = this.metadata.size?.height ?? 1;
+        const metadata = this.metadata as FileMetadata;
+        const bodyHeight = metadata.size?.height ?? 1;
         const capHeight = FileObject.BAR_HEIGHT;
         const topOfCap = (bodyHeight + 0.1) / 2 + capHeight;
 
@@ -839,14 +790,16 @@ export class FileObject extends VisualObject {
         container.userData.visualObject = this;
 
         this.mesh.add(container);
-        this._statusBeam = container as any; // Store for disposal
+        this._statusBeam = container; // Store for disposal
     }
 
     private createTestBadge(status: 'passed' | 'running'): void {
-        const canvas = document.createElement('canvas');
+        const canvas = (typeof document !== 'undefined' && document.createElement) ? document.createElement('canvas') : null;
+        if (!canvas) { return; }
         canvas.width = 64;
         canvas.height = 64;
-        const ctx = canvas.getContext('2d')!;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { return; }
 
         const color = status === 'passed' ? '#22c55e' : '#eab308';
         const symbol = status === 'passed' ? '✓' : '●';
@@ -867,7 +820,8 @@ export class FileObject extends VisualObject {
         const sprite = new THREE.Sprite(material);
 
         const width = FileObject.STRICT_WIDTH;
-        const height = this.metadata.size?.height ?? 1;
+        const metadata = this.metadata as FileMetadata;
+        const height = metadata.size?.height ?? 1;
         sprite.scale.set(0.5, 0.5, 1);
         sprite.position.set(width / 2 + 0.2, height / 2 + 0.2, 0.3);
 
@@ -878,7 +832,7 @@ export class FileObject extends VisualObject {
     public toDTO(): FileEntityDTO {
         return {
             id: this.id,
-            type: this.type as any,
+            type: this.type as 'file' | 'module' | 'class' | 'function',
             position: { x: this.position.x, y: this.position.y, z: this.position.z },
             filePath: this.filePath,
             metadata: {

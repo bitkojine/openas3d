@@ -141,7 +141,7 @@ export class CodebaseVisualizer {
                     height: Math.min(0.25 + file.lines * 0.025, 5),
                     depth: Math.min(1 + file.size / 1000, 3)
                 },
-                metadata: file
+                metadata: file as unknown as Record<string, unknown>
             }
         });
     }

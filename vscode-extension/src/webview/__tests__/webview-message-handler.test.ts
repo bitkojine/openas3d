@@ -48,7 +48,7 @@ describe('WebviewMessageHandler', () => {
         });
 
         it('should pass data to handler', async () => {
-            let receivedData: any = null;
+            let receivedData: unknown = null;
             handler.register('objectSelected', (data) => {
                 receivedData = data;
             });
@@ -105,7 +105,9 @@ describe('WebviewMessageHandler', () => {
         });
 
         it('should notify dispatcher with data', async () => {
-            handler.register('error', () => { });
+            handler.register('error', () => {
+                // No-op
+            });
 
             const message: WebviewMessage = {
                 type: 'error',
@@ -164,7 +166,7 @@ describe('WebviewMessageHandler', () => {
             const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
             handler.register('error', () => {
-                throw 'String error';
+                throw new Error('String error');
             });
 
             const message: WebviewMessage = {
@@ -186,7 +188,7 @@ describe('WebviewMessageHandler', () => {
         it('should log unknown message types', async () => {
             const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
 
-            const message: WebviewMessage = { type: 'unknownMessage' as any };
+            const message = { type: 'unknownMessage' } as unknown as WebviewMessage;
             await handler.handle(message);
 
             expect(consoleLogSpy).toHaveBeenCalledWith('Unknown message from webview:', 'unknownMessage');
@@ -230,6 +232,7 @@ describe('WebviewMessageHandler', () => {
                 type: 'objectFocused',
                 data: { id: 'test', type: 'file', filePath: '/test.ts' }
             };
+            const d = 'data' in message ? (message as unknown as { data: unknown }).data : undefined;
 
             // Should not throw (handler is no-op)
             await expect(handler.handle(message)).resolves.not.toThrow();

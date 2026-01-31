@@ -14,6 +14,7 @@ import type { ICruiseResult, IModule } from 'dependency-cruiser';
 import * as path from 'path';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
+import spawnAsync from 'cross-spawn';
 import { ArchitectureWarning, WarningSeverity, WarningType, FileWithZone, ArchitectureDependency } from './types';
 import { PerfTracker } from '../../utils/perf-tracker';
 
@@ -25,7 +26,14 @@ export { ArchitectureWarning, WarningSeverity, WarningType, FileWithZone, Archit
 export async function analyzeArchitecture(
     rootPath: string,
     fileIdMap: Map<string, string>, // Map absolute path -> file ID,
-    options: { cruiseOptions?: any, tsConfigPath?: string, cruiseFn?: any, extensionPath?: string } = {}
+    options: {
+        cruiseOptions?: any,
+        tsConfigPath?: string,
+        cruiseFn?: any,
+        extensionPath?: string,
+        /** Internal: override candidate executables for testing fallback logic (No-Mock) */
+        _executables?: string[]
+    } = {}
 ): Promise<ArchitectureWarning[]> {
     const perfLabel = 'ArchitectureAnalyzer.analyzeArchitecture';
     const perfStart = PerfTracker.instance?.start(perfLabel);
@@ -132,29 +140,53 @@ export async function analyzeArchitecture(
 
 
             try {
+                // Try spawning with the same process.execPath (Node/Electron)
+                // If it fails with ENOENT (common on macOS due to spaces/sandboxing), retry with 'node' fallback
+                const executeAnalysis = (executable: string) => {
+                    return new Promise<{ stdout: string; errorStr: string }>((resolve, reject) => {
+                        const child = spawnAsync(executable, [cliPath, ...args], {
+                            cwd: effectiveBaseDir,
+                            env: process.env
+                        });
 
-                const child = spawn(process.execPath, [cliPath, ...args], {
-                    cwd: effectiveBaseDir,
-                    env: process.env
-                });
+                        const stdout: Buffer[] = [];
+                        const stderr: Buffer[] = [];
 
-                const stdout: Buffer[] = [];
-                const stderr: Buffer[] = [];
+                        child.stdout?.on('data', (data: Buffer) => stdout.push(data));
+                        child.stderr?.on('data', (data: Buffer) => stderr.push(data));
 
-                await new Promise<void>((resolve, reject) => {
-                    child.stdout.on('data', (data: Buffer) => stdout.push(data));
-                    child.stderr.on('data', (data: Buffer) => stderr.push(data));
-                    child.on('close', (code: number) => {
-                        if (code !== 0 && code !== 0) { // dep-cruiser might return non-zero on violations, which is fine
-                            // We check output validity instead of exit code strictly
-                        }
-                        resolve();
+                        child.on('close', (code: number) => {
+                            resolve({
+                                stdout: Buffer.concat(stdout).toString('utf8'),
+                                errorStr: Buffer.concat(stderr).toString('utf8')
+                            });
+                        });
+
+                        child.on('error', (err: Error) => reject(err));
                     });
-                    child.on('error', (err: Error) => reject(err));
-                });
+                };
 
-                const outputStr = Buffer.concat(stdout).toString('utf8');
-                const errorStr = Buffer.concat(stderr).toString('utf8');
+                let output: { stdout: string; errorStr: string } | null = null;
+                const candidates = options._executables || [process.execPath, 'node'];
+
+                for (const executable of candidates) {
+                    try {
+                        output = await executeAnalysis(executable);
+                        break; // Success!
+                    } catch (e: any) {
+                        if (e.code === 'ENOENT') {
+                            console.warn(`[Architecture] Host \`${executable}\` not found, trying next candidate...`);
+                            continue;
+                        }
+                        throw e; // Relaunch other errors
+                    }
+                }
+
+                if (!output) {
+                    throw new Error(`Failed to execute analysis: None of the candidates worked: ${candidates.join(', ')}`);
+                }
+
+                const { stdout: outputStr, errorStr } = output;
 
                 if (errorStr && !outputStr) {
                     console.error('[Architecture] CLI Stderr:', errorStr);
