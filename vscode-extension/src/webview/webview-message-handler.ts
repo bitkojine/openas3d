@@ -13,11 +13,11 @@ type MessageHandlerFn<T extends WebviewMessageType> = (
 ) => void | Promise<void>;
 
 export class WebviewMessageHandler {
-    private handlers = new Map<WebviewMessageType, (data: any) => void | Promise<void>>();
+    private handlers = new Map<WebviewMessageType, (data: unknown) => void | Promise<void>>();
     private middleware: ((message: WebviewMessage, next: () => Promise<void>) => Promise<void>)[] = [];
-    private messageDispatcher: { notifyMessageReceived(type: string, data?: any): void };
+    private messageDispatcher: { notifyMessageReceived(type: string, data?: unknown): void };
 
-    constructor(messageDispatcher: { notifyMessageReceived(type: string, data?: any): void }) {
+    constructor(messageDispatcher: { notifyMessageReceived(type: string, data?: unknown): void }) {
         this.messageDispatcher = messageDispatcher;
         this.registerDefaultHandlers();
     }
@@ -37,7 +37,7 @@ export class WebviewMessageHandler {
         type: T,
         handler: MessageHandlerFn<T>
     ): void {
-        this.handlers.set(type, handler);
+        this.handlers.set(type, handler as (data: unknown) => void | Promise<void>);
     }
 
     /**

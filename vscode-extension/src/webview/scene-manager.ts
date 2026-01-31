@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Environment, createEnhancedGrassTexture, createPathwayTexture } from './environment';
+import { Environment, createEnhancedGrassTexture } from './environment';
 
 export class SceneManager {
     public readonly scene: THREE.Scene;
@@ -13,7 +13,7 @@ export class SceneManager {
     private fillLight!: THREE.DirectionalLight;
     private ground!: THREE.Mesh;
 
-    constructor(container: HTMLElement, vscodeApi?: any) {
+    constructor(container: HTMLElement, _vscodeApi?: unknown) {
         this.scene = this.createScene();
         this.camera = this.createCamera();
         this.renderer = this.createRenderer(container);
@@ -158,7 +158,7 @@ export class SceneManager {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    public updateTheme(theme: any): void {
+    public updateTheme(theme: import('../shared/types').ThemeColors): void {
         // 1. Propagate to Environment
         this.environment.updateTheme(theme);
 

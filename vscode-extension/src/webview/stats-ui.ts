@@ -120,7 +120,9 @@ export class StatsUI {
                 perfStats.forEach(stat => {
                     // Remove package prefix for readability, but keep full method name
                     let label = stat.label;
-                    if (label.includes('.')) label = label.split('.').pop()!;
+                    if (label.includes('.')) {
+                        label = label.split('.').pop() || label;
+                    }
                     // No artificial truncation here - let CSS handle overflow if needed
 
                     // Colorize slow operations via CSS classes

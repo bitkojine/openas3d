@@ -122,7 +122,7 @@ export class CodebaseLayoutEngine {
         // Helper to get radius of a zone based on count
         const getRadius = (zoneName: string): number => {
             const count = counts[zoneName] || 0;
-            if (count === 0) return 0;
+            if (count === 0) { return 0; }
             // Ring count ~ sqrt(N)/2. Radius = Ring * Spacing
             const rings = Math.ceil((Math.sqrt(count + 1) - 1) / 2);
             // Add a small buffer (1 unit) to ensure fit
@@ -241,7 +241,7 @@ export class CodebaseLayoutEngine {
         // Create temp zones just for calculation
         this.zones.forEach(existingZone => {
             const count = zoneCounts[existingZone.name] || 0;
-            if (count === 0) return;
+            if (count === 0) { return; }
 
             // existingZone.config has now been updated by calculateZoneLayout
             const tempZone = new Zone(existingZone.config);
@@ -325,7 +325,7 @@ export class CodebaseLayoutEngine {
         if (index === 0) { return { x: 0, z: 0 }; }
 
         // Find which ring we're on (ring 0 = center, ring 1 = first layer, etc.)
-        let ring = Math.ceil((Math.sqrt(index + 1) - 1) / 2);
+        const ring = Math.ceil((Math.sqrt(index + 1) - 1) / 2);
 
         // How many cells are in rings 0 to (ring-1)?
         const cellsInPreviousRings = (2 * ring - 1) ** 2;

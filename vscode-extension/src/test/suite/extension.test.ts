@@ -18,7 +18,7 @@ suite('Extension Integration Test Suite', () => {
                     }
                 });
                 // Optional: remove dir if empty
-                try { fs.rmdirSync(signsDir); } catch (e) { }
+                try { fs.rmdirSync(signsDir); } catch (e) { /* ignore error */ }
             }
         }
     });

@@ -1,9 +1,12 @@
-// Declare the global VSCode API for the webview environment
-declare const acquireVsCodeApi: () => {
-    postMessage: (msg: any) => void;
-    getState: () => any;
-    setState: (state: any) => void;
-};
+import { ExtensionMessage, WebviewMessage } from '../shared/messages';
+
+export interface WebviewApi<T> {
+    postMessage(msg: T): void;
+    getState(): unknown;
+    setState(state: unknown): void;
+}
+
+declare const acquireVsCodeApi: <T = WebviewMessage>() => WebviewApi<T>;
 
 import { SceneManager } from './scene-manager';
 import { CharacterController } from './character-controller';
@@ -23,9 +26,12 @@ import { ZoneDTO } from '../core/domain/zone';
 import { WarningOverlay } from './warning-overlay';
 import { ArchitectureWarning } from '../core/analysis/types';
 import { updateContentConfig } from './texture-factory';
+import { VisualObject } from './objects/visual-object';
+import { FileObject } from './objects/file-object';
 import { EditorConfig } from '../shared/types';
 import { MessageRouter } from './message-router';
 import { AddObjectPayload, AddDependencyPayload, UpdatePositionPayload } from '../shared/messages';
+import { ContextMenuRegistry } from './services/context-menu-registry';
 
 export class World {
     private sceneManager: SceneManager;
@@ -43,16 +49,20 @@ export class World {
     private testManager: TestManager;
     private tddUi: TddUi;
 
-    private vscode: any;
+    private vscode: WebviewApi<WebviewMessage>;
 
     private lastTime: number = 0;
     private currentPerfStats: { label: string; count: number; avg: number; max: number }[] = [];
 
-    constructor(vscodeApi: any) {
+    constructor(vscodeApi: WebviewApi<WebviewMessage>) {
         this.vscode = vscodeApi;
-        const container = document.getElementById('renderer')!;
-        const statsEl = document.getElementById('stats-panel')!;
-        const loadingEl = document.getElementById('loading')!;
+        const container = document.getElementById('renderer');
+        const statsEl = document.getElementById('stats-panel');
+        const loadingEl = document.getElementById('loading');
+
+        if (!container || !statsEl || !loadingEl) {
+            throw new Error('Required DOM elements not found (renderer, stats-panel, or loading)');
+        }
 
         this.sceneManager = new SceneManager(container, this.vscode);
 
@@ -65,7 +75,7 @@ export class World {
         );
 
         // Add placingSign property for sign mode
-        (this.character as any).placingSign = false;
+        (this.character as CharacterController & { placingSign: boolean }).placingSign = false;
 
         this.objects = new CodeObjectManager(this.sceneManager.scene);
         this.dependencyManager = new DependencyManager(this.sceneManager.scene);
@@ -110,10 +120,9 @@ export class World {
 
         // Register Global Context Menu Provider
         // This ensures right-click works on ALL objects, not just tests
-        const { ContextMenuRegistry } = require('./services/context-menu-registry');
         ContextMenuRegistry.getInstance().registerProvider(
             () => true, // Applies to all objects
-            (obj: any) => {
+            (obj: VisualObject) => {
                 const items = [
                     {
                         id: 'focus-obj',
@@ -181,7 +190,7 @@ export class World {
         // World typically exists for the life of the page, but dispose() is good for reload safety.
     }
 
-    private handleWindowMessage = (event: MessageEvent) => {
+    private handleWindowMessage = (event: MessageEvent<ExtensionMessage>) => {
         const message = event.data;
         if (!this.objects) { return; }
 
@@ -273,7 +282,7 @@ export class World {
     }
 
     /** Public API for extensions to manipulate the world */
-    public addCodeObject(data: any): void {
+    public addCodeObject(data: AddObjectPayload): void {
         this.objects.addObject(data);
     }
 
@@ -281,7 +290,7 @@ export class World {
         this.objects.removeObject(id);
     }
 
-    public addDependency(data: any): void {
+    public addDependency(data: AddDependencyPayload): void {
         // We need to pass the map of objects to the dependency manager
         this.dependencyManager.add(data, this.objects.getInternalObjectsMap());
     }
@@ -338,9 +347,9 @@ export class World {
             const stats = this.dependencyManager.getStatsForObject(obj.id);
             if (stats) {
                 // Cast to any to access updateLabel if it exists (VisualObject)
-                if (typeof (obj as any).updateLabel === 'function') {
+                if (obj instanceof FileObject) {
                     // We need description text.
-                    const desc = (obj as any).metadata?.description || '';
+                    const desc = obj.metadata.description || '';
 
                     const labelStats = {
                         incoming: stats.incoming,
@@ -348,7 +357,7 @@ export class World {
                         hasCircular: stats.circularWith.length > 0
                     };
 
-                    (obj as any).updateLabel(this.sceneManager.scene, desc, labelStats);
+                    obj.updateLabel(this.sceneManager.scene, desc as string, labelStats);
                 }
             }
         }
@@ -394,7 +403,7 @@ export class World {
         router.register('addObject', (data: AddObjectPayload) => {
             try {
                 this.addCodeObject(data);
-            } catch (e: any) {
+            } catch (e: unknown) {
                 console.error(`Failed to add object ${data.id}:`, e);
                 throw e; // Re-throw so router can handle it
             }
@@ -455,7 +464,7 @@ export class World {
         });
 
         // Test Data
-        router.register('updateTests', (data: any[]) => {
+        router.register('updateTests', (data: import('../shared/types').TestDTO[]) => {
             // Update Test Manager (Badges)
             this.testManager.updateTests(data);
 

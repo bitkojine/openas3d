@@ -33,7 +33,7 @@ export interface AddObjectPayload {
     position: Position3DPayload;
     size?: SizePayload;
     color?: number;
-    metadata?: unknown;
+    metadata?: Record<string, unknown>;
     description?: string;
     descriptionStatus?: 'missing' | 'generated' | 'reconciled';
     descriptionLastUpdated?: string;
@@ -71,7 +71,7 @@ export interface ObjectEventPayload {
     id: string;
     type: string;
     filePath: string;
-    metadata?: unknown;
+    metadata?: Record<string, unknown>;
     description?: string;
 }
 
@@ -142,6 +142,7 @@ export type WebviewMessage =
     // Logging
     | { type: 'log'; data: { message: string } }
     | { type: 'error'; data: { message: string } }
+    | { type: 'copyText'; data: { text: string } }
 
     // User Interaction
     | { type: 'objectSelected'; data: ObjectEventPayload }
@@ -157,7 +158,7 @@ export type WebviewMessage =
     | { type: 'addSignAtPosition'; data: { position: Position3DPayload } }
 
     // Test Message Responses
-    | { type: 'TEST_SCENE_STATE'; data: unknown }
+    | { type: 'TEST_SCENE_STATE'; data: Record<string, unknown> }
     | { type: 'TEST_SELECTION_DONE' }
     | { type: 'TEST_MOVE_DONE' }
     | { type: 'TEST_INPUT_DONE' }

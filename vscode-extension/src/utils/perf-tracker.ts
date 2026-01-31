@@ -116,7 +116,6 @@ export class PerfTracker {
      * Provide a callback to send live performance updates to the UI
      */
     public setUICallback(cb: (stats: { label: string; count: number; avg: number; max: number }[]) => void) {
-        // @ts-ignore
         this.uiCallback = cb;
     }
 

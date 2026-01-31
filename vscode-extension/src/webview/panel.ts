@@ -28,7 +28,7 @@ export class WebviewPanelManager {
     private messageHandler: WebviewMessageHandler;
     private context: vscode.ExtensionContext;
 
-    constructor(context: vscode.ExtensionContext, perf: any, version: string = '0.0.0') {
+    constructor(context: vscode.ExtensionContext, perf: { start(l: string): number, stop(l: string, s: number): void }, version: string = '0.0.0') {
         this.context = context;
 
         // Initialize panel manager
@@ -99,7 +99,7 @@ export class WebviewPanelManager {
     /**
      * Wait for a specific message type (primarily for testing)
      */
-    public waitForMessage(type: string): Promise<any> {
+    public waitForMessage(type: string): Promise<unknown> {
         return this.messageDispatcher.waitForMessage(type);
     }
 

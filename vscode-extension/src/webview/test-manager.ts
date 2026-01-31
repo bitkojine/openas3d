@@ -99,12 +99,12 @@ export class TestManager {
         }
 
         const obj = this.objects.getObject(fileId);
-        if (obj && typeof (obj as any).setTestStatus === 'function') {
-            (obj as any).setTestStatus(aggregate);
+        if (obj && obj instanceof FileObject) {
+            obj.setTestStatus(aggregate);
         }
     }
 
-    public updateTests(tests: any[]) {
+    public updateTests(tests: import('../shared/types').TestDTO[]) {
         tests.forEach(test => {
             this.updateTestResult(test.id, test.status);
         });

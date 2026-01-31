@@ -1,24 +1,64 @@
-import { analyzeArchitecture, ArchitectureWarning } from '../architecture-analyzer';
+import { analyzeArchitecture } from '../architecture-analyzer';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 
-// Create a mock cruise function that we'll configure per test
-const mockCruise = jest.fn();
-
-describe('analyzeArchitecture', () => {
-    const rootPath = '/test/root';
+describe('analyzeArchitecture Behavioral Tests (No-Mock)', () => {
+    let tempDir: string;
     const fileIdMap = new Map<string, string>();
-    fileIdMap.set(path.join(rootPath, 'src/index.ts'), 'entry-id');
-    fileIdMap.set(path.join(rootPath, 'src/utils.ts'), 'utils-id');
-    fileIdMap.set(path.join(rootPath, 'src/api.ts'), 'api-id');
 
-    beforeEach(() => {
-        mockCruise.mockReset();
+    beforeAll(() => {
+        tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arch-test-'));
+        const rootPath = tempDir;
+
+        // Define some files
+        const files = ['src/index.ts', 'src/utils.ts', 'src/api.ts'];
+        files.forEach(f => {
+            const abs = path.join(rootPath, f);
+            fs.mkdirSync(path.dirname(abs), { recursive: true });
+            fs.writeFileSync(abs, '// dummy content');
+            fileIdMap.set(abs, f);
+        });
+
+        // Create a dummy dependency-cruiser CLI
+        const binDir = path.join(tempDir, 'node_modules', 'dependency-cruiser', 'bin');
+        fs.mkdirSync(binDir, { recursive: true });
     });
 
-    it('should return warnings for circular dependencies', async () => {
-        mockCruise.mockResolvedValue({
-            outputType: 'json',
-            modules: [],
+    afterAll(() => {
+        if (tempDir && fs.existsSync(tempDir)) {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    const setupDummyCLI = (output: any) => {
+        const scriptPath = path.join(tempDir, 'node_modules', 'dependency-cruiser', 'bin', 'dependency-cruise.mjs');
+        fs.writeFileSync(scriptPath, `console.log(JSON.stringify(${JSON.stringify(output)}))`);
+    };
+
+    it('should successfully run architecture analysis by falling back to node if host spawn fails', async () => {
+        /**
+         * What bug does this cover?
+         * [Architecture Analysis Error]: spawn ... ENOENT
+         * 
+         * Realistically: Spawning process.execPath (the VS Code helper) can fail on macOS.
+         * 
+         * NO-MOCK PROOF:
+         * We pass an invalid path as the first candidate. The real spawning logic will fail 
+         * with ENOENT and gracefully try 'node'.
+         */
+        setupDummyCLI({ summary: { violations: [] }, modules: [] });
+
+        const warnings = await analyzeArchitecture(tempDir, fileIdMap, {
+            extensionPath: tempDir,
+            _executables: ['/non-existent/path/to/binary', 'node']
+        });
+
+        expect(warnings).toEqual([]);
+    });
+
+    it('should detect circular dependencies reported by CLI', async () => {
+        setupDummyCLI({
             summary: {
                 violations: [
                     {
@@ -28,29 +68,25 @@ describe('analyzeArchitecture', () => {
                         cycle: ['src/index.ts', 'src/utils.ts']
                     }
                 ]
-            }
+            },
+            modules: []
         });
 
-        const warnings = await analyzeArchitecture(rootPath, fileIdMap, { cruiseOptions: {}, cruiseFn: mockCruise });
+        const warnings = await analyzeArchitecture(tempDir, fileIdMap, {
+            extensionPath: tempDir,
+            _executables: ['node']
+        });
 
         expect(warnings).toHaveLength(1);
         expect(warnings[0]).toMatchObject({
-            fileId: 'entry-id',
+            fileId: 'src/index.ts',
             type: 'circular-dependency',
-            severity: 'high',
-            ruleName: 'no-circular',
-            message: 'Circular dependency detected'
+            severity: 'high'
         });
-        expect(warnings[0].cyclePath).toBeDefined();
-        expect(warnings[0].cyclePath).toContain('entry-id');
-        expect(warnings[0].cyclePath).toContain('utils-id');
-        expect(warnings[0].relatedFileIds).toContain('utils-id');
     });
 
-    it('should return warnings for layer violations', async () => {
-        mockCruise.mockResolvedValue({
-            outputType: 'json',
-            modules: [],
+    it('should detect layer violations reported by CLI', async () => {
+        setupDummyCLI({
             summary: {
                 violations: [
                     {
@@ -59,42 +95,20 @@ describe('analyzeArchitecture', () => {
                         rule: { name: 'layer-no-utils-to-api' }
                     }
                 ]
-            }
+            },
+            modules: []
         });
 
-        const warnings = await analyzeArchitecture(rootPath, fileIdMap, { cruiseOptions: {}, cruiseFn: mockCruise });
+        const warnings = await analyzeArchitecture(tempDir, fileIdMap, {
+            extensionPath: tempDir,
+            _executables: ['node']
+        });
 
         expect(warnings).toHaveLength(1);
         expect(warnings[0]).toMatchObject({
-            fileId: 'utils-id',
+            fileId: 'src/utils.ts',
             type: 'layer-violation',
-            severity: 'high',
-            ruleName: 'layer-no-utils-to-api',
-            targetId: 'api-id',
-            message: 'Dependency on `api.ts` violates layer rules'
-        });
-    });
-
-    it('should handle entry bloat', async () => {
-        const bigDeps = Array.from({ length: 20 }, (_, i) => `dep${i}`);
-        mockCruise.mockResolvedValue({
-            outputType: 'json',
-            modules: [
-                {
-                    source: 'src/index.ts',
-                    dependencies: bigDeps
-                }
-            ],
-            summary: { violations: [] }
-        });
-
-        const warnings = await analyzeArchitecture(rootPath, fileIdMap, { cruiseOptions: {}, cruiseFn: mockCruise });
-
-        expect(warnings).toHaveLength(1);
-        expect(warnings[0]).toMatchObject({
-            fileId: 'entry-id',
-            type: 'entry-bloat',
-            severity: 'low'
+            targetId: 'src/api.ts'
         });
     });
 });

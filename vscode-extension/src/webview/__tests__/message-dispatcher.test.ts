@@ -21,7 +21,7 @@ jest.mock('vscode', () => ({
 
 describe('MessageDispatcher', () => {
     let dispatcher: MessageDispatcher;
-    let mockPanel: any;
+    let mockPanel: { webview: { postMessage: jest.Mock } };
 
     beforeEach(() => {
         mockPanel = {
@@ -30,7 +30,7 @@ describe('MessageDispatcher', () => {
             }
         };
 
-        dispatcher = new MessageDispatcher(() => mockPanel);
+        dispatcher = new MessageDispatcher(() => mockPanel as unknown as vscode.WebviewPanel);
     });
 
     describe('message sending', () => {
@@ -61,7 +61,7 @@ describe('MessageDispatcher', () => {
     describe('message waiting', () => {
         it('should resolve waiter when message is received', async () => {
             const promise = dispatcher.waitForMessage('ready');
-            
+
             // Simulate message arrival
             dispatcher.notifyMessageReceived('ready', { some: 'data' });
 
@@ -71,7 +71,7 @@ describe('MessageDispatcher', () => {
 
         it('should resolve with undefined when message has no data', async () => {
             const promise = dispatcher.waitForMessage('ready');
-            
+
             dispatcher.notifyMessageReceived('ready');
 
             const result = await promise;
@@ -142,7 +142,7 @@ describe('MessageDispatcher', () => {
 
         it('should resolve immediately if already ready', async () => {
             dispatcher.notifyMessageReceived('ready');
-            
+
             const promise = dispatcher.ensureReady();
             await promise; // Should resolve immediately
 

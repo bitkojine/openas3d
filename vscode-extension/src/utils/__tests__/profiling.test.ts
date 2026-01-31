@@ -4,7 +4,6 @@ import { PerfTracker } from '../perf-tracker';
 
 describe('@profile Decorator', () => {
     let perf: PerfTracker;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let trackerSpy: jest.SpyInstance;
 
     beforeEach(() => {

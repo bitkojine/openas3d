@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { VisualObject } from './objects/visual-object';
 import { CodeObjectManager } from './code-object-manager';
 import { SelectionManager } from './selection-manager';
 import { DependencyManager } from './dependency-manager';
@@ -21,8 +22,8 @@ export class InteractionController {
         private objects: CodeObjectManager,
         private selectionManager: SelectionManager,
         private dependencyManager: DependencyManager,
-        private vscode: any,
-        private character: any // reference to CharacterController
+        private vscode: { postMessage(msg: WebviewMessage): void },
+        private character: { placingSign: boolean } // reference to CharacterController
     ) {
         this.draggable = new DraggableObjectController(
             objects,
@@ -290,7 +291,7 @@ export class InteractionController {
             true
         );
 
-        let targetObj: any | null = null;
+        let targetObj: VisualObject | undefined = undefined;
         if (intersects.length > 0) {
             const mesh = intersects[0].object as THREE.Mesh;
             targetObj = this.objects.findByMesh(mesh);

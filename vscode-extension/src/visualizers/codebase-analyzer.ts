@@ -214,30 +214,34 @@ export class CodebaseAnalyzer {
 
         switch (language) {
             case 'typescript':
-            case 'javascript':
+            case 'javascript': {
                 const importRegex = /import\s+.*?\s+from\s+['"]([^'"]+)['"]/g;
                 const requireRegex = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
                 while ((match = importRegex.exec(content))) { deps.push(match[1]); }
                 while ((match = requireRegex.exec(content))) { deps.push(match[1]); }
                 break;
+            }
 
-            case 'python':
+            case 'python': {
                 const pyRegex = /(?:from\s+(\S+)\s+import|import\s+(\S+))/g;
                 while ((match = pyRegex.exec(content))) { deps.push(match[1] || match[2]); }
                 break;
+            }
 
-            case 'java':
+            case 'java': {
                 const javaRegex = /import\s+([^;]+);/g;
                 while ((match = javaRegex.exec(content))) { deps.push(match[1]); }
                 break;
+            }
 
-            case 'go':
+            case 'go': {
                 const goRegex = /import\s+(?:\(\s*([^)]+)\s*\)|"([^"]+)")/g;
                 while ((match = goRegex.exec(content))) {
                     if (match[1]) { deps.push(...match[1].split('\n').map(l => l.trim().replace(/"/g, '')).filter(Boolean)); }
                     else { deps.push(match[2]); }
                 }
                 break;
+            }
         }
 
         return deps.filter(d => d && !d.startsWith('/'));

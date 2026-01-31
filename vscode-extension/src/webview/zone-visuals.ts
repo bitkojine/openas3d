@@ -127,7 +127,8 @@ function createSignTexture(text: string, theme: ThemeColors): THREE.Texture {
     const height = 128;
     canvas.width = width;
     canvas.height = height;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { return new THREE.Texture(); }
 
     // Uniform dark background for high contrast readability
     ctx.fillStyle = theme.signBoard;
@@ -300,7 +301,7 @@ function createFenceSide(
 
 function fillInterval(positions: Set<number>, start: number, end: number, spacing: number) {
     const dist = end - start;
-    if (dist <= 0) return;
+    if (dist <= 0) { return; }
 
     // Determine how many segments fit
     const count = Math.ceil(dist / spacing);
@@ -365,7 +366,7 @@ export function addZoneVisuals(scene: THREE.Scene, zones: ZoneDTO[], theme: Them
  * Create a simple paved foundation for the park area
  */
 export function createParkFoundation(zones: ZoneDTO[], theme?: ThemeColors): THREE.Mesh | null {
-    if (zones.length === 0) return null;
+    if (zones.length === 0) { return null; }
 
     // Calculate bounds of entire park
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;

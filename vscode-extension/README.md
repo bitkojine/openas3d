@@ -15,7 +15,7 @@ Visualize your codebase dependencies and architecture in navigable 3D worlds dir
 ## Current Version
 
 - **Latest Release**: [See GitHub Releases](https://github.com/bitkojine/openas3d/releases) (or check the badge above)
-- **Development Version**: 0.2.3+2026-01-27d
+- **Development Version**: 0.3.1+2026-01-31d
 
 
 ## Usage

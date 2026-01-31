@@ -1,6 +1,6 @@
 
 import { SelectionManager } from '../selection-manager';
-import { ThemeColors } from '../../shared/types';
+import { ThemeColors, CodeEntityDTO } from '../../shared/types';
 import * as THREE from 'three';
 import { VisualObject } from '../objects/visual-object';
 
@@ -12,17 +12,21 @@ class MockVisualObject extends VisualObject {
             new THREE.MeshLambertMaterial()
         );
     }
-    public update(data: any): void { }
-    public updateTheme(theme: ThemeColors): void { }
+    public update(_data: Record<string, unknown>): void {
+        // No-op for mock
+    }
+    public updateTheme(_theme: ThemeColors): void {
+        // No-op for mock
+    }
 
-    public toDTO(): any {
+    public toDTO(): CodeEntityDTO {
         return {
             id: this.id,
-            type: this.type,
-            position: this.position,
+            type: this.type as 'file' | 'module' | 'class' | 'function',
+            position: { x: this.position.x, y: this.position.y, z: this.position.z },
             filePath: this.filePath || '',
             metadata: this.metadata
-        };
+        } as CodeEntityDTO;
     }
 }
 

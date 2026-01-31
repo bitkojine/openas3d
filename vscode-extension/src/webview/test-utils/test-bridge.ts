@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SceneManager } from '../scene-manager';
+import { WebviewApi } from '../world';
 import { CodeObjectManager } from '../code-object-manager';
 import { CharacterController } from '../character-controller';
 import { SelectionManager } from '../selection-manager';
@@ -12,10 +13,11 @@ export interface SceneSnapshot {
         id: string; // derived from user data or uuid
         type: string;
         position: { x: number; y: number; z: number };
-        userData: any;
+        userData: Record<string, unknown>;
     }>;
     dependencyCount: number;
     dependencies: Array<{ source: string; target: string }>;
+    [key: string]: unknown;
 }
 
 export class TestBridge {
@@ -24,7 +26,7 @@ export class TestBridge {
     private selectionManager: SelectionManager;
     private dependencyManager: DependencyManager;
     private character: CharacterController;
-    private vscode: any;
+    private vscode: WebviewApi<WebviewMessage> | undefined;
 
     constructor(
         sceneManager: SceneManager,
@@ -32,7 +34,7 @@ export class TestBridge {
         selectionManager: SelectionManager,
         dependencyManager: DependencyManager,
         character: CharacterController,
-        vscodeApi?: any
+        vscodeApi?: WebviewApi<WebviewMessage>
     ) {
         this.sceneManager = sceneManager;
         this.objects = objects;
@@ -188,13 +190,7 @@ export class TestBridge {
 
     public selectObject(id: string) {
         // Find visual object in CodeObjectManager
-        let visualObject: any = null;
-        for (const obj of (this.objects as any).objects.values()) {
-            if (obj.id === id) {
-                visualObject = obj;
-                break;
-            }
-        }
+        const visualObject = this.objects.getObject(id);
 
         if (!visualObject) {
             console.error(`TestBridge: Object ${id} not found`);
@@ -220,7 +216,7 @@ export class TestBridge {
     }
 
     private exposeToWindow() {
-        (window as any).__OPENAS3D_TEST_BRIDGE__ = {
+        (window as unknown as { __OPENAS3D_TEST_BRIDGE__: unknown }).__OPENAS3D_TEST_BRIDGE__ = {
             getSceneState: () => this.getSceneState(),
             simulateSelection: (id: string) => this.selectObject(id),
             simulateMove: (x: number, z: number) => this.simulateMove(x, z),
@@ -247,7 +243,7 @@ export class TestBridge {
                             data: state
                         });
                     }
-                } catch (e: any) {
+                } catch (e: unknown) {
                     console.error('[TestBridge] Error getting scene state:', e);
                 }
             } else if (message.type === 'TEST_SIMULATE_SELECTION') {

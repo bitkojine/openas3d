@@ -15,7 +15,7 @@ type MessageHandler<T extends ExtensionMessageType> = (data: ExtensionMessageDat
 type Middleware = (message: ExtensionMessage) => ExtensionMessage | null | Promise<ExtensionMessage | null>;
 
 export class MessageRouter {
-    private handlers = new Map<ExtensionMessageType, (data: any) => void | Promise<void>>();
+    private handlers = new Map<ExtensionMessageType, (data: unknown) => void | Promise<void>>();
     private middleware: Middleware[] = [];
 
     /**
@@ -25,7 +25,7 @@ export class MessageRouter {
         type: T,
         handler: MessageHandler<T>
     ): void {
-        this.handlers.set(type, handler);
+        this.handlers.set(type, handler as (data: unknown) => void | Promise<void>);
     }
 
     /**
@@ -66,8 +66,8 @@ export class MessageRouter {
         try {
             // Extract data if present, otherwise pass undefined
             // Type safety is ensured at registration time via the register() method
-            const data = 'data' in processedMessage ? (processedMessage as any).data : undefined;
-            await handler(data);
+            const data = 'data' in processedMessage ? (processedMessage as { data: unknown }).data : undefined;
+            await (handler as (data: unknown) => void | Promise<void>)(data);
         } catch (error) {
             console.error(`[MessageRouter] Error handling message type "${processedMessage.type}":`, error);
             throw error;

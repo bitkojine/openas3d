@@ -12,6 +12,9 @@
 // Do not import values at top level
 import type { ICruiseResult, IModule } from 'dependency-cruiser';
 import * as path from 'path';
+import * as fs from 'fs';
+import { spawn } from 'child_process';
+import spawnAsync from 'cross-spawn';
 import { ArchitectureWarning, WarningSeverity, WarningType, FileWithZone, ArchitectureDependency } from './types';
 import { PerfTracker } from '../../utils/perf-tracker';
 
@@ -23,7 +26,14 @@ export { ArchitectureWarning, WarningSeverity, WarningType, FileWithZone, Archit
 export async function analyzeArchitecture(
     rootPath: string,
     fileIdMap: Map<string, string>, // Map absolute path -> file ID,
-    options: { cruiseOptions?: any, tsConfigPath?: string, cruiseFn?: any, extensionPath?: string } = {}
+    options: {
+        cruiseOptions?: any,
+        tsConfigPath?: string,
+        cruiseFn?: any,
+        extensionPath?: string,
+        /** Internal: override candidate executables for testing fallback logic (No-Mock) */
+        _executables?: string[]
+    } = {}
 ): Promise<ArchitectureWarning[]> {
     const perfLabel = 'ArchitectureAnalyzer.analyzeArchitecture';
     const perfStart = PerfTracker.instance?.start(perfLabel);
@@ -34,7 +44,6 @@ export async function analyzeArchitecture(
         // 1. Locate Configuration Files
         let configPath: string | null = null;
         let searchDir = rootPath;
-        const fs = require('fs');
 
         for (let i = 0; i < 5; i++) { // Search up to 5 levels
             const candidate = path.join(searchDir, '.dependency-cruiser.cjs');
@@ -131,30 +140,53 @@ export async function analyzeArchitecture(
 
 
             try {
-                const { spawn } = require('child_process');
+                // Try spawning with the same process.execPath (Node/Electron)
+                // If it fails with ENOENT (common on macOS due to spaces/sandboxing), retry with 'node' fallback
+                const executeAnalysis = (executable: string) => {
+                    return new Promise<{ stdout: string; errorStr: string }>((resolve, reject) => {
+                        const child = spawnAsync(executable, [cliPath, ...args], {
+                            cwd: effectiveBaseDir,
+                            env: process.env
+                        });
 
-                const child = spawn(process.execPath, [cliPath, ...args], {
-                    cwd: effectiveBaseDir,
-                    env: process.env
-                });
+                        const stdout: Buffer[] = [];
+                        const stderr: Buffer[] = [];
 
-                const stdout: Buffer[] = [];
-                const stderr: Buffer[] = [];
+                        child.stdout?.on('data', (data: Buffer) => stdout.push(data));
+                        child.stderr?.on('data', (data: Buffer) => stderr.push(data));
 
-                await new Promise<void>((resolve, reject) => {
-                    child.stdout.on('data', (data: Buffer) => stdout.push(data));
-                    child.stderr.on('data', (data: Buffer) => stderr.push(data));
-                    child.on('close', (code: number) => {
-                        if (code !== 0 && code !== 0) { // dep-cruiser might return non-zero on violations, which is fine
-                            // We check output validity instead of exit code strictly
-                        }
-                        resolve();
+                        child.on('close', (code: number) => {
+                            resolve({
+                                stdout: Buffer.concat(stdout).toString('utf8'),
+                                errorStr: Buffer.concat(stderr).toString('utf8')
+                            });
+                        });
+
+                        child.on('error', (err: Error) => reject(err));
                     });
-                    child.on('error', (err: Error) => reject(err));
-                });
+                };
 
-                const outputStr = Buffer.concat(stdout).toString('utf8');
-                const errorStr = Buffer.concat(stderr).toString('utf8');
+                let output: { stdout: string; errorStr: string } | null = null;
+                const candidates = options._executables || [process.execPath, 'node'];
+
+                for (const executable of candidates) {
+                    try {
+                        output = await executeAnalysis(executable);
+                        break; // Success!
+                    } catch (e: any) {
+                        if (e.code === 'ENOENT') {
+                            console.warn(`[Architecture] Host \`${executable}\` not found, trying next candidate...`);
+                            continue;
+                        }
+                        throw e; // Relaunch other errors
+                    }
+                }
+
+                if (!output) {
+                    throw new Error(`Failed to execute analysis: None of the candidates worked: ${candidates.join(', ')}`);
+                }
+
+                const { stdout: outputStr, errorStr } = output;
 
                 if (errorStr && !outputStr) {
                     console.error('[Architecture] CLI Stderr:', errorStr);
@@ -196,7 +228,6 @@ export async function analyzeArchitecture(
 
         if (result.output?.modules || result.modules) { // Handle both structures if CLI varies
             const modules = result.output?.modules || result.modules;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             for (const mod of modules as any[]) {
                 const absPath = path.isAbsolute(mod.source)
                     ? mod.source
@@ -220,7 +251,6 @@ export async function analyzeArchitecture(
 
 
         if (violations.length > 0) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             for (const violation of violations as any[]) {
                 const sourceAbsPath = path.isAbsolute(violation.from)
                     ? violation.from
@@ -228,7 +258,7 @@ export async function analyzeArchitecture(
 
                 const sourceId = fileIdMap.get(sourceAbsPath);
 
-                if (!sourceId) continue; // Skip if we don't track this file
+                if (!sourceId) { continue; } // Skip if we don't track this file
 
                 const relatedIds: string[] = [];
                 let type: WarningType = 'unknown';
@@ -241,13 +271,12 @@ export async function analyzeArchitecture(
                         ? violation.to
                         : path.resolve(effectiveBaseDir, violation.to);
                     targetId = fileIdMap.get(targetAbsPath);
-                    if (targetId) relatedIds.push(targetId);
+                    if (targetId) { relatedIds.push(targetId); }
                 }
 
                 if (violation.cycle) {
                     // For cycles, add all participants as related
                     cyclePath = [];
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     for (const step of violation.cycle) {
                         const stepSource = typeof step === 'string' ? step : step.name || step.source;
 
@@ -312,7 +341,6 @@ export async function analyzeArchitecture(
         const ENTRY_BLOAT_THRESHOLD = 15;
         const modules = result.output?.modules || result.modules;
         if (modules) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             for (const mod of modules as any[]) {
                 // Determine absolute path
                 const absPath = path.isAbsolute(mod.source)
@@ -320,7 +348,7 @@ export async function analyzeArchitecture(
                     : path.resolve(effectiveBaseDir, mod.source);
 
                 const id = fileIdMap.get(absPath);
-                if (!id) continue;
+                if (!id) { continue; }
 
                 // Check if it's an entry point (simple heuristic or use our zone map if we had it)
                 // For now, let's look at dependencies count
@@ -353,7 +381,7 @@ export function getWarningsByFile(warnings: ArchitectureWarning[]): Map<string, 
     const byFile = new Map<string, ArchitectureWarning[]>();
 
     warnings.forEach(w => {
-        if (!byFile.has(w.fileId)) byFile.set(w.fileId, []);
+        if (!byFile.has(w.fileId)) { byFile.set(w.fileId, []); }
         byFile.get(w.fileId)!.push(w);
     });
 

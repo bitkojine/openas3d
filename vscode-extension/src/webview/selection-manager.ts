@@ -7,7 +7,7 @@ import { RenderableEntity } from './types';
  */
 export class SelectionManager {
     private selectedObject: VisualObject | null = null;
-    private focusedObject: VisualObject | null = null;
+    private focusedObject: VisualObject | null | undefined = null;
 
     constructor(private scene: THREE.Scene) { }
 
@@ -54,7 +54,7 @@ export class SelectionManager {
     /**
      * Set the focused object (e.g. from mouse hover).
      */
-    public setFocusedObject(obj: VisualObject | null): void {
+    public setFocusedObject(obj: VisualObject | null | undefined): void {
         if (this.focusedObject === obj) { return; }
 
         if (this.focusedObject) {

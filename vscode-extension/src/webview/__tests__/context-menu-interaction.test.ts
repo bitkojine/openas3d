@@ -1,13 +1,13 @@
 
 
 // Mock document for JSDOM-like behavior in node environment
-const createMockElement = (tag: string): any => {
-    const el: any = {
+const createMockElement = (tag: string): unknown => {
+    const el: unknown = {
         tagName: tag.toUpperCase(),
-        style: {} as any,
+        style: {} as Record<string, string>,
         classList: { add: jest.fn(), remove: jest.fn(), toggle: jest.fn() },
-        children: [] as any[],
-        appendChild: jest.fn((child: any) => { return child; }),
+        children: [] as unknown[],
+        appendChild: jest.fn((child: unknown) => { return child; }),
         remove: jest.fn(),
         getBoundingClientRect: jest.fn(() => ({ top: 0, left: 0, width: 0, height: 0, right: 0, bottom: 0 })),
         addEventListener: jest.fn(),
@@ -18,7 +18,7 @@ const createMockElement = (tag: string): any => {
     return el;
 };
 
-(global as any).document = {
+(global as unknown as { document: unknown }).document = {
     createElement: jest.fn((tag: string) => createMockElement(tag)),
     body: createMockElement('body'),
     pointerLockElement: null,
@@ -27,9 +27,9 @@ const createMockElement = (tag: string): any => {
     removeEventListener: jest.fn()
 };
 
-(global as any).MouseEvent = class MouseEvent {
+(global as unknown as { MouseEvent: unknown }).MouseEvent = class MouseEvent {
     preventDefault = jest.fn();
-    constructor(type: string, props: any) {
+    constructor(_type: string, props: object) {
         Object.assign(this, props);
     }
 };
@@ -78,24 +78,23 @@ describe('InteractionController Context Menu', () => {
     let domElement: HTMLElement;
     let objects: jest.Mocked<CodeObjectManager>;
     let selectionManager: jest.Mocked<SelectionManager>;
-    let draggable: jest.Mocked<DraggableObjectController>;
-    let vscode: any;
+    let _draggable: jest.Mocked<DraggableObjectController>;
+    let vscode: { postMessage: jest.Mock };
 
     beforeEach(() => {
         // Setup DOM
         domElement = document.createElement('div');
-        // @ts-ignore
         document.body.appendChild(domElement);
 
         // Setup Camera
         camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
 
         // Setup Mocks
-        objects = new CodeObjectManager(new THREE.Scene()) as any;
+        objects = new CodeObjectManager(new THREE.Scene()) as unknown as jest.Mocked<CodeObjectManager>;
         objects.getObjectMeshes = jest.fn().mockReturnValue([]);
         objects.findByMesh = jest.fn();
 
-        selectionManager = new SelectionManager(new THREE.Scene()) as any;
+        selectionManager = new SelectionManager(new THREE.Scene()) as unknown as jest.Mocked<SelectionManager>;
 
         vscode = { postMessage: jest.fn() };
 
@@ -105,9 +104,9 @@ describe('InteractionController Context Menu', () => {
             domElement,
             objects,
             selectionManager,
-            {} as any, // dependencyManager
+            {} as unknown as import('../dependency-manager').DependencyManager,
             vscode,
-            {} as any // character
+            {} as unknown as import('../objects/visual-object').VisualObject & { placingSign: boolean } // character
         );
     });
 
@@ -125,7 +124,7 @@ describe('InteractionController Context Menu', () => {
         // (We won't actually do full projection math, we just want to verify setFromCamera inputs)
 
         objects.getObjectMeshes.mockReturnValue([objectMesh]);
-        objects.findByMesh.mockReturnValue({ id: 'test-obj' } as any);
+        objects.findByMesh.mockReturnValue({ id: 'test-obj' } as unknown as import('../objects/file-object').FileObject);
 
         // Get the raycaster instance created by the controller
         // Use results because we explicitly returned a mock object
@@ -156,14 +155,15 @@ describe('InteractionController Context Menu', () => {
 
         // domElement.dispatchEvent(event); 
         // Since addEventListener is mocked and does nothing, we call the handler directly
-        (controller as any).onContextMenu(event);
+        (controller as unknown as { onContextMenu(e: MouseEvent): void }).onContextMenu(event);
 
         // Assert
         // If logic is buggy, it sets mouse to (0,0) -> Center
         // If logic is correct, it should calc NDC from 100,100 -> (-0.8, 0.8) approx
 
         const lastCall = setFromCameraSpy.mock.lastCall;
-        const coords = lastCall![0] as THREE.Vector2;
+        if (!lastCall) { throw new Error('setFromCamera not called'); }
+        const coords = lastCall[0] as THREE.Vector2;
 
         // This is the bug: it sets it to 0,0 currently
         // We EXPECT it to NOT be 0,0 if we want it to work with mouse clicks

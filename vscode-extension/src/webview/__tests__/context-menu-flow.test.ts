@@ -1,20 +1,21 @@
 
 // Set up global mocks for the DOM environment
-const createMockElement = (tag: string): any => {
-    const el: any = {
+const createMockElement = (tag: string): unknown => {
+    const el: unknown = {
         tagName: tag.toUpperCase(),
-        style: {} as any,
+        style: {} as Record<string, string>,
         classList: { add: jest.fn(), remove: jest.fn(), toggle: jest.fn() },
-        children: [] as any[],
-        appendChild: jest.fn((child: any) => {
-            el.children.push(child);
+        children: [] as unknown[],
+        appendChild: jest.fn((child: { parentElement?: unknown }) => {
+            (el as { children: unknown[] }).children.push(child);
             child.parentElement = el;
             return child;
         }),
         remove: jest.fn(() => {
-            if (el.parentElement) {
-                const idx = el.parentElement.children.indexOf(el);
-                if (idx > -1) el.parentElement.children.splice(idx, 1);
+            const element = el as { parentElement?: { children: unknown[] } };
+            if (element.parentElement) {
+                const idx = element.parentElement.children.indexOf(el);
+                if (idx > -1) element.parentElement.children.splice(idx, 1);
             }
         }),
         getBoundingClientRect: jest.fn(() => ({ top: 0, left: 0, right: 0, bottom: 0, width: 100, height: 100 })),
@@ -27,7 +28,7 @@ const createMockElement = (tag: string): any => {
     return el;
 };
 
-(global as any).document = {
+(global as unknown as { document: unknown }).document = {
     createElement: jest.fn((tag: string) => createMockElement(tag)),
     body: createMockElement('body'),
     pointerLockElement: null,
@@ -39,14 +40,14 @@ const createMockElement = (tag: string): any => {
     querySelectorAll: jest.fn(() => [])
 };
 
-(global as any).window = {
+(global as unknown as { window: unknown }).window = {
     innerWidth: 1000,
     innerHeight: 1000
 };
 
-(global as any).MouseEvent = class MouseEvent {
+(global as unknown as { MouseEvent: unknown }).MouseEvent = class MouseEvent {
     preventDefault = jest.fn();
-    constructor(type: string, props: any) {
+    constructor(_type: string, props: object) {
         Object.assign(this, props);
     }
 };
@@ -96,23 +97,22 @@ describe('Context Menu Full Flow', () => {
     let domElement: HTMLElement;
     let objects: jest.Mocked<CodeObjectManager>;
     let selectionManager: jest.Mocked<SelectionManager>;
-    let vscode: any;
+    let vscode: { postMessage: jest.Mock };
 
     beforeEach(() => {
         // Setup DOM
         domElement = document.createElement('div');
-        // @ts-ignore
         document.body.appendChild(domElement);
 
         // Setup Camera
         camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
 
         // Setup Mocks
-        objects = new CodeObjectManager(new THREE.Scene()) as any;
+        objects = new CodeObjectManager(new THREE.Scene()) as unknown as jest.Mocked<CodeObjectManager>;
         objects.getObjectMeshes = jest.fn().mockReturnValue([]);
         objects.findByMesh = jest.fn();
 
-        selectionManager = new SelectionManager(new THREE.Scene()) as any;
+        selectionManager = new SelectionManager(new THREE.Scene()) as unknown as jest.Mocked<SelectionManager>;
 
         vscode = { postMessage: jest.fn() };
 
@@ -122,16 +122,16 @@ describe('Context Menu Full Flow', () => {
             domElement,
             objects,
             selectionManager,
-            {} as any, // dependencyManager
+            {} as unknown as import('../dependency-manager').DependencyManager,
             vscode,
-            {} as any // character
+            {} as unknown as import('../objects/visual-object').VisualObject & { placingSign: boolean } // character
         );
     });
 
     afterEach(() => {
         jest.clearAllMocks();
         // Clear global registry providers
-        (ContextMenuRegistry.getInstance() as any).providers = [];
+        (ContextMenuRegistry.getInstance() as unknown as { providers: unknown[] }).providers = [];
     });
 
     test('should create DOM elements when right-clicking an object', () => {
@@ -140,7 +140,7 @@ describe('Context Menu Full Flow', () => {
         const testObj = { id: 'test-obj', type: 'file', filePath: 'test.ts' };
 
         objects.getObjectMeshes.mockReturnValue([objectMesh]);
-        objects.findByMesh.mockReturnValue(testObj as any);
+        objects.findByMesh.mockReturnValue(testObj as unknown as import('../objects/file-object').FileObject);
 
         // Setup Raycaster to hit the object
         const raycasterInstance = (THREE.Raycaster as unknown as jest.Mock).mock.results[0].value;
@@ -167,12 +167,12 @@ describe('Context Menu Full Flow', () => {
         });
 
         // Trigger logic
-        (controller as any).onContextMenu(event);
+        (controller as unknown as { onContextMenu(e: MouseEvent): void }).onContextMenu(event);
 
         // 4. Assert: Check DOM for menu container
         // Since we are using a manual DOM mock, we check document.body.children
-        const bodyChildren = (document.body as any).children;
-        const menuContainer = bodyChildren.find((el: any) => el.className === 'context-menu-container');
+        const bodyChildren = (document.body as unknown as { children: Array<{ className: string, style: Record<string, string>, children: Array<{ className: string, textContent: string, onclick(e: object): void }> }> }).children;
+        const menuContainer = bodyChildren.find(el => el.className === 'context-menu-container');
 
         expect(menuContainer).toBeDefined();
         if (!menuContainer) return;
@@ -195,7 +195,7 @@ describe('Context Menu Full Flow', () => {
         expect(actionSpy).toHaveBeenCalledWith(testObj);
 
         // Menu should be removed from body
-        const menuAfterClick = bodyChildren.find((el: any) => el.className === 'context-menu-container');
+        const menuAfterClick = (document.body as unknown as { children: Array<{ className: string }> }).children.find(el => el.className === 'context-menu-container');
         expect(menuAfterClick).toBeUndefined();
     });
 });

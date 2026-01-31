@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import spawn from 'cross-spawn';
 
 export interface TestItem {
     id: string; // usually "fileId:Test Name"
@@ -60,7 +61,6 @@ export class TestDiscoveryService {
                 }
 
                 try {
-                    const spawn = require('cross-spawn');
                     const args = ['run', 'test', '--', '--json', '--testLocationInResults', '--passWithNoTests'];
 
                     // Add File Filters if not running full suite
@@ -71,8 +71,8 @@ export class TestDiscoveryService {
                     const child = spawn('npm', args, { cwd: workspaceRoot });
 
                     let outputBuffer = '';
-                    child.stdout.on('data', (data: any) => { outputBuffer += data.toString(); });
-                    child.stderr.on('data', (data: any) => {
+                    child.stdout!.on('data', (data: any) => { outputBuffer += data.toString(); });
+                    child.stderr!.on('data', (data: any) => {
                         // Optional: log stderr to console 
                         const msg = data.toString();
                         console.log(`[Jest Stderr]: ${msg}`);

@@ -1,5 +1,5 @@
 
-import { DependencyManager, DependencyData } from '../dependency-manager';
+import { DependencyManager } from '../dependency-manager';
 import * as THREE from 'three';
 import { VisualObject } from '../objects/visual-object';
 
@@ -8,7 +8,7 @@ import { VisualObject } from '../objects/visual-object';
 
 // Mock getFlowTexture helper if needed by mocking the module?
 // Or global document.createElement canvas mock
-(global as any).document = {
+(global as unknown as Record<string, unknown>).document = {
     createElement: jest.fn().mockReturnValue({
         getContext: jest.fn().mockReturnValue({
             createLinearGradient: jest.fn().mockReturnValue({

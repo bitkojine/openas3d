@@ -65,7 +65,8 @@ function getFlowTexture(): THREE.Texture {
     const canvas = document.createElement('canvas');
     canvas.width = 64;
     canvas.height = 1;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { return _flowTexture || new THREE.Texture(); }
 
     const gradient = ctx.createLinearGradient(0, 0, 64, 0);
     // Flow pattern: Use Alpha for transparency, keep color white
@@ -135,7 +136,8 @@ function createCurvedTubeWithArrow(
     const geometry = new THREE.TubeGeometry(curve, segments, radius, radialSegments, false);
 
     // --- Vertex colors for gradient ---
-    const count = (geometry.attributes.position as any).count || (segments + 1) * (radialSegments + 1);
+    const posAttr = geometry.attributes.position as THREE.BufferAttribute;
+    const count = posAttr ? posAttr.count : (segments + 1) * (radialSegments + 1);
     const colors = new Float32Array(count * 3);
 
     // Red (Source) -> Green (Target)
@@ -245,7 +247,8 @@ export class DependencyManager {
         });
 
         depsToRebuild.forEach(depId => {
-            const oldDep = this.dependencies.get(depId)!;
+            const oldDep = this.dependencies.get(depId);
+            if (!oldDep) { return; }
             // Capture data needed for recreation
             const data: DependencyData = {
                 id: oldDep.id,
@@ -362,7 +365,8 @@ export class DependencyManager {
         if (!this.objectStats.has(sourceId)) {
             this.objectStats.set(sourceId, { outgoing: 0, incoming: 0, circularWith: [] });
         }
-        const sourceStats = this.objectStats.get(sourceId)!;
+        const sourceStats = this.objectStats.get(sourceId);
+        if (!sourceStats) { return; }
         sourceStats.outgoing++;
         if (isCircular && !sourceStats.circularWith.includes(targetId)) {
             sourceStats.circularWith.push(targetId);
@@ -372,7 +376,8 @@ export class DependencyManager {
         if (!this.objectStats.has(targetId)) {
             this.objectStats.set(targetId, { outgoing: 0, incoming: 0, circularWith: [] });
         }
-        const targetStats = this.objectStats.get(targetId)!;
+        const targetStats = this.objectStats.get(targetId);
+        if (!targetStats) { return; }
         targetStats.incoming++;
         if (isCircular && !targetStats.circularWith.includes(sourceId)) {
             targetStats.circularWith.push(sourceId);

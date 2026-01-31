@@ -7,7 +7,7 @@ jest.mock('../../../utils/languageRegistry', () => ({
 }));
 
 jest.mock('../../texture-factory', () => ({
-    createContentTexture: jest.fn().mockReturnValue(new THREE.CanvasTexture(null as any)),
+    createContentTexture: jest.fn().mockReturnValue(new THREE.CanvasTexture({} as unknown as HTMLCanvasElement)),
     createTextSprite: jest.fn().mockReturnValue(new THREE.Sprite()),
     createTextSpriteWithDeps: jest.fn().mockReturnValue(new THREE.Sprite())
 }));
@@ -57,10 +57,10 @@ describe('FileObject', () => {
 
     test('getHeight should return correct height from root bounding box', () => {
         // Mock bounding box for the root mesh
-        fileObject.mesh.geometry.boundingBox = {
-            min: { x: -0.5, y: -1, z: -0.5 },
-            max: { x: 0.5, y: 1, z: 0.5 }
-        } as any;
+        fileObject.mesh.geometry.boundingBox = new THREE.Box3(
+            new THREE.Vector3(-0.5, -1, -0.5),
+            new THREE.Vector3(0.5, 1, 0.5)
+        );
 
         const height = fileObject.getHeight();
         expect(height).toBe(2);
@@ -73,12 +73,16 @@ describe('FileObject', () => {
         const childDisposeSpies = fileObject.mesh.children.map(child => {
             const mesh = child as THREE.Mesh;
             // Ensure geometry exists on mock
-            if (!mesh.geometry) mesh.geometry = { dispose: jest.fn() } as any;
-            if (!mesh.material) mesh.material = { dispose: jest.fn() } as any;
+            if (!mesh.geometry) {
+                mesh.geometry = new THREE.BoxGeometry(1, 1, 1);
+            }
+            if (!mesh.material) {
+                mesh.material = new THREE.MeshLambertMaterial();
+            }
 
             return {
                 geometry: jest.spyOn(mesh.geometry, 'dispose'),
-                material: jest.spyOn(mesh.material as any, 'dispose')
+                material: jest.spyOn(mesh.material as THREE.Material, 'dispose')
             };
         });
 

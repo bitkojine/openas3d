@@ -133,7 +133,7 @@ export class TddUi {
     }
 
 
-    public updateTests(tests: any[]) {
+    public updateTests(tests: Array<{ id: string; label: string; status: string }>) {
         this.list.innerHTML = '';
 
         if (tests.length === 0) {
@@ -150,10 +150,14 @@ export class TddUi {
         const isAnyRunning = running.length > 0;
         const totalDiscovered = tests.length;
 
-        const renderGroup = (title: string, groupTests: any[], options: { color?: string, forceShow?: boolean, placeholder?: string, showCount?: boolean } = {}) => {
+        const renderGroup = (
+            title: string,
+            groupTests: Array<{ id: string; label: string; status: string }>,
+            options: { color?: string, forceShow?: boolean, placeholder?: string, showCount?: boolean } = {}
+        ) => {
             const { color, forceShow = false, placeholder, showCount = true } = options;
 
-            if (groupTests.length === 0 && !forceShow) return;
+            if (groupTests.length === 0 && !forceShow) { return; }
 
             const groupHeader = document.createElement('div');
             groupHeader.style.padding = '8px 12px 4px';

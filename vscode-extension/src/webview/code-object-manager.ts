@@ -19,7 +19,7 @@ export interface AddObjectData {
     position: { x: number; y: number; z: number };
     color?: number;
     size?: { width?: number; height?: number; depth?: number };
-    metadata?: any;
+    metadata?: Record<string, unknown>;
     description?: string;
     descriptionStatus?: string;
     descriptionLastUpdated?: string;
@@ -100,8 +100,8 @@ export class CodeObjectManager {
 
         // Post-creation initialization (labels, etc)
         // All VisualObjects that support labels should implement this
-        if (typeof (visualObject as any).initializeLabel === 'function') {
-            (visualObject as any).initializeLabel(this.scene);
+        if (visualObject.initializeLabel) {
+            visualObject.initializeLabel(this.scene);
         }
 
         // Apply current theme if one exists
@@ -113,13 +113,21 @@ export class CodeObjectManager {
     public applyDescription(filePath: string, description: { summary: string; status: string; lastUpdated?: string }): void {
         const obj = [...this.objects.values()].find(o => o.metadata.filePath === filePath);
 
-        // Allow any object that supports label updates to receive them
-        if (obj && typeof (obj as any).updateLabel === 'function') {
-            (obj as any).updateLabel(this.scene, description.summary);
+        if (obj) {
+            // Update label if the object supports it
+            if ('updateLabel' in obj && typeof (obj as any).updateLabel === 'function') {
+                (obj as any).updateLabel(this.scene, description.summary);
+            }
 
-            // Update metadata to persist status
+            // Update common properties
+            obj.description = description.summary;
+            obj.descriptionStatus = description.status as 'missing' | 'generated' | 'reconciled';
+            obj.descriptionLastUpdated = description.lastUpdated || (new Date()).toISOString();
+
+            // Sync metadata for persistence
+            obj.metadata.description = description.summary;
             obj.metadata.descriptionStatus = description.status;
-            obj.metadata.descriptionLastUpdated = description.lastUpdated;
+            obj.metadata.descriptionLastUpdated = obj.descriptionLastUpdated;
         }
     }
 

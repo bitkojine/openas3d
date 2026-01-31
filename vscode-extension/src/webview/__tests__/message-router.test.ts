@@ -9,7 +9,7 @@
  */
 
 import { MessageRouter } from '../message-router';
-import { ExtensionMessage } from '../../shared/messages';
+// import { ExtensionMessage } from '../../shared/messages';
 
 describe('MessageRouter', () => {
     let router: MessageRouter;
@@ -32,7 +32,7 @@ describe('MessageRouter', () => {
         });
 
         it('should pass data to handler', async () => {
-            let receivedData: any = null;
+            let receivedData: unknown = null;
 
             router.register('addObject', (data) => {
                 receivedData = data;
@@ -117,7 +117,7 @@ describe('MessageRouter', () => {
         });
 
         it('should allow middleware to transform messages', async () => {
-            let receivedData: any = null;
+            let receivedData: { id: string } | null = null;
 
             router.use((msg) => {
                 if (msg.type === 'addObject' && 'data' in msg) {
@@ -142,17 +142,18 @@ describe('MessageRouter', () => {
                     id: 'original',
                     type: 'file',
                     filePath: '/test.ts',
-                    position: { x: 0, y: 0, z: 0 }
-                }
+                    position: { x: 0, y: 0, z: 0 },
+                    descriptionStatus: 'generated'
+                } as unknown as import('../../shared/messages').AddObjectPayload
             });
 
-            expect(receivedData.id).toBe('transformed-original');
+            expect((receivedData as unknown as { id: string })?.id).toBe('transformed-original');
         });
 
         it('should allow middleware to block messages', async () => {
             let handlerCalled = false;
 
-            router.use((msg) => {
+            router.use((_msg) => {
                 // Block all messages
                 return null;
             });
@@ -233,7 +234,9 @@ describe('MessageRouter', () => {
 
     describe('hasHandler', () => {
         it('should return true for registered handlers', () => {
-            router.register('clear', () => { });
+            router.register('clear', () => {
+                // No-op
+            });
             expect(router.hasHandler('clear')).toBe(true);
         });
 
