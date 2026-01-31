@@ -66,6 +66,7 @@
     }
   },
   "scripts": {
+    "lint": "eslint src --ext .ts,.js",
     "prebuild": "npm run version:sync && npm run version:local && npm run update-readme",
     "build": "npm run compile && npm run package",
     "build:prod": "npm run compile && npm run package",

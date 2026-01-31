@@ -8,12 +8,17 @@
     "plugins": [
         "@typescript-eslint"
     ],
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended"
+    ],
     "rules": {
-        "@typescript-eslint/semi": "warn",
-        "curly": "warn",
-        "eqeqeq": "warn",
-        "no-throw-literal": "warn",
-        "semi": "off"
+        "@typescript-eslint/semi": "error",
+        "curly": "error",
+        "eqeqeq": "error",
+        "no-throw-literal": "error",
+        "semi": "off",
+        "no-console": "error"
     },
     "ignorePatterns": [
         "out",
