@@ -110,12 +110,12 @@ export function tokenizeLine(line: string, theme?: ThemeColors): SyntaxToken[] {
                 }
                 endIdx++;
             }
-            if (endIdx === 0 && remaining.length > 0) endIdx = remaining.length; // run to end if no close
+            if (endIdx === 0 && remaining.length > 0) { endIdx = remaining.length; } // run to end if no close
 
             tokens.push({ text: remaining.slice(0, endIdx), color: colors.string });
             remaining = remaining.slice(endIdx);
-            if (endIdx > 0 && remaining.length === 0) inString = null; // cleared
-            else inString = null; // closed
+            if (endIdx > 0 && remaining.length === 0) { inString = null; } // cleared
+            else { inString = null; } // closed
             continue;
         }
 

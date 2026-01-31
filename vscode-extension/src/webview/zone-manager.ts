@@ -119,7 +119,7 @@ export class ZoneManager {
                 // createPathwayTexture creates new canvas texture each time. So yes, dispose.
                 if (foundation.material instanceof THREE.Material) {
                     foundation.material.dispose();
-                    if ((foundation.material as any).map) (foundation.material as any).map.dispose();
+                    if ((foundation.material as any).map) { (foundation.material as any).map.dispose(); }
                 }
             }
         }

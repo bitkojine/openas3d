@@ -300,7 +300,7 @@ function createFenceSide(
 
 function fillInterval(positions: Set<number>, start: number, end: number, spacing: number) {
     const dist = end - start;
-    if (dist <= 0) return;
+    if (dist <= 0) { return; }
 
     // Determine how many segments fit
     const count = Math.ceil(dist / spacing);
@@ -365,7 +365,7 @@ export function addZoneVisuals(scene: THREE.Scene, zones: ZoneDTO[], theme: Them
  * Create a simple paved foundation for the park area
  */
 export function createParkFoundation(zones: ZoneDTO[], theme?: ThemeColors): THREE.Mesh | null {
-    if (zones.length === 0) return null;
+    if (zones.length === 0) { return null; }
 
     // Calculate bounds of entire park
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;

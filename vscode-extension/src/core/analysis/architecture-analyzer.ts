@@ -226,7 +226,7 @@ export async function analyzeArchitecture(
 
                 const sourceId = fileIdMap.get(sourceAbsPath);
 
-                if (!sourceId) continue; // Skip if we don't track this file
+                if (!sourceId) { continue; } // Skip if we don't track this file
 
                 const relatedIds: string[] = [];
                 let type: WarningType = 'unknown';
@@ -239,7 +239,7 @@ export async function analyzeArchitecture(
                         ? violation.to
                         : path.resolve(effectiveBaseDir, violation.to);
                     targetId = fileIdMap.get(targetAbsPath);
-                    if (targetId) relatedIds.push(targetId);
+                    if (targetId) { relatedIds.push(targetId); }
                 }
 
                 if (violation.cycle) {
@@ -316,7 +316,7 @@ export async function analyzeArchitecture(
                     : path.resolve(effectiveBaseDir, mod.source);
 
                 const id = fileIdMap.get(absPath);
-                if (!id) continue;
+                if (!id) { continue; }
 
                 // Check if it's an entry point (simple heuristic or use our zone map if we had it)
                 // For now, let's look at dependencies count
@@ -349,7 +349,7 @@ export function getWarningsByFile(warnings: ArchitectureWarning[]): Map<string, 
     const byFile = new Map<string, ArchitectureWarning[]>();
 
     warnings.forEach(w => {
-        if (!byFile.has(w.fileId)) byFile.set(w.fileId, []);
+        if (!byFile.has(w.fileId)) { byFile.set(w.fileId, []); }
         byFile.get(w.fileId)!.push(w);
     });
 
