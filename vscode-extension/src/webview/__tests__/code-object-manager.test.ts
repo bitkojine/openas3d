@@ -3,6 +3,7 @@ import { CodeObjectManager } from '../code-object-manager';
 import * as THREE from 'three';
 import { FileObject } from '../objects/file-object';
 import { SignObject } from '../objects/sign-object';
+import { createTextSprite } from '../texture-factory';
 
 
 // We rely on the __mocks__/three.ts automatically used by jest
@@ -97,7 +98,6 @@ describe('CodeObjectManager', () => {
             expect(obj?.metadata.description).toBe('Hello Sign');
 
             // Verify the texture factory was actually called (catches the "shim" bug where we might return empty sprite without calling factory)
-            const { createTextSprite } = require('../texture-factory');
             expect(createTextSprite).toHaveBeenCalledWith('Hello Sign', undefined);
         });
 

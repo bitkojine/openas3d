@@ -26,6 +26,7 @@ import { updateContentConfig } from './texture-factory';
 import { EditorConfig } from '../shared/types';
 import { MessageRouter } from './message-router';
 import { AddObjectPayload, AddDependencyPayload, UpdatePositionPayload } from '../shared/messages';
+import { ContextMenuRegistry } from './services/context-menu-registry';
 
 export class World {
     private sceneManager: SceneManager;
@@ -110,7 +111,6 @@ export class World {
 
         // Register Global Context Menu Provider
         // This ensures right-click works on ALL objects, not just tests
-        const { ContextMenuRegistry } = require('./services/context-menu-registry');
         ContextMenuRegistry.getInstance().registerProvider(
             () => true, // Applies to all objects
             (obj: any) => {

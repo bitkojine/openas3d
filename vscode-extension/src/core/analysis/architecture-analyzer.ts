@@ -12,6 +12,8 @@
 // Do not import values at top level
 import type { ICruiseResult, IModule } from 'dependency-cruiser';
 import * as path from 'path';
+import * as fs from 'fs';
+import { spawn } from 'child_process';
 import { ArchitectureWarning, WarningSeverity, WarningType, FileWithZone, ArchitectureDependency } from './types';
 import { PerfTracker } from '../../utils/perf-tracker';
 
@@ -34,7 +36,6 @@ export async function analyzeArchitecture(
         // 1. Locate Configuration Files
         let configPath: string | null = null;
         let searchDir = rootPath;
-        const fs = require('fs');
 
         for (let i = 0; i < 5; i++) { // Search up to 5 levels
             const candidate = path.join(searchDir, '.dependency-cruiser.cjs');
@@ -131,7 +132,6 @@ export async function analyzeArchitecture(
 
 
             try {
-                const { spawn } = require('child_process');
 
                 const child = spawn(process.execPath, [cliPath, ...args], {
                     cwd: effectiveBaseDir,

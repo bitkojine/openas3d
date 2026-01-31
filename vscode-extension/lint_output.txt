@@ -1,0 +1,782 @@
+
+> openas3d-vscode@0.2.3 lint
+> eslint src --ext .ts,.js
+
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/__mocks__/three.ts
+    9:17  error  Type number trivially inferred from a number literal, remove type annotation    @typescript-eslint/no-inferrable-types
+    9:32  error  Type number trivially inferred from a number literal, remove type annotation    @typescript-eslint/no-inferrable-types
+    9:47  error  Type number trivially inferred from a number literal, remove type annotation    @typescript-eslint/no-inferrable-types
+   82:22  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+   83:24  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+   84:35  error  Unexpected empty method 'setFromUnitVectors'                                    @typescript-eslint/no-empty-function
+   85:21  error  Unexpected empty method 'copy'                                                  @typescript-eslint/no-empty-function
+   86:20  error  Unexpected empty method 'set'                                                   @typescript-eslint/no-empty-function
+   90:22  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+   91:5   error  Type string trivially inferred from a string literal, remove type annotation    @typescript-eslint/no-inferrable-types
+   92:5   error  Type boolean trivially inferred from a boolean literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  105:12  error  'v' is defined but never used                                                   @typescript-eslint/no-unused-vars
+  105:24  error  Unexpected empty method 'lookAt'                                                @typescript-eslint/no-empty-function
+  107:46  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  116:35  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  116:58  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  126:25  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  127:24  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  130:43  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  131:15  error  Unexpected empty method 'dispose'                                               @typescript-eslint/no-empty-function
+  137:19  error  Unexpected empty constructor                                                    @typescript-eslint/no-empty-function
+  138:19  error  'obj' is defined but never used                                                 @typescript-eslint/no-unused-vars
+  138:24  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  146:17  error  Type number trivially inferred from a number literal, remove type annotation    @typescript-eslint/no-inferrable-types
+  146:36  error  Type number trivially inferred from a number literal, remove type annotation    @typescript-eslint/no-inferrable-types
+  146:56  error  Type number trivially inferred from a number literal, remove type annotation    @typescript-eslint/no-inferrable-types
+  156:17  error  'width' is defined but never used                                               @typescript-eslint/no-unused-vars
+  156:33  error  'height' is defined but never used                                              @typescript-eslint/no-unused-vars
+  160:15  error  Unexpected empty method 'dispose'                                               @typescript-eslint/no-empty-function
+  164:39  error  Unexpected empty method 'setHex'                                                @typescript-eslint/no-empty-function
+  165:17  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  166:30  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  198:15  error  Unexpected empty method 'dispose'                                               @typescript-eslint/no-empty-function
+  202:17  error  'canvas' is defined but never used                                              @typescript-eslint/no-unused-vars
+  202:25  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  213:17  error  'material' is defined but never used                                            @typescript-eslint/no-unused-vars
+  213:28  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  221:17  error  'v0' is defined but never used                                                  @typescript-eslint/no-unused-vars
+  221:21  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  221:26  error  'v1' is defined but never used                                                  @typescript-eslint/no-unused-vars
+  221:30  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  221:35  error  'v2' is defined but never used                                                  @typescript-eslint/no-unused-vars
+  221:39  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  221:44  error  Unexpected empty constructor                                                    @typescript-eslint/no-empty-function
+  226:17  error  'v0' is defined but never used                                                  @typescript-eslint/no-unused-vars
+  226:21  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  226:26  error  'v1' is defined but never used                                                  @typescript-eslint/no-unused-vars
+  226:30  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  226:35  error  'v2' is defined but never used                                                  @typescript-eslint/no-unused-vars
+  226:39  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  226:44  error  'v3' is defined but never used                                                  @typescript-eslint/no-unused-vars
+  226:48  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  226:53  error  Unexpected empty constructor                                                    @typescript-eslint/no-empty-function
+  231:17  error  'geo' is defined but never used                                                 @typescript-eslint/no-unused-vars
+  231:23  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  231:28  error  'mat' is defined but never used                                                 @typescript-eslint/no-unused-vars
+  231:34  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  232:28  error  Unexpected empty method 'computeLineDistances'                                  @typescript-eslint/no-empty-function
+  242:5   error  Type number trivially inferred from a number literal, remove type annotation    @typescript-eslint/no-inferrable-types
+  243:5   error  Type number trivially inferred from a number literal, remove type annotation    @typescript-eslint/no-inferrable-types
+  244:5   error  Type number trivially inferred from a number literal, remove type annotation    @typescript-eslint/no-inferrable-types
+  245:17  error  'r' is defined but never used                                                   @typescript-eslint/no-unused-vars
+  245:21  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  245:26  error  'g' is defined but never used                                                   @typescript-eslint/no-unused-vars
+  245:30  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  245:35  error  'b' is defined but never used                                                   @typescript-eslint/no-unused-vars
+  245:39  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  245:44  error  Unexpected empty constructor                                                    @typescript-eslint/no-empty-function
+  246:11  error  Unexpected empty method 'set'                                                   @typescript-eslint/no-empty-function
+  253:24  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  253:39  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  259:23  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  259:45  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  259:58  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  259:79  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  259:84  error  'closed' is defined but never used                                              @typescript-eslint/no-unused-vars
+  259:92  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/core/analysis/__tests__/architecture-verification.test.ts
+  1:31  error  'ArchitectureWarning' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/core/analysis/architecture-analyzer.ts
+   13:15  error  'ICruiseResult' is defined but never used  @typescript-eslint/no-unused-vars
+   28:32  error  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   28:71  error  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   52:13  error  Unexpected console statement               no-console
+   79:21  error  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  102:17  error  Unexpected console statement               no-console
+  109:17  error  Unexpected console statement               no-console
+  115:17  error  Unexpected console statement               no-console
+  160:21  error  Unexpected console statement               no-console
+  167:25  error  Unexpected console statement               no-console
+  168:25  error  Unexpected console statement               no-console
+  173:17  error  Unexpected console statement               no-console
+  179:13  error  Unexpected console statement               no-console
+  187:13  error  Unexpected console statement               no-console
+  199:42  error  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  222:51  error  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  229:32  error  Expected { after 'if' condition            curly
+  242:35  error  Expected { after 'if' condition            curly
+  312:42  error  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  319:26  error  Expected { after 'if' condition            curly
+  352:36  error  Expected { after 'if' condition            curly
+  353:9   error  Forbidden non-null assertion               @typescript-eslint/no-non-null-assertion
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/core/domain/zone.ts
+  28:5   error  Type number trivially inferred from a number literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  29:5   error  Type number trivially inferred from a number literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  30:5   error  Type number trivially inferred from a number literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  31:5   error  Type number trivially inferred from a number literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  32:5   error  Type number trivially inferred from a number literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  48:15  error  'padding' is assigned a value but never used                                  @typescript-eslint/no-unused-vars
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/extension.ts
+   23:5   error  Unexpected console statement              no-console
+   65:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  232:5   error  Unexpected console statement              no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/services/__tests__/description-sync-service.test.ts
+   12:10  error  'ExtensionMessage' is defined but never used  @typescript-eslint/no-unused-vars
+   45:22  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+   65:18  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+   78:18  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+   88:34  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+   92:18  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+   98:34  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  119:18  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  158:18  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  179:18  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  211:18  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/services/__tests__/editor-config-service.test.ts
+   11:10  error  'ExtensionMessage' is defined but never used  @typescript-eslint/no-unused-vars
+   25:21  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+   32:54  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+   33:48  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+   49:18  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+   68:18  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+   78:18  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+   93:18  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  108:18  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  123:18  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  139:41  error  Expected { after 'if' condition               curly
+  140:43  error  Expected { after 'if' condition               curly
+  146:18  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  156:41  error  Expected { after 'if' condition               curly
+  157:43  error  Expected { after 'if' condition               curly
+  163:18  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/services/description-sync-service.ts
+   73:13  error  Unexpected console statement              no-console
+  109:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/services/editor-config-service.ts
+  9:10  error  'EditorConfig' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/services/explore-dependencies-service.ts
+  3:13  error  'path' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/services/layout-persistence.ts
+    1:13  error  'vscode' is defined but never used  @typescript-eslint/no-unused-vars
+   64:34  error  Expected { after 'if' condition     curly
+   79:17  error  Unexpected console statement        no-console
+   88:34  error  Expected { after 'if' condition     curly
+  103:36  error  Forbidden non-null assertion        @typescript-eslint/no-non-null-assertion
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/services/test-discovery-service.ts
+    2:13  error  'path' is defined but never used                                              @typescript-eslint/no-unused-vars
+   19:17  error  Type string trivially inferred from a string literal, remove type annotation  @typescript-eslint/no-inferrable-types
+   29:29  error  'token' is defined but never used                                             @typescript-eslint/no-unused-vars
+   74:21  error  Forbidden non-null assertion                                                  @typescript-eslint/no-non-null-assertion
+   74:53  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   75:21  error  Forbidden non-null assertion                                                  @typescript-eslint/no-non-null-assertion
+   75:53  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   78:25  error  Unexpected console statement                                                  no-console
+   83:44  error  'code' is defined but never used                                              @typescript-eslint/no-unused-vars
+  105:61  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  108:73  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  130:31  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  131:21  error  Unexpected console statement                                                  no-console
+  145:31  error  Expected { after 'if' condition                                               curly
+  152:22  error  Expected { after 'if' condition                                               curly
+  226:13  error  Unexpected console statement                                                  no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/shared/types.ts
+  80:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  89:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/test/fixtures/simple-workspace/index.ts
+  2:1  error  Unexpected console statement  no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/test/fixtures/violations/layer-violation.ts
+  11:5  error  Unexpected console statement  no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/test/runTest.ts
+  24:9  error  Unexpected console statement  no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/test/suite/extension.test.ts
+   41:20  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+   48:15  error  'startPos' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   86:49  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+   90:45  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  104:23  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  107:47  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  134:18  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  178:22  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  179:49  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  201:26  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  212:23  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  227:20  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/test/suite/index.ts
+  33:9  error  Unexpected console statement  no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/test/suite/tdd-integration.test.ts
+  61:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  62:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  77:45  error  Expected { after 'if' condition           curly
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/test/suite/test-discovery.test.ts
+  53:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  75:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  82:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/utils/__tests__/languageRegistry.test.ts
+  122:25  error  'id' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/utils/__tests__/perf-tracker.test.ts
+   3:13  error  'path' is defined but never used        @typescript-eslint/no-unused-vars
+  85:16  error  '_' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/utils/circular-buffer.ts
+  8:5  error  Type number trivially inferred from a number literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  9:5  error  Type number trivially inferred from a number literal, remove type annotation  @typescript-eslint/no-inferrable-types
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/utils/file-system.ts
+   3:10  error  'getLanguageFromExtension' is defined but never used  @typescript-eslint/no-unused-vars
+  36:13  error  Unexpected console statement                          no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/utils/perf-tracker.ts
+    3:13  error  'path' is defined but never used          @typescript-eslint/no-unused-vars
+   13:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   63:13  error  Unexpected console statement              no-console
+   97:17  error  Forbidden non-null assertion              @typescript-eslint/no-non-null-assertion
+  110:9   error  Unexpected console statement              no-console
+  111:37  error  Unexpected console statement              no-console
+  112:9   error  Unexpected console statement              no-console
+  133:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  142:13  error  Unexpected console statement              no-console
+  160:13  error  Unexpected console statement              no-console
+  162:13  error  Unexpected console statement              no-console
+  178:9   error  Unexpected console statement              no-console
+  181:13  error  Unexpected console statement              no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/utils/profiling.ts
+  11:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  14:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  14:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  39:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/visualizers/__tests__/codebase-layout.test.ts
+   12:106  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   13:106  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   28:116  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   29:107  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   51:79   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   52:84   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   53:82   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   54:83   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   58:73   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   59:74   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   60:71   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   61:68   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   62:74   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   66:78   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   67:80   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   68:96   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   69:93   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   73:80   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   74:89   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   75:97   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   76:82   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   77:88   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   81:87   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   82:85   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   83:80   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   84:81   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   85:88   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   89:86   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   90:72   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   91:80   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   92:81   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   93:79   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   94:79   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   98:89   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   99:75   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  100:81   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  101:74   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  102:75   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  106:93   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  107:81   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  108:93   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:78   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  113:74   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  121:70   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  122:68   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  131:20   error  Forbidden non-null assertion              @typescript-eslint/no-non-null-assertion
+  132:20   error  Forbidden non-null assertion              @typescript-eslint/no-non-null-assertion
+  145:18   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  158:20   error  Forbidden non-null assertion              @typescript-eslint/no-non-null-assertion
+  159:20   error  Forbidden non-null assertion              @typescript-eslint/no-non-null-assertion
+  169:18   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  196:20   error  Forbidden non-null assertion              @typescript-eslint/no-non-null-assertion
+  197:20   error  Forbidden non-null assertion              @typescript-eslint/no-non-null-assertion
+  198:20   error  Forbidden non-null assertion              @typescript-eslint/no-non-null-assertion
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/visualizers/__tests__/zone-classifier.test.ts
+  12:79  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  13:84  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  14:82  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  15:83  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  19:73  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  20:74  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  21:71  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  22:68  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  23:74  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  27:78  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  28:80  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  29:96  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  30:93  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  34:80  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  35:89  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  36:97  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  37:82  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  38:88  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  42:87  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  43:85  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  44:80  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  45:81  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  46:88  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  50:86  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  51:72  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  52:80  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  53:81  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  54:79  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  55:79  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  59:89  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  60:75  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  61:81  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  62:74  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  63:75  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  67:93  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  68:81  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  69:93  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  73:78  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  74:74  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/visualizers/codebase-analyzer.ts
+   63:17  error  Unexpected console statement  no-console
+  107:46  error  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+  202:13  error  Unexpected console statement  no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/visualizers/codebase-layout.ts
+   84:54  error  Forbidden non-null assertion     @typescript-eslint/no-non-null-assertion
+  125:30  error  Expected { after 'if' condition  curly
+  244:30  error  Expected { after 'if' condition  curly
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/visualizers/codebase.ts
+    2:13  error  'path' is defined but never used  @typescript-eslint/no-unused-vars
+   70:67  error  Forbidden non-null assertion      @typescript-eslint/no-non-null-assertion
+   72:49  error  Expected { after 'if' condition   curly
+   99:21  error  Unexpected console statement      no-console
+  107:13  error  Unexpected console statement      no-console
+  122:55  error  Forbidden non-null assertion      @typescript-eslint/no-non-null-assertion
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/__tests__/code-object-manager.test.ts
+   12:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   42:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   51:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   54:66  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   55:71  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  115:19  error  'obj' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  153:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/__tests__/context-menu-flow.test.ts
+    3:42  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+    4:15  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+    6:22  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+    8:25  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+    9:38  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+   17:31  error  Expected { after 'if' condition                        curly
+   30:12  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+   42:12  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+   47:12  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+   49:38  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+   82:10  error  'DraggableObjectController' is defined but never used  @typescript-eslint/no-unused-vars
+   85:10  error  'ContextMenu' is defined but never used                @typescript-eslint/no-unused-vars
+   99:17  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  110:63  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  114:71  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  124:19  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  126:19  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  133:47  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  142:55  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  169:24  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  173:48  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  174:54  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  177:29  error  Expected { after 'if' condition                        curly
+  197:55  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/__tests__/context-menu-interaction.test.ts
+    4:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    5:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    7:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    9:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   10:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   21:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   30:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   32:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   81:9   error  'draggable' is defined but never used     @typescript-eslint/no-unused-vars
+   82:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   93:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   97:71  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  107:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  127:66  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  158:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  165:24  error  Forbidden non-null assertion              @typescript-eslint/no-non-null-assertion
+  171:9   error  Unexpected console statement              no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/__tests__/dependency-manager.test.ts
+   2:29  error  'DependencyData' is defined but never used  @typescript-eslint/no-unused-vars
+  11:12  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/__tests__/message-dispatcher.test.ts
+  13:13  error  'vscode' is defined but never used        @typescript-eslint/no-unused-vars
+  24:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/__tests__/message-router.test.ts
+   12:10  error  'ExtensionMessage' is defined but never used  @typescript-eslint/no-unused-vars
+   35:31  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  120:31  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  155:25  error  'msg' is defined but never used               @typescript-eslint/no-unused-vars
+  236:44  error  Unexpected empty arrow function               @typescript-eslint/no-empty-function
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/__tests__/selection-manager.test.ts
+  15:19  error  'data' is defined but never used          @typescript-eslint/no-unused-vars
+  15:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  15:36  error  Unexpected empty method 'update'          @typescript-eslint/no-empty-function
+  16:24  error  'theme' is defined but never used         @typescript-eslint/no-unused-vars
+  16:50  error  Unexpected empty method 'updateTheme'     @typescript-eslint/no-empty-function
+  18:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/__tests__/test-manager.test.ts
+   3:10  error  'FileObject' is defined but never used            @typescript-eslint/no-unused-vars
+  13:14  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  24:14  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  37:15  error  'sanitizedId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  40:14  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/__tests__/ui-collapse.test.ts
+    2:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    3:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    6:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    9:50  error  Expected { after 'if' condition           curly
+   18:31  error  Expected { after 'if' condition           curly
+   25:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   26:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   34:31  error  Expected { after 'if' condition           curly
+   38:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   38:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   40:82  error  Expected { after 'if' condition           curly
+   42:55  error  Expected { after 'if' condition           curly
+   44:76  error  Expected { after 'if' condition           curly
+   48:32  error  Expected { after 'if' condition           curly
+   60:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   61:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   69:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   92:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  110:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  111:19  error  'ui' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  129:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  132:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  145:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  148:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/__tests__/webview-message-handler.test.ts
+   51:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  108:45  error  Unexpected empty arrow function           @typescript-eslint/no-empty-function
+  167:17  error  Expected an error object to be thrown     no-throw-literal
+  189:73  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/bootstrap.ts
+   8:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  11:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  15:78  error  Unexpected empty arrow function           @typescript-eslint/no-empty-function
+  24:9   error  Unexpected console statement              no-console
+  39:17  error  Unexpected console statement              no-console
+  45:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  46:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  49:29  error  Unexpected console statement              no-console
+  50:9   error  Unexpected console statement              no-console
+  56:31  error  Unexpected console statement              no-console
+  57:9   error  Unexpected console statement              no-console
+  66:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  67:9   error  Unexpected console statement              no-console
+  80:9   error  Unexpected console statement              no-console
+  86:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  87:9   error  Unexpected console statement              no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/character-controller.ts
+  16:5   error  Type number trivially inferred from a number literal, remove type annotation    @typescript-eslint/no-inferrable-types
+  17:5   error  Type number trivially inferred from a number literal, remove type annotation    @typescript-eslint/no-inferrable-types
+  29:5   error  Type boolean trivially inferred from a boolean literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  30:5   error  Type boolean trivially inferred from a boolean literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  33:5   error  Type boolean trivially inferred from a boolean literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  82:44  error  Unexpected empty method 'handlePointerLockError'                                @typescript-eslint/no-empty-function
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/code-object-manager.ts
+    6:28  error  'DependencyDTO' is defined but never used        @typescript-eslint/no-unused-vars
+    7:23  error  'CodeEntityDTO' is defined but never used        @typescript-eslint/no-unused-vars
+   12:10  error  'ArchitectureWarning' is defined but never used  @typescript-eslint/no-unused-vars
+   12:31  error  'getWarningsByFile' is defined but never used    @typescript-eslint/no-unused-vars
+   22:16  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  103:37  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  104:30  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  117:35  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  118:21  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  195:19  error  Expected { after 'if' condition                  curly
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/controllers/draggable-controller.ts
+  18:30  error  Expected { after 'if' condition  curly
+  37:54  error  Expected { after 'if' condition  curly
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/dependency-manager.ts
+   68:17  error  Forbidden non-null assertion                                                    @typescript-eslint/no-non-null-assertion
+   99:5   error  Type number trivially inferred from a number literal, remove type annotation    @typescript-eslint/no-inferrable-types
+  100:5   error  Type boolean trivially inferred from a boolean literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  101:5   error  'importKind' is defined but never used                                          @typescript-eslint/no-unused-vars
+  138:52  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  223:5   error  Type number trivially inferred from a number literal, remove type annotation    @typescript-eslint/no-inferrable-types
+  248:28  error  Forbidden non-null assertion                                                    @typescript-eslint/no-non-null-assertion
+  365:29  error  Forbidden non-null assertion                                                    @typescript-eslint/no-non-null-assertion
+  375:29  error  Forbidden non-null assertion                                                    @typescript-eslint/no-non-null-assertion
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/environment.ts
+  136:32  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  190:5   error  Type number trivially inferred from a number literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  554:17  error  Forbidden non-null assertion                                                  @typescript-eslint/no-non-null-assertion
+  577:21  error  Expected { after 'if' condition                                               curly
+  578:28  error  Expected { after 'if' condition                                               curly
+  580:21  error  Expected { after 'if' condition                                               curly
+  581:28  error  Expected { after 'if' condition                                               curly
+  583:31  error  Expected { after 'if' condition                                               curly
+  584:38  error  Expected { after 'if' condition                                               curly
+  585:38  error  Expected { after 'if' condition                                               curly
+  586:45  error  Expected { after 'if' condition                                               curly
+  743:17  error  Forbidden non-null assertion                                                  @typescript-eslint/no-non-null-assertion
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/interaction-controller.ts
+   24:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   25:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  183:25  error  '_event' is defined but never used        @typescript-eslint/no-unused-vars
+  216:25  error  '_event' is defined but never used        @typescript-eslint/no-unused-vars
+  293:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  323:25  error  Unexpected console statement              no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/message-dispatcher.ts
+  12:67  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  38:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  48:55  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/message-router.ts
+  18:61  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  62:13  error  Unexpected console statement              no-console
+  69:76  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  72:13  error  Unexpected console statement              no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/objects/__tests__/file-object.test.ts
+  10:85  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  63:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  76:33  error  Expected { after 'if' condition           curly
+  76:75  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  77:33  error  Expected { after 'if' condition           curly
+  77:75  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  81:55  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/objects/file-object.ts
+    3:10  error  'RenderableEntity' is defined but never used                                  @typescript-eslint/no-unused-vars
+    4:10  error  'CodeEntityDTO' is defined but never used                                     @typescript-eslint/no-unused-vars
+  149:52  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  202:86  error  'height' is defined but never used                                            @typescript-eslint/no-unused-vars
+  207:52  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  211:19  error  Expected { after 'if' condition                                               curly
+  211:58  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  342:52  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  346:19  error  Expected { after 'if' condition                                               curly
+  346:58  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  438:38  error  Expected { after 'if' condition                                               curly
+  470:25  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  483:65  error  Expected { after 'if' condition                                               curly
+  491:22  error  Expected { after 'if' condition                                               curly
+  498:30  error  Expected { after 'if' condition                                               curly
+  499:38  error  Expected { after 'if' condition                                               curly
+  525:30  error  Expected { after 'if' condition                                               curly
+  533:5   error  Type string trivially inferred from a string literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  540:27  error  Expected { after 'if' condition                                               curly
+  574:25  error  Expected { after 'if' condition                                               curly
+  594:52  error  Expected { after 'if' condition                                               curly
+  707:35  error  Expected { after 'if' condition                                               curly
+  708:32  error  Expected { after 'if' condition                                               curly
+  712:19  error  Expected { after 'if' condition                                               curly
+  715:25  error  Expected { after 'if' condition                                               curly
+  743:49  error  Expected { after 'if' condition                                               curly
+  748:21  error  Forbidden non-null assertion                                                  @typescript-eslint/no-non-null-assertion
+  777:42  error  Expected { after 'if' condition                                               curly
+  802:44  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  842:41  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  849:21  error  Forbidden non-null assertion                                                  @typescript-eslint/no-non-null-assertion
+  881:32  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/objects/sign-object.ts
+   2:23  error  'CodeEntityDTO' is defined but never used  @typescript-eslint/no-unused-vars
+  21:25  error  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  51:52  error  Expected { after 'if' condition            curly
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/objects/visual-object.ts
+  15:22  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  19:5   error  Type string trivially inferred from a string literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  30:78  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  32:29  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  58:34  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  68:20  error  'time' is defined but never used                                              @typescript-eslint/no-unused-vars
+  68:34  error  'deltaTime' is defined but never used                                         @typescript-eslint/no-unused-vars
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/panel-manager.ts
+  17:51  error  Type string trivially inferred from a string literal, remove type annotation    @typescript-eslint/no-inferrable-types
+  68:47  error  Type boolean trivially inferred from a boolean literal, remove type annotation  @typescript-eslint/no-inferrable-types
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/panel.ts
+   31:57  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   31:62  error  Type string trivially inferred from a string literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  102:50  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  145:21  error  Unexpected console statement                                                  no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/scene-manager.ts
+    2:51  error  'createPathwayTexture' is defined but never used  @typescript-eslint/no-unused-vars
+   16:41  error  'vscodeApi' is defined but never used             @typescript-eslint/no-unused-vars
+   16:53  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+   41:35  error  Expected { after 'if' condition                   curly
+   44:26  error  Expected { after 'if' condition                   curly
+  161:31  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  169:28  error  Expected { after 'if' condition                   curly
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/selection-manager.ts
+  81:19  error  '_deltaTime' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/services/context-menu-registry.ts
+  18:27  error  Unexpected empty constructor  @typescript-eslint/no-empty-function
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/stats-ui.ts
+    5:5   error  Type number trivially inferred from a number literal, remove type annotation    @typescript-eslint/no-inferrable-types
+    6:5   error  Type boolean trivially inferred from a boolean literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  123:46  error  Expected { after 'if' condition                                                 curly
+  123:54  error  Forbidden non-null assertion                                                    @typescript-eslint/no-non-null-assertion
+  128:41  error  Expected { after 'if' condition                                                 curly
+  129:45  error  Expected { after 'if' condition                                                 curly
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/syntax-highlighter.ts
+  113:55  error  Expected { after 'if' condition  curly
+  117:55  error  Expected { after 'if' condition  curly
+  118:18  error  Expected { after 'else'          curly
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/test-manager.ts
+    2:10  error  'FileObject' is defined but never used    @typescript-eslint/no-unused-vars
+    4:13  error  'THREE' is defined but never used         @typescript-eslint/no-unused-vars
+   86:25  error  Expected { after 'if' condition           curly
+  102:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  103:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  107:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/test-utils/test-bridge.ts
+   15:19  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   27:21  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   35:21  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  136:58  error  Type number trivially inferred from a number literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  191:27  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  192:44  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  200:13  error  Unexpected console statement                                                  no-console
+  223:20  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  250:29  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  251:21  error  Unexpected console statement                                                  no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/texture-factory.ts
+  141:5   error  Type number trivially inferred from a number literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  142:5   error  Type number trivially inferred from a number literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  145:32  error  'fontSize' is assigned a value but never used                                 @typescript-eslint/no-unused-vars
+  159:25  error  Forbidden non-null assertion                                                  @typescript-eslint/no-non-null-assertion
+  174:17  error  Forbidden non-null assertion                                                  @typescript-eslint/no-non-null-assertion
+  323:21  error  Forbidden non-null assertion                                                  @typescript-eslint/no-non-null-assertion
+  401:17  error  Forbidden non-null assertion                                                  @typescript-eslint/no-non-null-assertion
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/theme-manager.ts
+  117:31  error  Expected { after 'if' condition  curly
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/ui/context-menu.ts
+  15:33  error  Expected { after 'if' condition  curly
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/ui/legend-ui.ts
+  1:10  error  'WebviewMessage' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/ui/tdd-ui.ts
+  136:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  153:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  156:56  error  Expected { after 'if' condition           curly
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/warning-manager.ts
+  12:19  error  Unexpected empty constructor  @typescript-eslint/no-empty-function
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/warning-overlay.ts
+   30:5   error  Type boolean trivially inferred from a boolean literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  227:37  error  Expected { after 'if' condition                                                 curly
+  318:41  error  Expected { after 'if' condition                                                 curly
+  332:37  error  Expected { after 'if' condition                                                 curly
+  369:13  error  Unexpected console statement                                                    no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/webview-message-handler.ts
+  16:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  18:77  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  20:81  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  64:21  error  Unexpected console statement              no-console
+  74:13  error  Unexpected console statement              no-console
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/webview-template.ts
+  126:7  error  'CONTROLS_HELP' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/world.ts
+    2:15  error  'acquireVsCodeApi' is defined but never used                                  @typescript-eslint/no-unused-vars
+    3:24  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+    4:21  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+    5:23  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   47:21  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   49:5   error  Type number trivially inferred from a number literal, remove type annotation  @typescript-eslint/no-inferrable-types
+   52:28  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   54:27  error  Forbidden non-null assertion                                                  @typescript-eslint/no-non-null-assertion
+   55:25  error  Forbidden non-null assertion                                                  @typescript-eslint/no-non-null-assertion
+   56:27  error  Forbidden non-null assertion                                                  @typescript-eslint/no-non-null-assertion
+   69:28  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  116:19  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  163:17  error  Unexpected console statement                                                  no-console
+  210:15  error  'circularCount' is assigned a value but never used                            @typescript-eslint/no-unused-vars
+  276:32  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  284:32  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  341:36  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  343:42  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  351:29  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  397:25  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  398:17  error  Unexpected console statement                                                  no-console
+  443:13  error  Unexpected console statement                                                  no-console
+  458:47  error  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/zone-manager.ts
+  122:49  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  122:59  error  Expected { after 'if' condition           curly
+  122:83  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/name/trusted-git/oss/openas3d/vscode-extension/src/webview/zone-visuals.ts
+  130:17  error  Forbidden non-null assertion     @typescript-eslint/no-non-null-assertion
+  303:20  error  Expected { after 'if' condition  curly
+  368:29  error  Expected { after 'if' condition  curly
+
+✖ 624 problems (624 errors, 0 warnings)
+  115 errors and 0 warnings potentially fixable with the `--fix` option.
+
