@@ -4,16 +4,17 @@ This document outlines the phased plan to transition the `openas3d-vscode` exten
 
 ## Current Baseline (on `main`)
 The following issues were identified after re-enabling recommended rules:
-- **Major Issues**: `no-explicit-any` (304), `no-unused-vars` (71)
+- **Major Issues**: `no-explicit-any` (316), `no-unused-vars` (71)
 - **Moderate Issues**: `no-inferrable-types` (40), `no-non-null-assertion` (32), `no-empty-function` (22)
 - **Minor Issues**: `ban-ts-comment` (6), `no-var-requires` (6), `no-case-declarations` (5), `prefer-const` (2), `no-empty` (1), `no-async-promise-executor` (1), `no-throw-literal` (1)
 
 ## Phase 1: Global Rule Hardening & Critical Fixes
 Turning high-impact but low-volume rules into errors immediately.
 
-- **Commit 1: Set All Targeted Rules to "Error"**
+- **Commit 1: Set All Targeted Rules to "Error" & Unmask Suppressions**
   - Update `.eslintrc.json` to set all current warnings to `"error"`.
-  - Goal: Ensure no new warnings are introduced during work.
+  - Remove all current `eslint-disable`, `@ts-ignore`, and `@ts-expect-error` comments (11 found).
+  - Goal: Establish a truly honest baseline of all violations.
 - **Commit 2: Fix Simple Core Errors (Minor Set)**
   - Address: `no-case-declarations`, `no-empty`, `no-async-promise-executor`, `prefer-const`.
   - Scope: ~10 instances.
